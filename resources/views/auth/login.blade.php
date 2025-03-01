@@ -19,7 +19,8 @@
       <div class="mx-auto w-full max-w-sm lg:w-96">
         <div>
           <img class="h-10 w-auto" src="https://tailwindui.com/plus-assets/img/logos/mark.svg?color=indigo&shade=600" alt="Your Company">
-          <h2 class="mt-8 text-2xl/9 font-bold tracking-tight text-gray-900">Sign in to your account</h2>
+          <h2 class="mt-8 text-2xl/9 font-bold tracking-tight text-gray-900">Welcome To Maill All Center</h2>
+          <h5 class="mt-1 text-md/9 font-bold tracking-tight text-blue-900">Sign in</h5>
         </div>
 
         @if ($errors->any())
@@ -31,7 +32,7 @@
                 </ul>
             </div>
         @endif
-        <div class="mt-10">
+        <div class="mt-5">
           <div>
             <form action="{{ route('login') }}" method="POST" class="space-y-6">
                 @csrf

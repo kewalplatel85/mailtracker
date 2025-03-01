@@ -8,8 +8,8 @@
                     </div>
                     <div class="hidden md:block">
                         <div class="ml-10 flex items-baseline space-x-4">
-                            <a href="{{route('dashboard')}}" data-route="{{route('dashboard')}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-white" aria-current="page">Dashboard</a>
-                            <a href="{{route('packagelogs')}}" data-route="{{route('packagelogs')}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Package Logs</a>
+                            <a href="{{route('dashboard')}}" data-route="{{url(route('dashboard'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-white" aria-current="page">Dashboard</a>
+                            <a href="{{route('packagelogs')}}" data-route="{{url(route('packagelogs'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Package Logs</a>
                             {{-- <a href="#" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Custom SMS</a> --}}
                         </div>
                     </div>
@@ -65,8 +65,8 @@
         <!-- Mobile menu -->
         <div class="md:hidden hidden" id="mobile-menu">
             <div class="space-y-1 px-2 pt-2 pb-3 sm:px-3">
-                <a href="{{route('dashboard')}}" data-route="{{route('dashboard')}}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-white" aria-current="page">Dashboard</a>
-                <a href="{{route('packagelogs')}}" data-route="{{route('packagelogs')}}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Package Logs</a>
+                <a href="{{route('dashboard')}}" data-route="{{url(route('dashboard'))}}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-white" aria-current="page">Dashboard</a>
+                <a href="{{route('packagelogs')}}" data-route="{{url(route('packagelogs'))}}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Package Logs</a>
                 {{-- <a href="#" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Custom SMS</a> --}}
             </div>
             <div class="border-t border-gray-700 pt-4 pb-3">
