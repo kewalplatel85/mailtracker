@@ -70,3 +70,46 @@ $(document).ready(function () {
         }
     });
 });
+
+// dropdown toggle
+$(document).ready(function () {
+    const dropdownButton = $('button[aria-haspopup="listbox"]');
+    const dropdownMenu = $('ul[role="listbox"]');
+
+    // Toggle dropdown visibility
+    dropdownButton.on('click', function () {
+        const isExpanded = $(this).attr('aria-expanded') === 'true';
+        $(this).attr('aria-expanded', !isExpanded);
+        dropdownMenu.toggleClass('hidden');
+    });
+
+    // Hide dropdown when clicking outside
+    $(document).on('click', function (e) {
+        if (!dropdownButton.is(e.target) && !dropdownMenu.is(e.target) && dropdownMenu.has(e.target).length === 0) {
+            dropdownButton.attr('aria-expanded', 'false');
+            dropdownMenu.addClass('hidden');
+        }
+    });
+
+    // Handle option selection
+    dropdownMenu.on('click', 'li', function () {
+        const selectedText = $(this).find('span.truncate').text().trim();
+        dropdownButton.find('.truncate').text(selectedText);
+
+        dropdownMenu.find('li').removeClass('bg-indigo-600 text-white');
+        $(this).addClass('bg-indigo-600 text-white');
+
+        dropdownButton.attr('aria-expanded', 'false');
+        dropdownMenu.addClass('hidden');
+    });
+
+    // Highlight on hover
+    dropdownMenu.on('mouseenter', 'li', function () {
+        $(this).addClass('bg-indigo-600 text-white');
+    }).on('mouseleave', 'li', function () {
+        if (!$(this).hasClass('selected')) {
+            $(this).removeClass('bg-indigo-600 text-white');
+        }
+    });
+});
+
