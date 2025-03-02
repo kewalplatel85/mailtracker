@@ -20,5 +20,4 @@
         {{-- @include('partials.footer') <!-- Footer partial --> --}}
     </div>
 </body>
-
 </html>
