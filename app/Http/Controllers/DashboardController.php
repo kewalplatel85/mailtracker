@@ -23,8 +23,9 @@ class DashboardController extends Controller
         }
 
         $messagesController = new MessageController();
-        $inboxData = $messagesController->showMessages(); // Fetch SMS messages
+        $inboxData = $messagesController->index(); // Fetch SMS messages
 
+        // return view('dashboard',['data'=>$data]);
         return view('dashboard',['data'=>$data, 'showMessages' => $inboxData]);
     }
 
