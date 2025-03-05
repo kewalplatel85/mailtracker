@@ -74,6 +74,7 @@ $(document).ready(function() {
                     if (response.exists) {
                         if (response.status === 'Incoming') {
                             addTrackingRow(value);
+                            $('#sms').val('Thanks for Picking up the package!');
                             filterCustomerByMailbox(response.mailbox_number);
                             let totalCount = $('#tracking_table tbody tr').length
                             $('#pcounter').val(totalCount);
