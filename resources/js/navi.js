@@ -73,43 +73,47 @@ $(document).ready(function () {
 
 // dropdown toggle
 $(document).ready(function () {
-    const dropdownButton = $('button[aria-haspopup="listbox"]');
-    const dropdownMenu = $('ul[role="listbox"]');
+    const select = $('#packageStat');
+    const dropdownBtn = $('#custom-dropdown-btn');
+    const dropdown = $('#custom-dropdown');
 
-    // Toggle dropdown visibility
-    dropdownButton.on('click', function () {
-        const isExpanded = $(this).attr('aria-expanded') === 'true';
-        $(this).attr('aria-expanded', !isExpanded);
-        dropdownMenu.toggleClass('hidden');
+    // Populate Custom Dropdown
+    function populateDropdown() {
+        dropdown.empty();
+        select.find('option').each(function () {
+            dropdown.append(`<li class="dropdown-item cursor-pointer px-4 py-2 hover:bg-indigo-600 hover:text-white">${$(this).text()}</li>`);
+        });
+    }
+
+    populateDropdown();
+
+    // Toggle Dropdown
+    dropdownBtn.on('click', function () {
+        dropdown.stop(true, true).slideToggle(200);
     });
 
-    // Hide dropdown when clicking outside
+    // Handle Selection
+    dropdown.on('click', 'li', function () {
+        const selectedText = $(this).text();
+        dropdownBtn.text(selectedText);
+        select.val(selectedText);
+        dropdown.slideUp(200);
+        $(this).attr('data-stat',selectedText);
+    });
+
+    // Close Dropdown on Outside Click
     $(document).on('click', function (e) {
-        if (!dropdownButton.is(e.target) && !dropdownMenu.is(e.target) && dropdownMenu.has(e.target).length === 0) {
-            dropdownButton.attr('aria-expanded', 'false');
-            dropdownMenu.addClass('hidden');
+        if (!dropdownBtn.is(e.target) && !dropdown.is(e.target) && dropdown.has(e.target).length === 0) {
+            dropdown.slideUp(200);
         }
     });
 
-    // Handle option selection
-    dropdownMenu.on('click', 'li', function () {
-        const selectedText = $(this).find('span.truncate').text().trim();
-        dropdownButton.find('.truncate').text(selectedText);
-
-        dropdownMenu.find('li').removeClass('bg-indigo-600 text-white');
-        $(this).addClass('bg-indigo-600 text-white');
-
-        dropdownButton.attr('aria-expanded', 'false');
-        dropdownMenu.addClass('hidden');
-    });
-
-    // Highlight on hover
-    dropdownMenu.on('mouseenter', 'li', function () {
-        $(this).addClass('bg-indigo-600 text-white');
-    }).on('mouseleave', 'li', function () {
-        if (!$(this).hasClass('selected')) {
-            $(this).removeClass('bg-indigo-600 text-white');
+    $('#pcounter').on('keypress', function(event) {
+        if (event.which === 13) { // 13 is the Enter key code
+            event.preventDefault(); // Stop form submission
+            $('#track_number').focus(); // Move focus to tracking number input
         }
     });
 });
+
 
