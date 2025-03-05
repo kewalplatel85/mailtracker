@@ -27,8 +27,8 @@
                         <div class="relative mt-2 w-full md:w-1/2">
                             <!-- Hidden Native Select -->
                             <select id="packageStat" name="packageStat" class="hidden">
-                                <option selected data-route="incoming">Incoming</option>
-                                <option data-route="outgoing">Outgoing</option>
+                                <option selected data-route="Incoming">Incoming</option>
+                                <option data-route="Outgoing">Outgoing</option>
                             </select>
 
                             <!-- Custom Dropdown Trigger -->
@@ -42,7 +42,7 @@
                             </svg>
 
                             <!-- Custom Dropdown -->
-                            <ul id="custom-dropdown" class="absolute z-10 mt-2 hidden w-full rounded-md bg-white shadow-lg transition-all duration-300 ease-in-out">
+                            <ul id="custom-dropdown" class="scanStat absolute z-10 mt-2 hidden w-full rounded-md bg-white shadow-lg transition-all duration-300 ease-in-out">
                                 <li class="dropdown-item cursor-pointer px-4 py-2 hover:bg-indigo-600 hover:text-white">Incoming</li>
                                 <li class="dropdown-item cursor-pointer px-4 py-2 hover:bg-indigo-600 hover:text-white">Outgoing</li>
                             </ul>
@@ -60,7 +60,7 @@
 
                         <div class="rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
                             <label for="pcounter" class="block text-xs font-medium text-gray-900">Number of Packages</label>
-                            <input type="text" name="pcounter" id="pcounter" min="1" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8" placeholder="0" oninput="this.value=this.value.replace(/\D/g,'')">
+                            <input type="text" name="pcounter" id="pcounter" min="1" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8" placeholder="0" oninput="this.value=this.value.replace(/\D/g,'')" value="0">
                         </div>
                         <div class="rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
                             <label for="track-number" class="block text-xs font-medium text-gray-900">Tracking number #</label>
@@ -69,8 +69,7 @@
                         <div class="rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 mb-3 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
                             <label for="track-number" class="block text-xs font-medium text-gray-900">Custom SMS #</label>
                             <textarea rows="3" name="sms" id="sms" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8"
-                                placeholder="Hi, This is Mail All Center, Mountain View. You have a package ready for pickup. Please collect it at your earliest convenience. Thanks!">Hi, This is Mail All Center, Mountain View. You have a package ready for pickup. Please collect it at your earliest convenience. Thanks!
-                            </textarea>
+                                placeholder="Hi, This is Mail All Center, Mountain View. You have a package ready for pickup. Please collect it at your earliest convenience. Thanks!">{{old('description')}}</textarea>
                         </div>
 
                             <button type="submit" class="block px-3 pt-2.5 w-full md:w-1/2 pb-1 bg-blue-600 text-white rounded-md py-2.5 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-blue-600">Save and Send SMS</button>

@@ -88,7 +88,8 @@ $(document).ready(function () {
     populateDropdown();
 
     // Toggle Dropdown
-    dropdownBtn.on('click', function () {
+    dropdownBtn.on('click', function (e) {
+        e.preventDefault();
         dropdown.stop(true, true).slideToggle(200);
     });
 
@@ -98,7 +99,8 @@ $(document).ready(function () {
         dropdownBtn.text(selectedText);
         select.val(selectedText);
         dropdown.slideUp(200);
-        $(this).attr('data-stat',selectedText);
+        dropdownBtn.attr('data-stat',selectedText);
+        $('#track_number').val('');
     });
 
     // Close Dropdown on Outside Click
