@@ -17,16 +17,23 @@ class DashboardController extends Controller
         $filePath = 'uploads/latest_file.csv';
         $data = [];
 
-        // // Check if the file exists and load its contents
+        // Check if the file exists and load its contents
         if (Storage::exists($filePath)) {
             $data = $this->parseFile(Storage::path($filePath));
         }
 
+        // Instantiate MessageController and fetch SMS messages
         $messagesController = new MessageController();
-        $inboxData = $messagesController->index(); // Fetch SMS messages
+        $inboxData = $messagesController->index();
 
-        // return view('dashboard',['data'=>$data]);
-        return view('dashboard',['data'=>$data, 'showMessages' => $inboxData]);
+        $receivedMessages = $inboxData['receivedMessages'];
+        $sentMessages = $inboxData['sentMessages'];
+
+        return view('dashboard', [
+            'data' => $data,
+            'receivedMessages' => $receivedMessages,
+            'sentMessages' => $sentMessages
+        ]);
     }
 
     private function parseFile($filePath){

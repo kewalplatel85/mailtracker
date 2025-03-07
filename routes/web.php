@@ -31,13 +31,10 @@ Route::get('/dashboard',[DashboardController::class,'index'])->name('dashboard')
 Route::post('/upload', [FileUploadController::class, 'upload'])->name('upload');
 Route::post('/saveAndNotify',[DashboardController::class,'savePackage'])->name('saveAndNotify');
 // messages
-// Route::get('/sms/inbox', [MessageController::class, 'showMessages'])->name('sms.inbox');
-// Route::post('/send-reply', [MessageController::class, 'sendReply'])->name('send.reply');
 Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
-// Send a custom message
 Route::post('/send-message', [MessageController::class, 'sendMessage'])->name('messages.send');
-// Send a reply to a message
 Route::post('/send-reply', [MessageController::class, 'sendReply'])->name('send.reply');
+Route::post('/textblast', [MessageController::class, 'sendTextBlast'])->name('messages.textblast');
 
 // PackageLogs
 Route::get('/packagelogs',[PackageController::class, 'index'])->middleware(['auth'])->name('packagelogs');

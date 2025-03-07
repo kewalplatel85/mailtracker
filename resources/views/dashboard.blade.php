@@ -144,6 +144,6 @@
                 </div>
             </div>
             {{-- @include('sms.inbox') --}}
-            @include('sms.inbox', ['messages' => $showMessages['messages']])
+            @include('sms.inbox', ['receivedMessages' => $receivedMessages, 'sentMessages' => $sentMessages])
         </main>
     @endsection
