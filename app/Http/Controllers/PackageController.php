@@ -12,12 +12,21 @@ class PackageController extends Controller
 {
     //
     public function index(){
-        $messagesController = new MessageController();
-        // $inboxData = $messagesController->showMessages(); // Fetch SMS messages
-
         $status = 'Incoming';
         $package = $this->getLogs($status);
-        // return view('packagelogs',['showMessages' => $inboxData,'packageLogs'=>$package]);
+
+        // Instantiate MessageController and fetch SMS messages
+        $messagesController = new MessageController();
+        $inboxData = $messagesController->index();
+
+        $receivedMessages = $inboxData['receivedMessages'];
+        $sentMessages = $inboxData['sentMessages'];
+
+        return view('packagelogs', [
+            'packageLogs'=>$package,
+            'receivedMessages' => $receivedMessages,
+            'sentMessages' => $sentMessages
+        ]);
     }
 
     public function getLogs($status){

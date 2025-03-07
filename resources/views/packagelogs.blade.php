@@ -79,6 +79,6 @@
                   </div>
                 </div>
           </div>
-          @include('sms.inbox', ['receivedMessages' => $receivedMessages, 'sentMessages' => $sentMessages])
+            @include('sms.inbox', ['receivedMessages' => $receivedMessages, 'sentMessages' => $sentMessages])
         </main>
     @endsection
