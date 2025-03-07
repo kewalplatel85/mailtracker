@@ -1,6 +1,7 @@
 import './bootstrap';
 import './navi.js';
 import $ from 'jquery';
+
 $.ajaxSetup({
     headers: {
         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -426,24 +427,195 @@ $(document).ready(function() {
 });
 
 // twilio
-$(document).ready(function() {
-    // Toggle the SMS inbox panel
-    $('#toggle-inbox').on('click', function() {
-        $('#inbox-panel').toggleClass('hidden');
+$(document).ready(function () {
+    // Toggle inbox panel
+    $('#toggle-inbox').on('click', function () {
+        $('#inbox-panel').toggleClass('hidden opacity-0 translate-y-4');
     });
 
-    // Handle reply form submission with AJAX
-    $('.reply-form').on('submit', function(e) {
+    // Close inbox panel
+    $('#close-inbox').on('click', function () {
+        $('#inbox-panel').addClass('hidden opacity-0 translate-y-4');
+    });
+
+    // Tab switching logic
+    $('.tab-link').on('click', function () {
+        const targetTab = $(this).data('tab');
+
+        // Hide all tabs and remove active styling
+        $('.tab-content').addClass('hidden');
+        $('.tab-link').removeClass('text-blue-600');
+
+        // Show the selected tab and highlight it
+        $(`#${targetTab}`).removeClass('hidden');
+        $(this).addClass('text-blue-600');
+    });
+
+    // Handle reply form submission via AJAX
+    $(document).on('submit', '.reply-form', function (e) {
+        e.preventDefault();
+        const form = $(this);
+
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: form.serialize(),
+            success: function (response) {
+                alert(response.success || 'Reply sent successfully!');
+                form.trigger('reset'); // Clear the form on success
+            },
+            error: function (xhr) {
+                alert(xhr.responseJSON?.error || 'Failed to send reply.');
+            }
+        });
+    });
+
+    // Handle "Create Message" form submission via AJAX
+    $('#create form').on('submit', function (e) {
         e.preventDefault();
 
-        let form = $(this);
-        let formData = form.serialize();
+        const form = $(this);
+        const formData = form.serialize();
 
-        $.post(form.attr('action'), formData, function(response) {
-            alert('Message sent successfully!');
-            form.find('textarea').val('');
-        }).fail(function(xhr) {
-            alert('Error: ' + xhr.responseText);
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: formData,
+            success: function (response) {
+                alert(response.success || 'Message sent successfully!');
+                form.trigger('reset'); // Clear the form on success
+            },
+            error: function (xhr) {
+                const errorMsg = xhr.responseJSON?.error || 'Failed to send message.';
+                alert(errorMsg);
+            }
         });
     });
 });
+
+$(document).ready(function () {
+
+    // Collect data from the table
+    const customersData = $('#clientTable tbody tr').map(function () {
+        return {
+            mailbox: $(this).find('td:eq(0)').text().trim(),
+            customer: $(this).find('td:eq(3)').text().trim(),
+            phone: $(this).find('td:eq(4)').text().trim()
+        };
+    }).get();
+
+    // Initialize autocomplete for inputs
+    function setupAutocomplete(input, key, phoneInput) {
+        $(input).on('input', function () {
+            const query = $(this).val().toLowerCase();
+            const suggestions = customersData.filter(item =>
+                item[key].toLowerCase().includes(query)
+            );
+            showSuggestions($(this), suggestions, key, phoneInput);
+        });
+    }
+
+    // Display autocomplete suggestions
+    function showSuggestions(input, suggestions, key, phoneInput) {
+        let suggestionBox = input.siblings('.autocomplete-suggestions');
+
+        if (suggestionBox.length === 0) {
+            suggestionBox = $('<div class="autocomplete-suggestions absolute bg-white shadow-lg rounded-lg mt-1 max-h-48 overflow-y-auto w-1/2"></div>');
+            input.after(suggestionBox);
+        }
+
+        suggestionBox.empty();
+
+        suggestions.forEach(item => {
+            const suggestion = $(`<div class="suggestion-item px-4 py-2 hover:bg-gray-100 cursor-pointer">${item[key]}</div>`);
+            suggestion.on('click', function () {
+                input.val(item[key]);
+                phoneInput.val(item.phone);
+                suggestionBox.empty();
+                fillOtherFields(item, key, input);
+            });
+            suggestionBox.append(suggestion);
+        });
+    }
+
+    // Global storage for phone numbers in the Text Blast tab
+    let phoneList = [];
+
+    // Helper function to clean and format phone numbers for Twilio (E.164 standard)
+    function formatPhoneNumber(number) {
+        // Remove all non-digit characters
+        let cleaned = number.replace(/\D/g, '');
+
+        // Check if it's a valid phone number (10-15 digits for international numbers)
+        if (cleaned.length >= 10 && cleaned.length <= 15) {
+            // If it's a 10-digit number (US), add +1 by default
+            if (cleaned.length === 10) {
+                return `+1${cleaned}`;
+            }
+            // Ensure the number starts with + for international formats
+            if (!cleaned.startsWith('+')) {
+                return `+${cleaned}`;
+            }
+            return cleaned;
+        }
+        return null; // Invalid number
+    }
+
+    // Autofill customer details and handle phone numbers
+    function fillOtherFields(selectedItem, key) {
+        // Detect the active tab (Create or Text Blast)
+        const isTextBlast = $('#textblast').is(':visible');
+
+        // Identify relevant input fields based on the active tab
+        const phoneInput = isTextBlast ? $('#phone_numbers') : $('#phone');
+        const customerInput = isTextBlast ? $('#search-customer-blast') : $('#search-customer');
+        const mailboxInput = isTextBlast ? $('#search-mailbox-blast') : $('#search-mailbox');
+
+        // Update the customer name and mailbox fields
+        if (key === 'mailbox') {
+            customerInput.val(selectedItem.customer);
+        } else if (key === 'customer') {
+            mailboxInput.val(selectedItem.mailbox);
+        }
+
+        // Handle phone numbers (apply to both Create and Text Blast tabs)
+        const formattedPhone = formatPhoneNumber(selectedItem.phone);
+
+        if (formattedPhone) {
+            if (isTextBlast) {
+                // Append valid numbers in the Text Blast tab (no duplicates)
+                if (!phoneList.includes(formattedPhone)) {
+                    phoneList.push(formattedPhone);
+                }
+                // Update the Text Blast phone input
+                phoneInput.val(phoneList.join(', '));
+            } else {
+                // Set the phone number directly in the Create tab (single number only)
+                phoneInput.val(formattedPhone);
+            }
+        }
+
+        // Debug logs for monitoring
+        console.log('Is Text Blast Tab Active?', isTextBlast);
+        console.log('Appending Phone Number:', formattedPhone);
+        console.log('Updated Phone List:', phoneList);
+    }
+
+
+    // Attach autocomplete to both forms
+    setupAutocomplete('#search-mailbox', 'mailbox', $('#phone'));
+    setupAutocomplete('#search-customer', 'customer', $('#phone'));
+
+    setupAutocomplete('#search-mailbox-blast', 'mailbox', $('#phone_numbers'));
+    setupAutocomplete('#search-customer-blast', 'customer', $('#phone_numbers'));
+
+    // Hide suggestions on outside click
+    $(document).on('click', function (e) {
+        if (!$(e.target).closest('.autocomplete-suggestions, #search-mailbox, #search-customer, #search-mailbox-blast, #search-customer-blast').length) {
+            $('.autocomplete-suggestions').empty();
+        }
+    });
+
+});
+
+
