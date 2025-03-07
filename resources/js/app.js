@@ -385,46 +385,119 @@ $(document).ready(function(){
 });
 
 // Packagelogs
-$(document).ready(function() {
-    $('.package_Logstat li').on('click', function(){
-        let status =$(this).text().trim();
-    //    alert(status);
+$(document).ready(function () {
+    // Handle dropdown selection and fetch packages based on status
+    $('.package_Logstat li').on('click', function () {
+        let status = $(this).text().trim(); // Get selected status (Incoming/Outgoing)
+        console.log(status);
+        // Update the dropdown button text
+        $('#custom-dropdown-btn').text(status).data('stat', status);
+        // Show/Hide Delete All column based on status
+        if (status === 'Outgoing') {
+            $('#deleteAllColumn').show();
+        } else {
+            $('#deleteAllColumn').hide();
+        }
+        // Fetch updated package logs
+        fetchPackages(status);
+    });
+
+    // Function to fetch package logs based on status
+    function fetchPackages(status) {
         $.ajax({
-            url: '/get-packages', // Update with your endpoint
+            url: '/get-packages',
             method: 'GET',
             data: { status: status },
             success: function (response) {
-                // Call function to render the updated table
                 updatePackageTable(response);
             },
             error: function () {
                 alert('Error fetching package logs.');
             }
         });
-    });
+    }
 
+    // Function to update the package table dynamically
     function updatePackageTable(packages) {
         let tableBody = $('#packageLogs tbody');
         tableBody.empty(); // Clear existing rows
 
+        if (!packages.length) {
+            tableBody.append('<tr><td colspan="8" class="text-center text-white py-3">No records found.</td></tr>');
+            return;
+        }
+
         packages.forEach(function (packageGroup) {
             let trackingNumbers = packageGroup.tracking_numbers.join(', <br>');
+            let isOutgoing = packageGroup.status === 'Outgoing';
+            let formattedDate = new Date(packageGroup.date_received).toLocaleDateString('en-GB');
 
             let row = `
                 <tr>
-                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold bg-gray-900 text-white sm:pl-0">${packageGroup.mailbox_number}</td>
-                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold bg-gray-900 text-white sm:pl-0">${packageGroup.customer_name}</td>
-                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold bg-gray-900 text-white sm:pl-0">${packageGroup.phone_number}</td>
-                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold bg-gray-900 text-white sm:pl-0">${packageGroup.package_count}</td>
-                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold bg-gray-900 text-white sm:pl-0">${trackingNumbers}</td>
-                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold bg-gray-900 text-white sm:pl-0">${packageGroup.status}</td>
-                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold bg-gray-900 text-white sm:pl-0">${packageGroup.date_received}</td>
-                </tr>
-            `;
-            tableBody.append(row); // Append new rows
+                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.mailbox_number}</td>
+                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.customer_name}</td>
+                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.phone_number}</td>
+                    <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">${packageGroup.package_count}</td>
+                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${trackingNumbers}</td>
+                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.status}</td>
+                    <td class="py-3 pr-5 pl-4 text-left text-sm font-semibold text-white">${formattedDate}</td>
+                    ${isOutgoing ? `<td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white"><button class="delete-btn text-red-600 hover:text-red-900" data-id="${packageGroup.id}">Delete</button></td>` : ''}
+                </tr>`;
+
+            tableBody.append(row);
         });
     }
+
+    // Handle delete button click for dynamically generated elements
+    $(document).on('click', '.delete-btn', function () {
+        let row = $(this).closest('tr');
+        let mailboxNumber = row.find('td:first').text().trim();
+        let status = row.find('td:nth-child(6)').text().trim();
+
+        if (status !== 'Outgoing') {
+            alert("Only 'Outgoing' packages can be deleted.");
+            return;
+        }
+
+        if (confirm("Are you sure you want to delete all 'Outgoing' tracking numbers for Mailbox #" + mailboxNumber + "?")) {
+            $.ajax({
+                url: '/deletePackage',
+                type: 'POST',
+                data: { mailbox_number: mailboxNumber, status: status },
+                success: function (response) {
+                    alert(response.message);
+                    fetchPackages($('#custom-dropdown-btn').data('stat')); // Refresh table
+                },
+                error: function () {
+                    alert("Error deleting package.");
+                }
+            });
+        }
+    });
+
+    // Delete all outgoing records
+    $('#deleteAllBtn').click(function () {
+        if (confirm("Are you sure you want to delete all 'Outgoing' packages? This action cannot be undone.")) {
+            $.ajax({
+                url: '/deleteAllOutgoing',
+                type: 'POST',
+                data: { _token: $('meta[name="csrf-token"]').attr("content") },
+                success: function (response) {
+                    if (response.success) {
+                        fetchPackages($('#custom-dropdown-btn').data('stat')); // Refresh table
+                    } else {
+                        alert(response.message);
+                    }
+                },
+                error: function () {
+                    alert("Error deleting outgoing packages.");
+                }
+            });
+        }
+    });
+
 });
+
 
 // twilio
 $(document).ready(function () {
