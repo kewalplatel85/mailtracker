@@ -80,13 +80,13 @@ class DashboardController extends Controller
         }
         // Send Email
             // Mail::to($customer->email)->send(new \App\Mail\PackageNotification($package));
-            // $trackingList = implode(", ", $trackingNumbers);
-            // // Send SMS using Twilio
-            // $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
-            // $twilio->messages->create($customerPhone, [
-            //     'from' => env('TWILIO_PHONE_NUMBER'),
-            //     'body' => "Hi {$request->customer_name},{$request->sms} Tracking Number: {$trackingList}."
-            // ]);
+            $trackingList = implode(", ", $trackingNumbers);
+            // Send SMS using Twilio
+            $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
+            $twilio->messages->create($customerPhone, [
+                'from' => env('TWILIO_PHONE_NUMBER'),
+                'body' => "Hi {$request->customer_name},{$request->sms} Tracking Number: {$trackingList}."
+            ]);
 
 
         return response()->json(['message' => 'Package saved and notifications sent successfully.']);

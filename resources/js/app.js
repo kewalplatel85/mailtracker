@@ -562,26 +562,26 @@ $(document).ready(function () {
     // Handle dropdown selection and fetch packages based on status
     $('.package_Logstat li').on('click', function () {
         let status = $(this).text().trim(); // Get selected status (Incoming/Outgoing)
-        // Update the dropdown button text
         $('#custom-dropdown-btn').text(status).data('stat', status);
-        // Show/Hide Delete All column based on status
+
         if (status === 'Outgoing') {
-            $('#deleteAllColumn').show();
+            $('#actionsText').hide();
+            $('#deleteAllBtn').show();
         } else {
-            $('#deleteAllColumn').hide();
+            $('#actionsText').show();
+            $('#deleteAllBtn').hide();
         }
-        // Fetch updated package logs
+
         fetchPackages(status);
     });
 
-    // Function to fetch package logs based on status
     function fetchPackages(status) {
         $.ajax({
             url: '/get-packages',
             method: 'GET',
             data: { status: status },
             success: function (response) {
-                updatePackageTable(response);
+                updatePackageTable(response, status);
             },
             error: function () {
                 alert('Error fetching package logs.');
@@ -589,20 +589,27 @@ $(document).ready(function () {
         });
     }
 
-    // Function to update the package table dynamically
     function updatePackageTable(packages) {
         let tableBody = $('#packageLogs tbody');
-        tableBody.empty(); // Clear existing rows
+        tableBody.empty();
 
         if (!packages.length) {
-            tableBody.append('<tr><td colspan="8" class="text-center text-white py-3">No records found.</td></tr>');
+            tableBody.append('<tr><td colspan="10" class="text-center text-white py-3">No records found.</td></tr>');
             return;
         }
 
         packages.forEach(function (packageGroup) {
-            let trackingNumbers = packageGroup.tracking_numbers.join(', <br>');
-            let isOutgoing = packageGroup.status === 'Outgoing';
             let formattedDate = new Date(packageGroup.date_received).toLocaleDateString('en-GB');
+            let isOutgoing = packageGroup.status === 'Outgoing';
+            let actionButtons = '';
+
+            if (isOutgoing) {
+                actionButtons = `<button class="delete-btn text-red-600 hover:text-red-900" data-id="${packageGroup.id}">Delete</button>`;
+            } else {
+                packageGroup.tracking_numbers.forEach(function (trackingNumber, index) {
+                    actionButtons += `<button class="update-status-btn rounded-sm text-white border-blue-950 bg-blue-800 px-0.5 hover:bg-blue-900 hover:text-gray-500 whitespace-nowrap" data-id="${packageGroup.id[index]}" data-tracking="${trackingNumber}">claim-package</button><br>`;
+                });
+            }
 
             let row = `
                 <tr>
@@ -610,65 +617,104 @@ $(document).ready(function () {
                     <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.customer_name}</td>
                     <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.phone_number}</td>
                     <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">${packageGroup.package_count}</td>
-                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${trackingNumbers}</td>
+                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.tracking_numbers.join('<br>')}</td>
                     <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.status}</td>
-                    <td class="py-3 pr-5 pl-4 text-left text-sm font-semibold text-white">${formattedDate}</td>
-                    ${isOutgoing ? `<td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white"><button class="delete-btn text-red-600 hover:text-red-900" data-id="${packageGroup.id}">Delete</button></td>` : ''}
+                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${formattedDate}</td>
+                    <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">${packageGroup.id.join('<br>')}</td>
+                    <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">${actionButtons}</td>
                 </tr>`;
 
             tableBody.append(row);
         });
     }
 
-    // Handle delete button click for dynamically generated elements
-    $(document).on('click', '.delete-btn', function () {
-        let row = $(this).closest('tr');
-        let mailboxNumber = row.find('td:first').text().trim();
-        let status = row.find('td:nth-child(6)').text().trim();
 
-        if (status !== 'Outgoing') {
-            alert("Only 'Outgoing' packages can be deleted.");
-            return;
-        }
+    // Handle Claim Package → Change to Outgoing
+    $(document).on('click', '.update-status-btn', function () {
+        let packageId = $(this).data('id');
+        let trackingNumber = $(this).data('tracking');
+        let sms = 'Thanks for Picking up the package!';
 
-        if (confirm("Are you sure you want to delete all 'Outgoing' tracking numbers for Mailbox #" + mailboxNumber + "?")) {
-            $.ajax({
-                url: '/deletePackage',
-                type: 'POST',
-                data: { mailbox_number: mailboxNumber, status: status },
-                success: function (response) {
-                    alert(response.message);
-                    fetchPackages($('#custom-dropdown-btn').data('stat')); // Refresh table
-                },
-                error: function () {
-                    alert("Error deleting package.");
-                }
-            });
-        }
+        $.ajax({
+            url: '/updatePackageStatus',
+            type: 'POST',
+            data: { id: packageId, tracking_number: trackingNumber, status: 'Outgoing',sms:sms },
+            success: function (response) {
+                alert(response.message);
+                fetchPackages($('#custom-dropdown-btn').data('stat')); // Refresh table
+            },
+            error: function () {
+                alert("Error updating package status.");
+            }
+        });
     });
 
-    // Delete all outgoing records
-    $('#deleteAllBtn').click(function () {
-        if (confirm("Are you sure you want to delete all 'Outgoing' packages? This action cannot be undone.")) {
-            $.ajax({
-                url: '/deleteAllOutgoing',
-                type: 'POST',
-                data: { _token: $('meta[name="csrf-token"]').attr("content") },
-                success: function (response) {
-                    if (response.success) {
-                        fetchPackages($('#custom-dropdown-btn').data('stat')); // Refresh table
-                    } else {
-                        alert(response.message);
-                    }
-                },
-                error: function () {
-                    alert("Error deleting outgoing packages.");
-                }
-            });
+    // Handle Delete Button
+// Delete a single package
+$(document).on('click', '.delete-btn', function () {
+    let packageId = $(this).data('id');
+
+    $.ajax({
+        url: '/delete-package',
+        method: 'POST',
+        data: {
+            package_id: packageId,
+            status: 'Outgoing',
+            _token: $('meta[name="csrf-token"]').attr('content') // Laravel CSRF
+        },
+        success: function (response) {
+            alert(response.message);
+            fetchPackages('Outgoing'); // Refresh table
+        },
+        error: function (xhr) {
+            alert(xhr.responseJSON.message);
         }
     });
+});
+
+// Delete all outgoing packages
+$('#deleteAllBtn').on('click', function () {
+    if (!confirm('Are you sure you want to delete all outgoing packages?')) return;
+
+    $.ajax({
+        url: '/delete-package',
+        method: 'POST',
+        data: {
+            status: 'Outgoing',
+            _token: $('meta[name="csrf-token"]').attr('content') // Laravel CSRF
+        },
+        success: function (response) {
+            alert(response.message);
+            fetchPackages('Outgoing'); // Refresh table
+        },
+        error: function (xhr) {
+            alert(xhr.responseJSON.message);
+        }
+    });
+});
 
 });
+
+// seacrch function
+$(document).ready(function () {
+    $("#searchInput").on("keyup", function () {
+        let query = $(this).val().toLowerCase();
+
+        $(".package-row").each(function () {
+            let mailbox = $(this).find("td:nth-child(1)").text().toLowerCase();
+            let customer = $(this).find("td:nth-child(2)").text().toLowerCase();
+            let packageId = $(this).find("td:nth-child(8)").text().toLowerCase();
+
+            if (mailbox.includes(query) || customer.includes(query) || packageId.includes(query)) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
+    });
+});
+
+
 
 
 // twilio

@@ -41,6 +41,5 @@ Route::get('/packagelogs',[PackageController::class, 'index'])->middleware(['aut
 Route::get('/get-packages',[PackageController::class, 'getPackages'])->middleware(['auth'])->name('packages');
 Route::post('/check-tracking',[PackageController::class, 'checkTrackingNumberExist'])->name('check.tracking.number');
 Route::post('/outgoing-packge',[PackageController::class,'outgoingPackage'])->middleware(['auth'])->name('outgoing.package');
-Route::post('/deletePackage', [PackageController::class, 'deletePackage'])->name('delete.package');
-Route::post('/deleteAllOutgoing', [PackageController::class, 'deleteAllOutgoing'])->name('delete.all.outgoing');
-
+Route::post('/delete-package', [PackageController::class, 'deletePackage'])->name('delete.package');
+Route::post('/updatePackageStatus', [PackageController::class, 'updateStatus'])->name('package.updateStatus');
