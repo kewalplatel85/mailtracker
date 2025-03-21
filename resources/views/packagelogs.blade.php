@@ -42,9 +42,9 @@
                                         <thead class="sticky top-0 bg-gray-900">
                                             <tr>
                                                 <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white whitespace-nowrap">Mailbox #</th>
-                                                <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">Customer</th>
-                                                <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white whitespace-nowrap">Phone Number</th>
-                                                <th class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white whitespace-nowrap">Number of Packages</th>
+                                                <th class="py-3 pr-1 pl-1 text-left text-sm font-semibold text-white">Customer</th>
+                                                <th class="py-3 pr-1 pl-1 text-left text-sm font-semibold text-white whitespace-nowrap">Phone Number</th>
+                                                <th class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white whitespace-nowrap"># Of Packages</th>
                                                 <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">Tracking Numbers</th>
                                                 <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">Status</th>
                                                 <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white whitespace-nowrap">Date Received</th>
@@ -61,8 +61,8 @@
                                             @foreach ($packages as $packageGroup)
                                             <tr class="package-row">
                                                 <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white ">{{ $packageGroup->mailbox_number }}</td>
-                                                <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">{{ $packageGroup->customer_name }}</td>
-                                                <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">{{ $packageGroup->phone_number }}</td>
+                                                <td class="py-3 pr-1 pl-1 text-left text-sm font-semibold text-white">{{ $packageGroup->customer_name }}</td>
+                                                <td class="py-3 pr-1 pl-1 text-left text-sm font-semibold text-white">{{ $packageGroup->phone_number }}</td>
                                                 <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">{{ $packageGroup->package_count }}</td>
                                                 <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">{!! implode('<br>', $packageGroup->tracking_numbers) !!}</td>
                                                 <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">{{ $packageGroup->status }}</td>
