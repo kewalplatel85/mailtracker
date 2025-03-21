@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\MessageController;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Twilio\Rest\Client;
 use App\Models\Package;
 
@@ -13,17 +14,41 @@ class PackageController extends Controller
     //
     public function index()
     {
-        $packageLogs = Package::where('status', 'Incoming')->get();
+        $packageLogs = Package::select(
+            'mailbox_number',
+            'customer_name',
+            'phone_number',
+            'status',
+            'created_at',
+            'tracking_number', // Added this
+            'id' // Added this
+        )
+        ->where('status', 'Incoming')
+        ->get()
+        ->groupBy('mailbox_number')
+        ->map(function ($group) {
+            return (object) [
+                'mailbox_number' => $group->first()->mailbox_number,
+                'customer_name' => $group->first()->customer_name,
+                'phone_number' => $group->first()->phone_number,
+                'status' => $group->first()->status,
+                'date_received' => \Carbon\Carbon::parse($group->first()->created_at)->format('d-m-Y'), // Fix here
+                'package_count' => $group->count(),
+                'tracking_numbers' => $group->pluck('tracking_number')->toArray(),
+                'id' => $group->pluck('id')->toArray(),
+            ];
+        });
 
         $messagesController = new MessageController();
         $inboxData = $messagesController->index();
 
         return view('packagelogs', [
-            'packageLogs' => $packageLogs,
+            'packages' => $packageLogs,
             'receivedMessages' => $inboxData['receivedMessages'],
             'sentMessages' => $inboxData['sentMessages'],
         ]);
     }
+
 
     public function getPackages(Request $request)
     {
@@ -33,7 +58,7 @@ class PackageController extends Controller
             ->groupBy('mailbox_number')
             ->map(function ($group) {
                 return [
-                    'id' => $group->first()->id,
+                    'id' => $group->pluck('id')->toArray(),
                     'mailbox_number' => $group->first()->mailbox_number,
                     'customer_name' => $group->first()->customer_name,
                     'phone_number' => $group->first()->phone_number,
@@ -95,17 +120,71 @@ class PackageController extends Controller
         return response()->json(['success' => true, 'message' => 'Package successfully picked, SMS sent!']);
     }
 
-    public function deletePackage(Request $request) {
-        $mailboxNumber = $request->input('mailbox_number');
+    public function updateStatus(Request $request)
+    {
+        $request->validate([
+            'id' => 'required|integer|exists:packages,id',
+            'tracking_number' => 'required|string',
+            'status' => 'required|string|in:Outgoing',
+        ]);
+
+        $package = Package::find($request->id);
+
+        if (!$package) {
+            return response()->json(['message' => 'Package not found'], 404);
+        }
+
+        // Update the package status
+        $package->status = $request->status;
+        $package->save();
+
+        $phone = Package::where('id',$request->id)->pluck('phone_number');
+        $customer = Package::where('id',$request->id)->pluck('customer_name');
+        $customerPhone = preg_replace('/\D/', '', $phone);
+        $trackingNumbers = $request->tracking_numbers;
+
+        try {
+            $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
+            $twilio->messages->create($customerPhone, [
+                'from' => env('TWILIO_PHONE_NUMBER'),
+                'body' => "Hi {$customer}, {$request->sms} Tracking Number: {$trackingNumbers}."
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error sending SMS: ' . $e->getMessage()]);
+        }
+
+        return response()->json(['message' => 'Package successfully picked, SMS sent!']);
+    }
+
+    public function deletePackage(Request $request)
+    {
+        $packageId = $request->input('package_id'); // Individual delete
         $status = $request->input('status');
 
         if ($status !== "Outgoing") {
             return response()->json(['success' => false, 'message' => 'Only "Outgoing" packages can be deleted.'], 400);
         }
 
-        Package::where('mailbox_number', $mailboxNumber)->where('status', 'Outgoing')->delete();
+        if ($packageId) {
+            // Delete a single package by ID
+            $deleted = Package::where('id', $packageId)->where('status', 'Outgoing')->delete();
 
-        return response()->json(['success' => true, 'message' => 'Deleted all "Outgoing" tracking numbers for mailbox #' . $mailboxNumber]);
+            if ($deleted) {
+                return response()->json(['success' => true, 'message' => 'Package deleted successfully.']);
+            } else {
+                return response()->json(['success' => false, 'message' => 'Package not found or already deleted.'], 404);
+            }
+        } else {
+            // Bulk delete - Delete all "Outgoing" packages
+            $deletedCount = Package::where('status', 'Outgoing')->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => $deletedCount > 0
+                    ? "Deleted all outgoing packages successfully."
+                    : "No outgoing packages found to delete."
+            ]);
+        }
     }
 
 
@@ -124,4 +203,11 @@ class PackageController extends Controller
             return response()->json(['success' => false, 'message' => 'Error deleting outgoing packages.']);
         }
     }
+
+    public function getLastPackageID(): JsonResponse
+    {
+        $lastPackage = Package::latest('id')->first();
+        return response()->json(['last_id' => $lastPackage ? $lastPackage->id : 0]);
+    }
+
 }

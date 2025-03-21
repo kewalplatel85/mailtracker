@@ -5,11 +5,18 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\MessageController;
 
 class FileUploadController extends Controller
 {
     //
     public function upload(Request $request){
+        $messagesController = new MessageController();
+        $inboxData = $messagesController->index();
+
+        $receivedMessages = $inboxData['receivedMessages'];
+        $sentMessages = $inboxData['sentMessages'];
+
         $request->validate([
             'file' => 'required|mimes:csv,xlsx|max:2048',
         ]);
@@ -28,7 +35,10 @@ class FileUploadController extends Controller
         // Parse CSV or Excel
         $data = $this->parseFile(Storage::path($filePath));
 
-        return view('dashboard', ['data' => $data]);
+        return view('dashboard',
+            ['data' => $data,
+            'receivedMessages' => $receivedMessages,
+            'sentMessages' => $sentMessages]);
     }
 
     private function parseFile($filePath){

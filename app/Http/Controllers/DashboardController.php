@@ -47,31 +47,38 @@ class DashboardController extends Controller
         return $rows;
     }
 
-    public function savePackage(Request $request){
+    public function savePackage(Request $request) {
         $request->validate([
-            'mailbox' => 'required|integer',
-            'num_packages' => 'required|integer',
             'tracking_numbers' => 'required|array',
             'tracking_numbers.*' => 'required|string',
             'customer_name' => 'required|string',
-            'customer_phone' => 'required|string',
+            'customer_phone' => 'required|string|min:10|max:15',
             'package_status' => 'required|string',
         ]);
 
         $trackingNumbers = $request->tracking_numbers;
-        $customerPhone = preg_replace('/\D/', '', $request->customer_phone);
+        $customerPhone = preg_replace('/\D/', '', $request->customer_phone); // Remove non-numeric characters
 
-        foreach ($request->tracking_numbers as $tracking_number) {
-            Package::create([
-                'customer_name' => $request->customer_name,
-                'phone_number' => $customerPhone,
-                'mailbox_number' => $request->mailbox,
-                'tracking_number' => $tracking_number,
-                'status'=> $request->package_status,
+        // ✅ Check if it's a new client
+        $mailbox = $request->mailbox;
+        if (!$mailbox) {
+            $mailbox = null; // Allow null for new clients
+        } else {
+            $request->validate([
+                'mailbox' => 'required|integer',
             ]);
         }
 
-            // Send Email
+        foreach ($trackingNumbers as $tracking_number) {
+            Package::create([
+                'customer_name' => $request->customer_name,
+                'phone_number' => $customerPhone,
+                'mailbox_number' => $mailbox,
+                'tracking_number' => $tracking_number,
+                'status' => $request->package_status,
+            ]);
+        }
+        // Send Email
             // Mail::to($customer->email)->send(new \App\Mail\PackageNotification($package));
             $trackingList = implode(", ", $trackingNumbers);
             // Send SMS using Twilio
@@ -81,7 +88,8 @@ class DashboardController extends Controller
                 'body' => "Hi {$request->customer_name},{$request->sms} Tracking Number: {$trackingList}."
             ]);
 
-        return response()->json(['message' => 'Package saved and notifications sent successfully.']);
 
+        return response()->json(['message' => 'Package saved and notifications sent successfully.']);
     }
+
 }

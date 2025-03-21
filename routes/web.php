@@ -10,9 +10,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\PackageController;
 
-Route::get('/', function () {
-    return view('auth.login');
-});
+Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
 
 // auth users
 Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
@@ -30,6 +28,8 @@ Route::post('password/reset', [ResetPasswordController::class, 'reset'])->name('
 Route::get('/dashboard',[DashboardController::class,'index'])->name('dashboard');
 Route::post('/upload', [FileUploadController::class, 'upload'])->name('upload');
 Route::post('/saveAndNotify',[DashboardController::class,'savePackage'])->name('saveAndNotify');
+Route::get('/get-last-package-id', [PackageController::class, 'getLastPackageID']);
+
 // messages
 Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
 Route::post('/send-message', [MessageController::class, 'sendMessage'])->name('messages.send');
@@ -39,8 +39,7 @@ Route::post('/textblast', [MessageController::class, 'sendTextBlast'])->name('me
 // PackageLogs
 Route::get('/packagelogs',[PackageController::class, 'index'])->middleware(['auth'])->name('packagelogs');
 Route::get('/get-packages',[PackageController::class, 'getPackages'])->middleware(['auth'])->name('packages');
-Route::post('/check-tracking',[PackageController::class, 'checkTrackingNumberExist'])->middleware(['auth'])->name('check.tracking.number');
+Route::post('/check-tracking',[PackageController::class, 'checkTrackingNumberExist'])->name('check.tracking.number');
 Route::post('/outgoing-packge',[PackageController::class,'outgoingPackage'])->middleware(['auth'])->name('outgoing.package');
-Route::post('/deletePackage', [PackageController::class, 'deletePackage'])->name('delete.package');
-Route::post('/deleteAllOutgoing', [PackageController::class, 'deleteAllOutgoing'])->name('delete.all.outgoing');
-
+Route::post('/delete-package', [PackageController::class, 'deletePackage'])->name('delete.package');
+Route::post('/updatePackageStatus', [PackageController::class, 'updateStatus'])->name('package.updateStatus');

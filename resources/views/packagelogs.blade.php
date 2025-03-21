@@ -12,6 +12,9 @@
                                 <h1 class="text-base font-semibold text-gray-900">Mail All Center</h1>
                                 <p class="mt-2 text-sm text-gray-700">Clients Information</p>
                             </div>
+                            <div class="relative mt-2 w-full md:w-1/3">
+                                <input type="text" id="searchInput" placeholder="Search by Mailbox #, Customer, or Package ID" class="w-full rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm">
+                            </div>
                             <div class="relative mt-2 w-full md:w-1/2">
                                 <select id="packageStat" name="packageStat" class="hidden">
                                     <option selected data-route="Incoming">Incoming</option>
@@ -35,49 +38,57 @@
                         <div class="mt-2 flow-root">
                             <div class="-mx-4 mt-2 px-2 overflow-x-auto sm:-mx-6 lg:-mx-8 bg-gray-900 rounded-sm">
                                 <div class="inline-block min-w-full align-middle sm:px-6 lg:px-8 max-h-screen overflow-y-auto">
-                                    @if($packageLogs->isNotEmpty())
-                                        <table class="min-w-full divide-y divide-gray-700" id="packageLogs">
-                                            <thead class="sticky top-0 bg-gray-900">
-                                                <tr>
-                                                    <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white whitespace-nowrap">Mailbox #</th>
-                                                    <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white whitespace-nowrap">Customer</th>
-                                                    <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white whitespace-nowrap">Phone Number</th>
-                                                    <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white whitespace-nowrap">Number of Packages</th>
-                                                    <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white whitespace-nowrap">Tracking Numbers</th>
-                                                    <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white whitespace-nowrap">Status</th>
-                                                    <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white whitespace-nowrap">Date Received</th>
-                                                    <th id="deleteAllColumn" class="hidden py-3 px-2 text-left text-sm font-semibold text-white whitespace-nowrap">
-                                                        <button id="deleteAllBtn" class="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 whitespace-nowrap">
-                                                            Delete All
-                                                        </button>
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody class="divide-y divide-gray-800">
-                                                @foreach ($packageLogs->groupBy('mailbox_number') as $mailboxNumber => $package)
-                                                    @php
-                                                        $firstPackage = $package->first();
-                                                    @endphp
-                                                    <tr>
-                                                        <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">{{ $mailboxNumber }}</td>
-                                                        <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">{{ $firstPackage->customer_name }}</td>
-                                                        <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">{{ $firstPackage->phone_number }}</td>
-                                                        <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">{{ $package->count() }}</td>
-                                                        <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">{!! $package->pluck('tracking_number')->implode(', <br>') !!}</td>
-                                                        <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">{{ $firstPackage->status }}</td>
-                                                        <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">{{ $firstPackage->created_at->format('d-m-Y') }}</td>
-                                                        <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">
-                                                            @if($firstPackage->status === 'Outgoing')
-                                                                <button type="button" class="delete-btn text-red-600 hover:text-red-900" data-id="{{ $firstPackage->id }}">Delete</button>
-                                                            @endif
-                                                        </td>
-                                                    </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    @else
-                                        <p class="text-white text-center py-4">No packages found.</p>
-                                    @endif
+                                    <table class="min-w-full divide-y divide-gray-700" id="packageLogs">
+                                        <thead class="sticky top-0 bg-gray-900">
+                                            <tr>
+                                                <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white whitespace-nowrap">Mailbox #</th>
+                                                <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">Customer</th>
+                                                <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white whitespace-nowrap">Phone Number</th>
+                                                <th class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white whitespace-nowrap">Number of Packages</th>
+                                                <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">Tracking Numbers</th>
+                                                <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">Status</th>
+                                                <th class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white whitespace-nowrap">Date Received</th>
+                                                <th class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white whitespace-nowrap">Package ID #</th>
+                                                <th id="actionsColumn" class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">
+                                                    <span id="actionsText">Actions</span>
+                                                    <button id="deleteAllBtn" class="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 whitespace-nowrap hidden">
+                                                        Delete All
+                                                    </button>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-800" id="tableBody">
+                                            @foreach ($packages as $packageGroup)
+                                            <tr class="package-row">
+                                                <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white ">{{ $packageGroup->mailbox_number }}</td>
+                                                <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">{{ $packageGroup->customer_name }}</td>
+                                                <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">{{ $packageGroup->phone_number }}</td>
+                                                <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">{{ $packageGroup->package_count }}</td>
+                                                <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">{!! implode('<br>', $packageGroup->tracking_numbers) !!}</td>
+                                                <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">{{ $packageGroup->status }}</td>
+                                                <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">{{ \Carbon\Carbon::parse($packageGroup->date_received)->format('d/m/Y') }}</td>
+                                                <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">{!! implode('<br>', $packageGroup->id) !!}</td>
+                                                <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">
+                                                    @foreach ($packageGroup->tracking_numbers as $index => $trackingNumber)
+                                                        @if ($packageGroup->status !== 'Outgoing')
+                                                            {{-- Claim Package Button --}}
+                                                            <button class="update-status-btn rounded-sm text-white border-blue-950 bg-blue-800 px-0.5 hover:bg-blue-900 hover:text-gray-500 whitespace-nowrap"
+                                                                data-id="{{ $packageGroup->id[$index] }}" data-tracking="{{ $trackingNumber }}">
+                                                                claim-package
+                                                            </button><br>
+                                                        @else
+                                                            {{-- Delete Button when status is Outgoing --}}
+                                                            <button type="button" class="delete-btn text-red-600 hover:text-red-900"
+                                                                data-id="{{ $packageGroup->id[$index] }}">
+                                                                Delete
+                                                            </button><br>
+                                                        @endif
+                                                    @endforeach
+                                                </td>
+                                            </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>

@@ -9,11 +9,13 @@ $.ajaxSetup({
 });
 
 // dashboard
+    // adding tracking number
 $(document).ready(function() {
     let classCounter = 1;
 
     $('#track_number').on('keypress', function(event) {
         let status = $('.package_stat').attr('data-stat');
+        let custTab = $('#custTab1').val(); // Detect selected tab
 
         if (event.which === 13) { // Enter key pressed
             event.preventDefault();
@@ -21,21 +23,60 @@ $(document).ready(function() {
             const value = $.trim($('#track_number').val());
             if (!value) return; // Exit if no value
 
-            // Function to check if tracking number exists
+            let phone = $('#cnumber').val()?.trim() || '';
+            let customerName = $('#customer').val().trim();
+            let mailbox = $('#mailbox').val().trim();
+
+            let mailboxError = $('#mailbox-error').text();
+            let customerError = $('#customer-error').text();
+
+            // ✅ Prevent adding tracking number if mailbox or customer has no match in Current Clients
+            if (custTab === 'Current Clients' && (mailboxError || customerError)) {
+                alert('No match found for mailbox or customer. Please check the inputs.');
+                return;
+            }
+
+            // ✅ Ensure phone number & name are provided (ONLY if phone input is visible)
+            if ($('#cnumber').is(':visible')) {
+                let cleanedPhone = phone.replace(/[\s-]/g, ''); // Remove spaces & dashes
+                if (!/^\d{10,14}$/.test(cleanedPhone)) { // Ensure 10-14 digits
+                    alert('Invalid phone number. Must be between 10 and 14 digits.');
+                    return;
+                }
+
+                if (phone === '') {
+                    alert('Phone number is required.');
+                    return;
+                }
+            }
+
+            if (customerName === '') {
+                alert('Customer name is required.');
+                return;
+            }
+
+            // ✅ "New Client" can proceed with or without a mailbox
+            if (custTab !== 'New Clients' && mailbox === '') {
+                alert('Mailbox is required unless selecting "New Client".');
+                return;
+            }
+
+            // ✅ Check if tracking number already exists (AJAX)
             function trackingNumberExists(value, callback) {
                 $.ajax({
                     url: '/check-tracking',
                     method: 'POST',
-                    data: { tracking_number: value },
+                    data: {
+                        tracking_number: value,
+                        _token: $('meta[name="csrf-token"]').attr("content")
+                    },
                     success: function(response) {
-                        // console.log('AJAX Success:', response);
                         if (typeof callback === 'function') {
                             callback(response);
                         }
                     },
                     error: function(xhr, status, error) {
-                        // console.error('AJAX Error:', status, error);
-                        alert('Error checking tracking number');
+                        alert('Error checking tracking number.');
                         if (typeof callback === 'function') {
                             callback({ exists: false });
                         }
@@ -43,7 +84,7 @@ $(document).ready(function() {
                 });
             }
 
-            // Function to add tracking row to the table
+            // ✅ Function to add tracking row
             function addTrackingRow(value) {
                 const uniqueClass = 'trn-' + classCounter++;
                 $('#tracking_table tbody').append(`
@@ -51,7 +92,7 @@ $(document).ready(function() {
                         <td class="${uniqueClass} p-1 ml-25 flex justify-between items-center">
                             <span class="text-center flex-1">${value}</span>
                             <button class="print-btn bg-blue-500 text-white px-2 py-1 mr-2 rounded hover:bg-blue-600" data-lbl="${value}">Print</button>
-                            <button class="delete-btn p-1 bg-red-500 text-white rounded">Delete</button>
+                            <button class="delete-track p-1 bg-red-500 text-white rounded">Delete</button>
                         </td>
                     </tr>
                 `);
@@ -60,25 +101,24 @@ $(document).ready(function() {
                 updateTotalCount();
             }
 
-            // Function to update the total package count
+            // ✅ Update total package count
             function updateTotalCount() {
-                $('#total_count').text($('#tracking_table tbody tr').length);
+                $('#pcounter').text($('#tracking_table tbody tr').length);
             }
 
-            // Function to filter customer table by mailbox number
-            function filterCustomerByMailbox(mailboxNumber) {
-                $('#mailbox').val(mailboxNumber).trigger('input');
-            }
-            // Handle 'Outgoing' Status
+            // ✅ Handle 'Outgoing' Status (No mailbox required)
             if (status === 'Outgoing') {
+                if ($('#tracking_table tbody tr td span').filter(function() { return $(this).text().trim() === value; }).length > 0) {
+                    alert('Tracking number already added.');
+                    $('#track_number').val('');
+                    return;
+                }
+
                 trackingNumberExists(value, function(response) {
                     if (response.exists) {
                         if (response.status === 'Incoming') {
                             addTrackingRow(value);
                             $('#sms').val('Thanks for Picking up the package!');
-                            filterCustomerByMailbox(response.mailbox_number);
-                            let totalCount = $('#tracking_table tbody tr').length
-                            $('#pcounter').val(totalCount);
                         } else if (response.status === 'Outgoing') {
                             alert('Package already picked up.');
                         }
@@ -89,19 +129,12 @@ $(document).ready(function() {
                 return;
             }
 
-            // Handle 'Incoming' Status - Full validation required
+            // ✅ Handle 'Incoming' Status
             if (status === 'Incoming') {
                 const packageLimit = parseInt($('#pcounter').val()) || 0;
-                const mailbox = parseInt($('#mailbox').val()) || 0;
                 const mailboxcount = $('#mailbox').attr('data-mc');
 
-                if (mailbox <= 0) {
-                    alert('Add Mailbox First!');
-                    $('#track_number').val('');
-                    return;
-                }
-
-                if (mailboxcount <= 0) {
+                if (custTab !== 'New Clients' && mailboxcount <= 0) {
                     alert('Mailbox does not exist, select a new one.');
                     $('#track_number').val('');
                     return;
@@ -115,14 +148,12 @@ $(document).ready(function() {
 
                 trackingNumberExists(value, function(response) {
                     if (response.exists) {
-                        // If status is "Incoming" and already exists, alert user
                         if (response.status === 'Incoming') {
                             alert('Package already added.');
                             $('#track_number').val('');
                             return;
                         }
                     } else {
-                        // If tracking number not found, add to tracking table
                         addTrackingRow(value);
                         $('#sms').val('You have a package ready for pickup. Please collect it at your earliest convenience. Thanks!');
                     }
@@ -131,158 +162,237 @@ $(document).ready(function() {
         }
     });
 });
-
-$('#tracking_table').on('click', '.delete-btn', function(e) {
-    e.preventDefault();
-    $(this).closest('tr').remove();
-    updateTotalCount();
-});
-
-function updateTotalCount() {
-    let totalCount = $('#tracking_table tbody tr').length;
-    $('#tracking_table tbody').attr('data-total', totalCount);
-}
-
-function updateMailcount(input){
-    const mailboxcounter = $('#clientTable tbody tr:visible').length;
-    let cust = $('#clientTable tbody tr:visible').find('td:eq(3)').text().trim();
-    $('#mailbox').attr('data-mc',mailboxcounter);
-    $('#mailbox').attr('data-mb',input);
-    $('#customer').val(cust)
-}
-
-function updateCustomer(){
-    const mailboxcounter = $('#clientTable tbody tr:visible').length;
-    let mailbox = $('#clientTable tbody tr:visible').find('td:eq(0)').text().trim();
-    $('#mailbox').attr('data-mc',mailboxcounter);
-    $('#mailbox').attr('data-mb',mailbox);
-    $('#mailbox').val(mailbox);
-}
-
+    // table filter
 $(document).ready(function () {
-    $('#mailbox').on('input', function () {
-        let input = $(this).val().trim();
+    let timeout;
+
+    function updateTotalCount() {
+        let visibleRows = $('#clientTable tbody tr:visible').length;
+        $('#mailbox').attr('data-mc', visibleRows); // Update data-mc on mailbox input
+    }
+
+    function filterTable(inputField) {
+        let mailboxInput = $('#mailbox').val().trim();
+        let customerInput = $('#customer').val().trim().toLowerCase();
+        let mailboxFilled = mailboxInput !== '';
+        let customerFilled = customerInput !== '';
+        let custTab = $('#custTab1').val(); // Get selected customer tab
+
+        let matchFound = false;
+        let matchedMailbox = '';
+        let matchedCustomer = '';
+
+        $('#mailbox-error, #customer-error').text(''); // Clear error messages
+
+        // ✅ If 'custTab1' is selected, **skip filtering** and show all rows
+        if (custTab === 'New Clients') {
+            $('#clientTable tbody tr').show();
+            updateTotalCount();
+            return;
+        }
+
+        if (!mailboxFilled && !customerFilled) {
+            $('#mailbox').val('');
+            $('#customer').val('');
+            $('#clientTable tbody tr').show();
+            updateTotalCount();
+            return;
+        }
 
         $('#clientTable tbody tr').each(function () {
-            let mailboxNumber = $(this).find('td:first').text().trim();
-            // If input is empty or matches the mailbox number, show row, else hide
-            if (input === '' || mailboxNumber === input) {
+            let mailboxNumber = $(this).find('td:eq(0)').text().trim();
+            let customer = $(this).find('td:eq(3)').text().trim();
+
+            if (inputField === 'mailbox' && mailboxNumber === mailboxInput) {
                 $(this).show();
+                if (!matchFound) {
+                    matchFound = true;
+                    matchedMailbox = mailboxNumber;
+                    matchedCustomer = customer;
+                }
+            } else if (inputField === 'customer' && customer.toLowerCase() === customerInput) {
+                $(this).show();
+                if (!matchFound) {
+                    matchFound = true;
+                    matchedMailbox = mailboxNumber;
+                    matchedCustomer = customer;
+                }
             } else {
                 $(this).hide();
             }
         });
-        setTimeout(() => {
-            updateMailcount(input);
-        },300);
+
+        if (matchFound) {
+            if (inputField === 'mailbox') {
+                $('#customer').val(matchedCustomer);
+            }
+            if (inputField === 'customer') {
+                $('#mailbox').val(matchedMailbox);
+            }
+            $('#mailbox').attr('data-mb', matchedMailbox);
+        } else {
+            if (inputField === 'mailbox') {
+                $('#mailbox-error').text('No match found');
+            }
+            if (inputField === 'customer') {
+                $('#customer-error').text('No match found');
+            }
+            $('#clientTable tbody tr').show(); // Show all rows if no match is found
+        }
+
+        updateTotalCount();
+    }
+
+    function handleInputChange(inputField) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => filterTable(inputField), 1000);
+    }
+
+    $('#mailbox').on('input', function () {
+        if ($(this).val().trim() === '') {
+            $('#customer').val('');
+            $('#clientTable tbody tr').show();
+            $('#mailbox').removeAttr('data-mb');
+        }
+        handleInputChange('mailbox');
     });
 
     $('#customer').on('input', function () {
-        let input = $(this).val().trim().toLowerCase();
+        handleInputChange('customer');
+    });
 
-        $('#clientTable tbody tr').each(function () {
-            let customer = $(this).find('td:eq(3)').text().trim().toLocaleLowerCase();
-            // If input is empty or matches the mailbox number, show row, else hide
-            if (input === '' || customer === input) {
-                $(this).show();
-            } else {
-                $(this).hide();
+    $('input').on('keypress', function (event) {
+        if (event.which === 13) {
+            event.preventDefault();
+            $('#track_number').focus();
+            return false;
+        }
+    });
+
+    // ✅ Detect changes to custTab and apply behavior accordingly
+    $('#custTab').on('change', function () {
+        if ($(this).val() === 'custTab1') {
+            $('#mailbox, #customer').val('').trigger('input'); // Clear filters
+            $('#clientTable tbody tr').show(); // Show all rows
+        } else {
+            updateTotalCount();
+        }
+    });
+
+    // Initialize table count on page load
+    updateTotalCount();
+});
+    // Package Label
+$(document).ready(function () {
+    function getLastPackageID(callback) {
+        $.ajax({
+            url: '/get-last-package-id', // Make sure this route returns the last package ID
+            method: 'GET',
+            success: function(response) {
+                if (typeof callback === 'function') {
+                    callback(response.last_id || 0);
+                }
+            },
+            error: function() {
+                alert('Error fetching last package ID.');
+                if (typeof callback === 'function') {
+                    callback(0);
+                }
             }
         });
-        setTimeout(() => {
-            updateCustomer();
-        },300);
-    });
+    }
 
-});
-
-$(document).ready(function () {
     $('#tracking_table').on('click', '.print-btn', function(e) {
         e.preventDefault();
-        let clientTable = $('#clientTable tbody tr:visible');
-        let customerName = clientTable.find('td:eq(3)').text().trim();
-        let customerPhone = clientTable.find('td:eq(4)').text().trim();
+        let isNewClient = $('#custTab1-dropdown-btn').text().trim() === 'New Clients';
+        console.log('isNewClient:', isNewClient);
+
+        let customerName = isNewClient ? $('#customer').val().trim() : $('#clientTable tbody tr:visible td:eq(3)').text().trim();
+        let customerPhone = isNewClient ? $('#cnumber').val().trim() : $('#clientTable tbody tr:visible td:eq(4)').text().trim();
         let trackingNumber = $(this).attr('data-lbl');
-        let mailbox = $('#mailbox').attr('data-mb');
-        // Create a new window for printing
-        let printWindow = window.open('', '', 'width=800,height=1280');
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Mail ALL Center</title>
-                    <script src="https://cdn.tailwindcss.com"></script>
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.0/JsBarcode.all.min.js"></script>
-                    <style>
-                        @page {
-                            size: 4in 6in;
-                            margin: 0;
-                        }
-                        body {
-                            margin: 0;
-                            padding: 0;
-                            font-family: 'Inter', sans-serif;
-                        }
-                    </style>
-                </head>
-                <body class="h-screen flex items-center justify-center p-4 bg-white">
-                    <div class="w-[4in] h-[6in] border border-black rounded-lg shadow-lg p-4 grid grid-rows-5 gap-4">
-                        <!-- Header -->
-                        <div class="flex justify-between items-center text-lg font-semibold">
-                            <span>Mailbox</span>
-                            <span>Package ID</span>
-                        </div>
+        let rowPosition = $(this).closest('tr').index() + 1;
+        let customLbl = $('#lbl').text().trim().split(',').join('<br>');
 
-                        <!-- Mailbox & Package ID -->
-                        <div class="flex justify-between items-center">
-                            <h1 class="text-7xl font-bold">${mailbox}</h1>
-                            <h1 class="text-7xl font-bold">005</h1>
-                        </div>
+        getLastPackageID(function(lastPackageID) {
+            let newPackageID = lastPackageID + rowPosition;
 
-                        <!-- Barcode -->
-                        <div class="flex justify-center">
-                            <svg id="barcode" class="w-full"></svg>
-                        </div>
+            let printWindow = window.open('', '', 'width=800,height=1280');
+            printWindow.document.write(`
+                <html>
+                    <head>
+                        <title>Mail ALL Center</title>
+                        <script src="https://cdn.tailwindcss.com"></script>
+                        <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.0/JsBarcode.all.min.js"></script>
+                        <style>
+                            @page {
+                                size: 4in 6in;
+                                margin: 0;
+                            }
+                            body {
+                                margin: 0;
+                                padding: 0;
+                                font-family: 'Inter', sans-serif;
+                            }
+                        </style>
+                    </head>
+                    <body class="h-screen flex items-center justify-center p-4 bg-white">
+                        <div class="w-[4in] h-[6in] border border-black rounded-lg shadow-lg p-4 flex flex-col justify-between">
+                            <div class="flex justify-between items-center text-lg font-semibold">
+                                ${isNewClient ? '' : '<span>Mailbox</span>'}
+                                <span>Package ID</span>
+                            </div>
 
-                        <!-- Tracking Information -->
-                        <div class="mt-5 flex justify-between items-center text-lg">
-                            <h2 class="font-medium">Tracking Number:</h2>
-                            <h2 class="font-bold">${trackingNumber}</h2>
-                        </div>
+                            <div class="flex justify-between items-center">
+                                ${isNewClient ? '' : `<h1 class="text-6xl font-bold">${$('#mailbox').attr('data-mb') || ''}</h1>`}
+                                <h1 class="text-6xl font-bold">${newPackageID}</h1>
+                            </div>
 
-                        <!-- Customer Information -->
-                        <div class="flex justify-between gap-2 text-lg">
-                            <div class="flex justify-between">
-                                <h5 class="font-medium">Customer: ${customerName}</h5>
-                                <h5 class="font-medium">Contact: ${customerPhone}</h5>
+                            <div class="flex justify-center">
+                                <svg id="barcode" class="w-full"></svg>
+                            </div>
+
+                            <div class="mt-2 text-center">
+                                <h2 class="font-medium">Tracking Number:</h2>
+                                <h2 class="font-bold">${trackingNumber}</h2>
+                            </div>
+
+                            <div class="text-center text-lg">
+                                <h5 class="font-medium">${customerName ? `Customer: ${customerName}` : ''}</h5>
+                                <h5 class="font-medium">${customerPhone ? `Contact: ${customerPhone}` : ''}</h5>
+                            </div>
+
+                            <div class="mt-2 text-center text-sm font-medium border-t pt-2">
+                                <p>${customLbl}</p>
                             </div>
                         </div>
-                    </div>
 
-                    <script>
-                        const script = document.createElement('script');
-                        script.src = "https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.0/JsBarcode.all.min.js";
-                        script.onload = function() {
-                            JsBarcode("#barcode", "${trackingNumber}", {
-                                format: "CODE128",
-                                displayValue: true,
-                                fontSize: 35,
-                                margin: 10
-                            });
-                            setTimeout(() => window.print(), 500);
-                        };
-                        document.head.appendChild(script);
-                    </script>
-                </body>
-            </html>
-        `);
+                        <script>
+                            const script = document.createElement('script');
+                            script.src = "https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.0/JsBarcode.all.min.js";
+                            script.onload = function() {
+                                JsBarcode("#barcode", "${trackingNumber}", {
+                                    format: "CODE128",
+                                    displayValue: true,
+                                    fontSize: 35,
+                                    margin: 10
+                                });
+                                setTimeout(() => window.print(), 500);
+                            };
+                            document.head.appendChild(script);
+                        </script>
+                    </body>
+                </html>
+            `);
 
-        printWindow.document.close();
+            printWindow.document.close();
+        });
     });
 });
-
+    // save package and send message
 $(document).ready(function() {
     function getCustomerInfo(mailboxNumber) {
-        let customerInfo = {};
+        let customerInfo = { name: '', phone: '' };
+
         $('#clientTable tbody tr').each(function() {
             let mailbox = $(this).find('td:eq(0)').text().trim();
             if (mailbox == mailboxNumber) {
@@ -291,19 +401,19 @@ $(document).ready(function() {
                 return false;
             }
         });
+
         return customerInfo;
     }
 
     $('#packageForm').submit(function(event) {
         event.preventDefault();
         let formData = $(this).serializeArray();
-        // Convert tracking numbers to array
-        let mailboxNumber = $('#mailbox').attr('data-mb');
+        let custTab = $('#custTab1-dropdown-btn').text().trim(); // ✅ Get selected tab
         let package_stat = $('.package_stat').attr('data-stat');
         let num_packages = $('#pcounter').val();
-        let customer = getCustomerInfo(mailboxNumber);
-        let trackingNumbers = [];
         let sms = $('#sms').val();
+        let trackingNumbers = [];
+
         $('#tracking_table tbody tr').each(function() {
             let trackingNumber = $(this).find('span').text().trim();
             trackingNumbers.push(trackingNumber);
@@ -312,104 +422,166 @@ $(document).ready(function() {
         trackingNumbers.forEach(trackingNumber => {
             formData.push({ name: 'tracking_numbers[]', value: trackingNumber });
         });
-        formData.push({ name: 'customer_name', value: customer.name, });
-        formData.push({ name: 'customer_phone', value: customer.phone, });
-        formData.push({ name: 'mailbox', value: mailboxNumber, });
+
+        let customerName = '';
+        let customerPhone = '';
+        let mailboxNumber = '';
+
+        if (custTab === 'New Clients') {
+            customerName = $('#customer').val().trim();
+            customerPhone = $('#cnumber').val().trim().replace(/\D/g, ''); // Remove non-numeric characters
+        } else {
+            mailboxNumber = $('#mailbox').attr('data-mb');
+            let customer = getCustomerInfo(mailboxNumber);
+            customerName = customer.name;
+            customerPhone = customer.phone;
+        }
+
+        // ✅ Final validation
+        if (!customerName || !customerPhone) {
+            alert('Valid customer name and phone number are required.');
+            return;
+        }
+
+        if (custTab !== 'New Clients' && (!mailboxNumber || !customerName || !customerPhone)) {
+            alert('Invalid mailbox or customer information. Please check and try again.');
+            return;
+        }
+
+        formData.push({ name: 'customer_name', value: customerName });
+        formData.push({ name: 'customer_phone', value: customerPhone });
+        formData.push({ name: 'mailbox', value: mailboxNumber || '' });
         formData.push({ name: 'package_status', value: package_stat });
         formData.push({ name: 'num_packages', value: num_packages });
         formData.push({ name: 'sms', value: sms });
 
-        if(package_stat ==='Incoming'){
-            $.ajax({
-                url: '/saveAndNotify',
-                type: 'POST',
-                data: formData,
-                success: function(response) {
-                    let message = response.message;
-                alert(message);
-                    location.reload();
-                },
-                error: function(xhr) {
-                    alert('Error: ' + xhr.responseJSON.message);
-                }
-            });
-        }else{
-            $.ajax({
-                url: '/outgoing-packge',
-                type: 'POST',
-                data: formData,
-                success: function(response) {
-                    alert(response.message);
-                    location.reload();
-                },
-                error: function(xhr) {
-                    alert('Error updating status');
-                }
-            });
-        }
+        let ajaxUrl = package_stat === 'Incoming' ? '/saveAndNotify' : '/outgoing-packge';
 
+        $.ajax({
+            url: ajaxUrl,
+            type: 'POST',
+            data: formData,
+            success: function(response) {
+                alert(response.message);
+                location.reload();
+            },
+            error: function(xhr) {
+                alert('Error: ' + xhr.responseJSON.message);
+            }
+        });
     });
 });
+    // delete btn on tracking table
+$('#tracking_table').on('click', '.delete-track', function(e) {
+    e.preventDefault();
+    $(this).closest('tr').remove();
+    $('#pcounter').val($('#tracking_table tbody tr').length);
+});
+    // switching tabs for clients and status
+$(document).ready(function() {
+    $('.scanStat li').on('click', function(e) {
+        e.preventDefault();
+        handleScanStatusChange($(this).text());
+    });
 
-$(document).ready(function(){
-    function clearTrackingTable() {
-        $('#tracking_table tbody').empty();
-        updateTotalCount();
+    $('.custTab-ul li').on('click', function(e) {
+        e.preventDefault();
+        handleCustomerTabChange($(this).text());
+    });
+
+    function handleScanStatusChange(status) {
+        updateScanStatus(status);
+        if (status === 'Outgoing') {
+            switchToCustomerTab("Current Clients");
+        }
     }
 
-    $('.scanStat li').on('click',function(e){
-        e.preventDefault();
-        let status = $(this).text();
-        if(status === 'Outgoing'){
-            $('#mailbox').val('');
-            $('#customer').val('');
-            $('#pcounter').val('');
-            $('#mailbox').prop('readonly', true);
-            $('#customer').prop('readonly', true);
-            $('#pcounter').prop('readonly', true);
-            $('#sms').val('Thanks for Picking up the package!');
-            $('#track_number').focus();
-            clearTrackingTable();
-        }else{
-            $('#mailbox').val('');
-            $('#customer').val('');
-            $('#pcounter').val('1');
-            $('#mailbox').prop('readonly', false);
-            $('#customer').prop('readonly', false);
-            $('#pcounter').prop('readonly', false);
-            $('#sms').val('You have a package ready for pickup. Please collect it at your earliest convenience. Thanks!');
-            $('#mailbox').focus();
-            clearTrackingTable();
+    function handleCustomerTabChange(custTab) {
+        let isNewCustomer = custTab === 'New Clients';
+
+        // ✅ Show/Hide relevant fields for "New Clients"
+        $('.contact-div, .lbl-div').toggle(isNewCustomer);
+
+        // ✅ Set #lbl value when selecting "New Clients"
+        if (isNewCustomer) {
+            $('#lbl').text("Rent a Mailbox for $15/ month, Avoid Porch Pirates, We accept all packages").show();
+        } else {
+            $('#lbl').text('').hide();
         }
-    });
+
+        // ✅ Reset Mailbox & Customer when switching
+        $('#mailbox, #customer').val('').removeAttr('data-mb').removeAttr('data-mc');
+
+        // ✅ Clear errors (if any)
+        $('#mailbox-error, #customer-error').text('');
+
+        if (isNewCustomer) {
+            switchToScanStatus("Incoming");
+        }
+    }
+
+    function updateScanStatus(status) {
+        let isOutgoing = status === 'Outgoing';
+
+        // ✅ Reset Inputs
+        $('#mailbox, #customer, #pcounter').val('').prop('readonly', isOutgoing);
+        $('#sms').val(isOutgoing
+            ? 'Thanks for Picking up the package!'
+            : 'You have a package ready for pickup. Please collect it at your earliest convenience. Thanks!');
+
+        // ✅ Focus on relevant input field
+        if (isOutgoing) {
+            $('#track_number').focus();
+        } else {
+            $('#mailbox').focus();
+        }
+
+        // ✅ Clear tracking table
+        $('#tracking_table tbody').empty();
+        $('#pcounter').val($('#tracking_table tbody tr').length);
+    }
+
+    function switchToCustomerTab(tabName) {
+        let tab = $(`.custTab-ul li:contains("${tabName}")`);
+        if (tab.length) {
+            tab.trigger('click');
+        }
+    }
+
+    function switchToScanStatus(statusName) {
+        let status = $(`.scanStat li:contains("${statusName}")`);
+        if (status.length) {
+            status.trigger('click');
+        }
+    }
 });
+
 
 // Packagelogs
 $(document).ready(function () {
     // Handle dropdown selection and fetch packages based on status
     $('.package_Logstat li').on('click', function () {
         let status = $(this).text().trim(); // Get selected status (Incoming/Outgoing)
-        console.log(status);
-        // Update the dropdown button text
         $('#custom-dropdown-btn').text(status).data('stat', status);
-        // Show/Hide Delete All column based on status
+
         if (status === 'Outgoing') {
-            $('#deleteAllColumn').show();
+            $('#actionsText').hide();
+            $('#deleteAllBtn').show();
         } else {
-            $('#deleteAllColumn').hide();
+            $('#actionsText').show();
+            $('#deleteAllBtn').hide();
         }
-        // Fetch updated package logs
+
         fetchPackages(status);
     });
 
-    // Function to fetch package logs based on status
     function fetchPackages(status) {
         $.ajax({
             url: '/get-packages',
             method: 'GET',
             data: { status: status },
             success: function (response) {
-                updatePackageTable(response);
+                updatePackageTable(response, status);
             },
             error: function () {
                 alert('Error fetching package logs.');
@@ -417,20 +589,27 @@ $(document).ready(function () {
         });
     }
 
-    // Function to update the package table dynamically
     function updatePackageTable(packages) {
         let tableBody = $('#packageLogs tbody');
-        tableBody.empty(); // Clear existing rows
+        tableBody.empty();
 
         if (!packages.length) {
-            tableBody.append('<tr><td colspan="8" class="text-center text-white py-3">No records found.</td></tr>');
+            tableBody.append('<tr><td colspan="10" class="text-center text-white py-3">No records found.</td></tr>');
             return;
         }
 
         packages.forEach(function (packageGroup) {
-            let trackingNumbers = packageGroup.tracking_numbers.join(', <br>');
-            let isOutgoing = packageGroup.status === 'Outgoing';
             let formattedDate = new Date(packageGroup.date_received).toLocaleDateString('en-GB');
+            let isOutgoing = packageGroup.status === 'Outgoing';
+            let actionButtons = '';
+
+            if (isOutgoing) {
+                actionButtons = `<button class="delete-btn text-red-600 hover:text-red-900" data-id="${packageGroup.id}">Delete</button>`;
+            } else {
+                packageGroup.tracking_numbers.forEach(function (trackingNumber, index) {
+                    actionButtons += `<button class="update-status-btn rounded-sm text-white border-blue-950 bg-blue-800 px-0.5 hover:bg-blue-900 hover:text-gray-500 whitespace-nowrap" data-id="${packageGroup.id[index]}" data-tracking="${trackingNumber}">claim-package</button><br>`;
+                });
+            }
 
             let row = `
                 <tr>
@@ -438,65 +617,104 @@ $(document).ready(function () {
                     <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.customer_name}</td>
                     <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.phone_number}</td>
                     <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">${packageGroup.package_count}</td>
-                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${trackingNumbers}</td>
+                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.tracking_numbers.join('<br>')}</td>
                     <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.status}</td>
-                    <td class="py-3 pr-5 pl-4 text-left text-sm font-semibold text-white">${formattedDate}</td>
-                    ${isOutgoing ? `<td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white"><button class="delete-btn text-red-600 hover:text-red-900" data-id="${packageGroup.id}">Delete</button></td>` : ''}
+                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${formattedDate}</td>
+                    <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">${packageGroup.id.join('<br>')}</td>
+                    <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">${actionButtons}</td>
                 </tr>`;
 
             tableBody.append(row);
         });
     }
 
-    // Handle delete button click for dynamically generated elements
-    $(document).on('click', '.delete-btn', function () {
-        let row = $(this).closest('tr');
-        let mailboxNumber = row.find('td:first').text().trim();
-        let status = row.find('td:nth-child(6)').text().trim();
 
-        if (status !== 'Outgoing') {
-            alert("Only 'Outgoing' packages can be deleted.");
-            return;
-        }
+    // Handle Claim Package → Change to Outgoing
+    $(document).on('click', '.update-status-btn', function () {
+        let packageId = $(this).data('id');
+        let trackingNumber = $(this).data('tracking');
+        let sms = 'Thanks for Picking up the package!';
 
-        if (confirm("Are you sure you want to delete all 'Outgoing' tracking numbers for Mailbox #" + mailboxNumber + "?")) {
-            $.ajax({
-                url: '/deletePackage',
-                type: 'POST',
-                data: { mailbox_number: mailboxNumber, status: status },
-                success: function (response) {
-                    alert(response.message);
-                    fetchPackages($('#custom-dropdown-btn').data('stat')); // Refresh table
-                },
-                error: function () {
-                    alert("Error deleting package.");
-                }
-            });
-        }
+        $.ajax({
+            url: '/updatePackageStatus',
+            type: 'POST',
+            data: { id: packageId, tracking_number: trackingNumber, status: 'Outgoing',sms:sms },
+            success: function (response) {
+                alert(response.message);
+                fetchPackages($('#custom-dropdown-btn').data('stat')); // Refresh table
+            },
+            error: function () {
+                alert("Error updating package status.");
+            }
+        });
     });
 
-    // Delete all outgoing records
-    $('#deleteAllBtn').click(function () {
-        if (confirm("Are you sure you want to delete all 'Outgoing' packages? This action cannot be undone.")) {
-            $.ajax({
-                url: '/deleteAllOutgoing',
-                type: 'POST',
-                data: { _token: $('meta[name="csrf-token"]').attr("content") },
-                success: function (response) {
-                    if (response.success) {
-                        fetchPackages($('#custom-dropdown-btn').data('stat')); // Refresh table
-                    } else {
-                        alert(response.message);
-                    }
-                },
-                error: function () {
-                    alert("Error deleting outgoing packages.");
-                }
-            });
+    // Handle Delete Button
+// Delete a single package
+$(document).on('click', '.delete-btn', function () {
+    let packageId = $(this).data('id');
+
+    $.ajax({
+        url: '/delete-package',
+        method: 'POST',
+        data: {
+            package_id: packageId,
+            status: 'Outgoing',
+            _token: $('meta[name="csrf-token"]').attr('content') // Laravel CSRF
+        },
+        success: function (response) {
+            alert(response.message);
+            fetchPackages('Outgoing'); // Refresh table
+        },
+        error: function (xhr) {
+            alert(xhr.responseJSON.message);
         }
     });
+});
+
+// Delete all outgoing packages
+$('#deleteAllBtn').on('click', function () {
+    if (!confirm('Are you sure you want to delete all outgoing packages?')) return;
+
+    $.ajax({
+        url: '/delete-package',
+        method: 'POST',
+        data: {
+            status: 'Outgoing',
+            _token: $('meta[name="csrf-token"]').attr('content') // Laravel CSRF
+        },
+        success: function (response) {
+            alert(response.message);
+            fetchPackages('Outgoing'); // Refresh table
+        },
+        error: function (xhr) {
+            alert(xhr.responseJSON.message);
+        }
+    });
+});
 
 });
+
+// seacrch function
+$(document).ready(function () {
+    $("#searchInput").on("keyup", function () {
+        let query = $(this).val().toLowerCase();
+
+        $(".package-row").each(function () {
+            let mailbox = $(this).find("td:nth-child(1)").text().toLowerCase();
+            let customer = $(this).find("td:nth-child(2)").text().toLowerCase();
+            let packageId = $(this).find("td:nth-child(8)").text().toLowerCase();
+
+            if (mailbox.includes(query) || customer.includes(query) || packageId.includes(query)) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
+    });
+});
+
+
 
 
 // twilio
@@ -667,11 +885,6 @@ $(document).ready(function () {
                 phoneInput.val(formattedPhone);
             }
         }
-
-        // Debug logs for monitoring
-        console.log('Is Text Blast Tab Active?', isTextBlast);
-        console.log('Appending Phone Number:', formattedPhone);
-        console.log('Updated Phone List:', phoneList);
     }
 
 

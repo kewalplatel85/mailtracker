@@ -71,51 +71,54 @@ $(document).ready(function () {
     });
 });
 
-// dropdown toggle
 $(document).ready(function () {
-    const select = $('#packageStat');
-    const dropdownBtn = $('#custom-dropdown-btn');
-    const dropdown = $('#custom-dropdown');
+    function initializeDropdown(selectId, dropdownBtnId, dropdownId) {
+        const select = $(selectId);
+        const dropdownBtn = $(dropdownBtnId);
+        const dropdown = $(dropdownId);
 
-    // Populate Custom Dropdown
-    function populateDropdown() {
-        dropdown.empty();
-        select.find('option').each(function () {
-            dropdown.append(`<li class="dropdown-item cursor-pointer px-4 py-2 hover:bg-indigo-600 hover:text-white">${$(this).text()}</li>`);
+        // Populate Custom Dropdown
+        function populateDropdown() {
+            dropdown.empty();
+            select.find('option').each(function () {
+                dropdown.append(`<li class="dropdown-item cursor-pointer px-4 py-2 rounded-sm hover:bg-blue-600 hover:text-white">${$(this).text()}</li>`);
+            });
+        }
+        populateDropdown();
+
+        // Toggle Dropdown
+        dropdownBtn.on('click', function (e) {
+            e.preventDefault();
+            dropdown.stop(true, true).slideToggle(200);
+        });
+
+        // Handle Selection
+        dropdown.on('click', 'li', function () {
+            const selectedText = $(this).text();
+            dropdownBtn.text(selectedText);
+            select.val(selectedText);
+            dropdown.slideUp(200);
+            dropdownBtn.attr('data-stat', selectedText);
+            $('#track_number').val('');
+        });
+
+        // Close Dropdown on Outside Click
+        $(document).on('click', function (e) {
+            if (!dropdownBtn.is(e.target) && !dropdown.is(e.target) && dropdown.has(e.target).length === 0) {
+                dropdown.slideUp(200);
+            }
         });
     }
 
-    populateDropdown();
+    // Initialize dropdowns
+    initializeDropdown('#packageStat', '#custom-dropdown-btn', '#custom-dropdown');
+    initializeDropdown('#custTab1', '#custTab1-dropdown-btn', '#custTab1-dropdown');
 
-    // Toggle Dropdown
-    dropdownBtn.on('click', function (e) {
-        e.preventDefault();
-        dropdown.stop(true, true).slideToggle(200);
-    });
-
-    // Handle Selection
-    dropdown.on('click', 'li', function () {
-        const selectedText = $(this).text();
-        dropdownBtn.text(selectedText);
-        select.val(selectedText);
-        dropdown.slideUp(200);
-        dropdownBtn.attr('data-stat',selectedText);
-        $('#track_number').val('');
-    });
-
-    // Close Dropdown on Outside Click
-    $(document).on('click', function (e) {
-        if (!dropdownBtn.is(e.target) && !dropdown.is(e.target) && dropdown.has(e.target).length === 0) {
-            dropdown.slideUp(200);
-        }
-    });
-
-    $('#pcounter').on('keypress', function(event) {
+    // Handle Enter Key Press on #pcounter
+    $('#pcounter').on('keypress', function (event) {
         if (event.which === 13) { // 13 is the Enter key code
             event.preventDefault(); // Stop form submission
             $('#track_number').focus(); // Move focus to tracking number input
         }
     });
 });
-
-
