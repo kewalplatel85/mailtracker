@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\MessageController;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Twilio\Rest\Client;
 use App\Models\Package;
 
@@ -124,4 +125,11 @@ class PackageController extends Controller
             return response()->json(['success' => false, 'message' => 'Error deleting outgoing packages.']);
         }
     }
+
+    public function getLastPackageID(): JsonResponse
+    {
+        $lastPackage = Package::latest('id')->first();
+        return response()->json(['last_id' => $lastPackage ? $lastPackage->id : 0]);
+    }
+
 }
