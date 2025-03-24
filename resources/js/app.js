@@ -358,10 +358,10 @@ $(document).ready(function () {
 
                             <div class="text-center text-lg">
                                 <h5 class="font-medium">${customerName ? `Customer: ${customerName}` : ''}</h5>
-                                <h5 class="font-medium">${customerPhone ? `Contact: ${customerPhone}` : ''}</h5>
+                                ${isNewClient ? '': `<h5 class="font-medium">${customerPhone ? `Contact: ${customerPhone}` : ''}</h5>`}
                             </div>
 
-                            <div class="mt-2 text-center text-sm font-medium border-t pt-2">
+                            <div class="mt-1 text-center text-sm font-medium border-t">
                                 <p>${customLbl}</p>
                             </div>
                         </div>
