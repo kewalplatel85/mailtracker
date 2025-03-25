@@ -37,18 +37,19 @@ $(document).ready(function() {
             }
 
             // ✅ Ensure phone number & name are provided (ONLY if phone input is visible)
-            if ($('#cnumber').is(':visible')) {
-                let cleanedPhone = phone.replace(/[\s-]/g, ''); // Remove spaces & dashes
-                if (!/^\d{10,14}$/.test(cleanedPhone)) { // Ensure 10-14 digits
-                    alert('Invalid phone number. Must be between 10 and 14 digits.');
-                    return;
-                }
+            if (custTab === 'New Clients') {
+                let phoneInput = $('#cnumber').val().trim(); // Get the input value and trim whitespace
 
-                if (phone === '') {
-                    alert('Phone number is required.');
-                    return;
+                if ($('#cnumber').is(':visible') && phoneInput !== '') {
+                    let cleanedPhone = phoneInput.replace(/[\s-]/g, ''); // Remove spaces & dashes
+
+                    if (!/^\d{10,14}$/.test(cleanedPhone)) { // Ensure 10-14 digits
+                        alert('Invalid phone number. Must be between 10 and 14 digits.');
+                        return;
+                    }
                 }
             }
+
 
             if (customerName === '') {
                 alert('Customer name is required.');
@@ -438,7 +439,7 @@ $(document).ready(function() {
         }
 
         // ✅ Final validation
-        if (!customerName || !customerPhone) {
+        if (!customerName) {
             alert('Valid customer name and phone number are required.');
             return;
         }

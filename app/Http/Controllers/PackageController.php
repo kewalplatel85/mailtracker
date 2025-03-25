@@ -92,14 +92,23 @@ class PackageController extends Controller
     public function outgoingPackage(Request $request)
     {
         $request->validate([
-            'customer_phone' => 'required|string',
             'tracking_numbers' => 'required|array',
             'package_status' => 'required|string',
             'customer_name' => 'required|string',
             'sms' => 'required|string',
         ]);
 
-        $customerPhone = preg_replace('/\D/', '', $request->customer_phone);
+        $customerPhone = $request->customer_phone;
+
+        if ($customerPhone) { // Only validate and clean if phone exists
+            $request->validate([
+                'customer_phone' => 'required|string|min:10|max:15',
+            ]);
+            $customerPhone = preg_replace('/\D/', '', $customerPhone); // Remove non-numeric characters
+        } else {
+            $customerPhone = null;
+        }
+
         $trackingNumbers = $request->tracking_numbers;
 
         Package::whereIn('tracking_number', $trackingNumbers)
@@ -107,14 +116,17 @@ class PackageController extends Controller
 
         $trackingList = implode(", ", $trackingNumbers);
 
-        try {
-            $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
-            $twilio->messages->create($customerPhone, [
-                'from' => env('TWILIO_PHONE_NUMBER'),
-                'body' => "Hi {$request->customer_name}, {$request->sms} Tracking Number: {$trackingList}."
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Error sending SMS: ' . $e->getMessage()]);
+        // FIX: Check if customerPhone is NOT null before sending SMS
+        if ($customerPhone) {
+            try {
+                $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
+                $twilio->messages->create($customerPhone, [ // Ensure this is not null
+                    'from' => env('TWILIO_PHONE_NUMBER'),
+                    'body' => "Hi {$request->customer_name}, {$request->sms} Tracking Number: {$trackingList}."
+                ]);
+            } catch (\Exception $e) {
+                return response()->json(['success' => false, 'message' => 'Error sending SMS: ' . $e->getMessage()]);
+            }
         }
 
         return response()->json(['success' => true, 'message' => 'Package successfully picked, SMS sent!']);
@@ -143,14 +155,16 @@ class PackageController extends Controller
         $customerPhone = preg_replace('/\D/', '', $phone);
         $trackingNumbers = $request->tracking_numbers;
 
-        try {
-            $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
-            $twilio->messages->create($customerPhone, [
-                'from' => env('TWILIO_PHONE_NUMBER'),
-                'body' => "Hi {$customer}, {$request->sms} Tracking Number: {$trackingNumbers}."
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Error sending SMS: ' . $e->getMessage()]);
+        if(!$phone){
+            try {
+                $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
+                $twilio->messages->create($customerPhone, [
+                    'from' => env('TWILIO_PHONE_NUMBER'),
+                    'body' => "Hi {$customer}, {$request->sms} Tracking Number: {$trackingNumbers}."
+                ]);
+            } catch (\Exception $e) {
+                return response()->json(['success' => false, 'message' => 'Error sending SMS: ' . $e->getMessage()]);
+            }
         }
 
         return response()->json(['message' => 'Package successfully picked, SMS sent!']);
