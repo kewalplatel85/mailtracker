@@ -52,12 +52,11 @@ class DashboardController extends Controller
             'tracking_numbers' => 'required|array',
             'tracking_numbers.*' => 'required|string',
             'customer_name' => 'required|string',
-            'customer_phone' => 'required|string|min:10|max:15',
+
             'package_status' => 'required|string',
         ]);
 
         $trackingNumbers = $request->tracking_numbers;
-        $customerPhone = preg_replace('/\D/', '', $request->customer_phone); // Remove non-numeric characters
 
         // ✅ Check if it's a new client
         $mailbox = $request->mailbox;
@@ -67,6 +66,16 @@ class DashboardController extends Controller
             $request->validate([
                 'mailbox' => 'required|integer',
             ]);
+        }
+
+        $customerPhone = $request->customer_phone;
+        if(!$customerPhone){
+            $customerPhone = null;
+        }else{
+            $request->validate([
+               'customer_phone' => 'string|min:10|max:15',
+            ]);
+            $customerPhone = preg_replace('/\D/', '', $request->customer_phone); // Remove non-numeric characters
         }
 
         foreach ($trackingNumbers as $tracking_number) {
@@ -80,14 +89,15 @@ class DashboardController extends Controller
         }
         // Send Email
             // Mail::to($customer->email)->send(new \App\Mail\PackageNotification($package));
-            $trackingList = implode(", ", $trackingNumbers);
-            // Send SMS using Twilio
-            $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
-            $twilio->messages->create($customerPhone, [
-                'from' => env('TWILIO_PHONE_NUMBER'),
-                'body' => "Hi {$request->customer_name},{$request->sms} Tracking Number: {$trackingList}."
-            ]);
-
+            if($customerPhone != null){
+                $trackingList = implode(", ", $trackingNumbers);
+                // Send SMS using Twilio
+                $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
+                $twilio->messages->create($customerPhone, [
+                    'from' => env('TWILIO_PHONE_NUMBER'),
+                    'body' => "Hi {$request->customer_name},{$request->sms} Tracking Number: {$trackingList}."
+                ]);
+            }
 
         return response()->json(['message' => 'Package saved and notifications sent successfully.']);
     }
