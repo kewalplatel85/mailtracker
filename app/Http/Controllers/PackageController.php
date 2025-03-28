@@ -152,15 +152,14 @@ class PackageController extends Controller
 
         $phone = Package::where('id',$request->id)->pluck('phone_number');
         $customer = Package::where('id',$request->id)->pluck('customer_name');
-        $customerPhone = preg_replace('/\D/', '', $phone);
-        $trackingNumbers = $request->tracking_numbers;
 
-        if(!$phone){
+        if($phone){
+            $customerPhone = preg_replace('/\D/', '', $phone);
             try {
                 $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
                 $twilio->messages->create($customerPhone, [
                     'from' => env('TWILIO_PHONE_NUMBER'),
-                    'body' => "Hi {$customer}, {$request->sms} Tracking Number: {$trackingNumbers}."
+                    'body' => "Hi {$customer[0]}, {$request->sms} Tracking Number: {$request->tracking_number}."
                 ]);
             } catch (\Exception $e) {
                 return response()->json(['success' => false, 'message' => 'Error sending SMS: ' . $e->getMessage()]);

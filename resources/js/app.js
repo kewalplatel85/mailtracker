@@ -346,6 +346,7 @@ $(document).ready(function () {
                             <div class="flex justify-between items-center">
                                 ${isNewClient ? '' : `<h1 class="text-6xl font-bold">${$('#mailbox').attr('data-mb') || ''}</h1>`}
                                 <h1 class="text-6xl font-bold">${newPackageID}</h1>
+                                ${isNewClient ? `<p>${customLbl}</p>` : ''}
                             </div>
 
                             <div class="flex justify-center">
@@ -361,9 +362,7 @@ $(document).ready(function () {
                                 <h5 class="font-medium">${customerName ? `Customer: ${customerName}` : ''}</h5>
                                 ${isNewClient ? '': `<h5 class="font-medium">${customerPhone ? `Contact: ${customerPhone}` : ''}</h5>`}
                             </div>
-
-                            <div class="mt-1 text-center text-sm font-medium border-t">
-                                <p>${customLbl}</p>
+                            <div>
                             </div>
                         </div>
 
