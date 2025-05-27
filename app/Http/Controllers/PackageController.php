@@ -49,7 +49,6 @@ class PackageController extends Controller
         ]);
     }
 
-
     public function getPackages(Request $request)
     {
         $status = $request->query('status', 'Incoming');
@@ -135,38 +134,58 @@ class PackageController extends Controller
     public function updateStatus(Request $request)
     {
         $request->validate([
-            'id' => 'required|integer|exists:packages,id',
-            'tracking_number' => 'required|string',
+            'packages' => 'required|array',
+            'packages.*.id' => 'required|integer|exists:packages,id',
+            'packages.*.tracking_number' => 'required|string',
             'status' => 'required|string|in:Outgoing',
+            'sms' => 'required|string'
         ]);
 
-        $package = Package::find($request->id);
+        $firstPackage = null;
+        $phone = '';
+        $customer = '';
+        $trackingNumbers = [];
 
-        if (!$package) {
-            return response()->json(['message' => 'Package not found'], 404);
+        foreach ($request->packages as $packageData) {
+            $package = Package::find($packageData['id']);
+
+            if ($package) {
+                $package->status = $request->status;
+                $package->save();
+
+                // Set only once for SMS
+                if (!$firstPackage) {
+                    $firstPackage = $package;
+                    $phone = preg_replace('/\D/', '', $package->phone_number);
+                    $customer = $package->customer_name;
+                }
+
+                $trackingNumbers[] = $packageData['tracking_number'];
+            }
         }
 
-        // Update the package status
-        $package->status = $request->status;
-        $package->save();
-
-        $phone = Package::where('id',$request->id)->pluck('phone_number');
-        $customer = Package::where('id',$request->id)->pluck('customer_name');
-
-        if($phone){
-            $customerPhone = preg_replace('/\D/', '', $phone);
+        // Prepare message
+        if ($firstPackage && $phone) {
             try {
                 $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
-                $twilio->messages->create($customerPhone, [
+                $messageBody = '';
+
+                if (count($trackingNumbers) === 1) {
+                    $messageBody = "Hi {$customer}, {$request->sms} Tracking Number: {$trackingNumbers[0]}.";
+                } else {
+                    $messageBody = "Hi {$customer}, {$request->sms} Total Packages Claimed: " . count($trackingNumbers) . ".";
+                }
+
+                $twilio->messages->create($phone, [
                     'from' => env('TWILIO_PHONE_NUMBER'),
-                    'body' => "Hi {$customer[0]}, {$request->sms} Tracking Number: {$request->tracking_number}."
+                    'body' => $messageBody
                 ]);
             } catch (\Exception $e) {
                 return response()->json(['success' => false, 'message' => 'Error sending SMS: ' . $e->getMessage()]);
             }
         }
 
-        return response()->json(['message' => 'Package successfully picked, SMS sent!']);
+        return response()->json(['message' => 'All packages updated and SMS sent!']);
     }
 
     public function deletePackage(Request $request)

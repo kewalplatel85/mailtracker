@@ -138,7 +138,7 @@
                                   <div class="sm:flex sm:items-center">
                                     <div class="sm:flex-auto">
                                       <h1 class="text-base font-semibold text-white">Mail All Center</h1>
-                                      <p class="mt-2 text-sm text-gray-300">Clients Information</p>
+                                      <p class="my-2 text-sm text-gray-300">Clients Information</p>
                                     </div>
                                   </div>
                                   <div class="mt-2 flow-root">
@@ -148,32 +148,62 @@
                                             <table class="min-w-full divide-y divide-gray-700" id="clientTable">
                                                 <thead class="sticky top-0">
                                                     <tr>
-                                                    @foreach($data[0] as $header => $value)
+                                                    @foreach($data[6] as $header => $value)
                                                         <th scope="col" class="pr-3 pl-4 text-left text-sm font-semibold bg-gray-900 text-white sm:pl-0">{{ ucfirst($value) }}</th>
                                                     @endforeach
+                                                        <th scope="col" class="pr-3 pl-4 text-left text-sm font-semibold bg-gray-900 text-white sm:pl-0">Actions</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody class="divide-y divide-gray-800">
-                                                    @foreach(array_slice($data,1) as $row)
+                                                    @foreach(array_slice($data,7) as $row)
                                                         <tr>
-                                                        @foreach($row as $cell)
-                                                            <td class="mailbox py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-white sm:pl-0">{{ $cell }}</td>
+                                                        @foreach($row as $index => $cell)
+                                                            <td class="py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-white sm:pl-0">
+                                                                @php $disabled = $row[0] ? 'disabled' : '';
+                                                                  switch ($index) {
+                                                                    case 4:
+                                                                        $inputType = 'tel'; // contact number
+                                                                        break;
+                                                                    case 5:
+                                                                    case 7:
+                                                                        $inputType = 'date'; // specific date fields
+                                                                        break;
+                                                                    default:
+                                                                        $inputType = 'text'; // all others
+                                                                 }
+                                                                 if ($inputType === 'date') {
+                                                                        $timestamp = strtotime($cell);
+                                                                        $inputValue = ($timestamp && trim($cell) !== '') ? date('Y-m-d', $timestamp) : '';
+                                                                    } else {
+                                                                        $inputValue = $cell;
+                                                                }
+                                                                @endphp
+                                                                <input type="{{ $inputType }}" value="{{ $inputValue }}" class="edit-info w-full border-0 rounded-sm z-50" {{ $disabled }} data-index="{{ $index }}" data-raw="{{ $cell }}">
+                                                            </td>
                                                         @endforeach
+                                                            <td class="mailbox py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-white sm:pl-0 flex space-x-2">
+                                                                <a href="#" class="edit-{{ $row[0] }}">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 hover:text-blue-500 cursor-pointer">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                                                    </svg>
+                                                                </a>
+                                                                <a href="#" class="save-edit" hidden>
+                                                                    {{-- <a href="#" class="save-edit" data-customer="{{ $row[3] }}" data-mailbox="{{ $row[0] }}" data-type="{{ $row[1] }}" data-status="{{ $row[2] }}" data-phone="{{ $row[4] }}" data-close="{{ $row[5] }}" data-term="{{ $row[6] }}" data-due="{{ $row[7] }}" hidden> --}}
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 hover:text-blue-500 cursor-pointer text-green-500">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                                    </svg>
+                                                                </a>
+                                                                <a href="#" class="cancel-edit" hidden>
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 hover:text-blue-500 cursor-pointer text-red-500" >
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                                      </svg>
+                                                                </a>
+                                                            </td>
                                                         </tr>
                                                     @endforeach
                                             <!-- More people... -->
                                                 </tbody>
                                             </table>
-                                            {{-- <datalist id="mailbox-suggestions" limit="10">
-                                                @foreach(array_slice($data,1) as $row)
-                                                        <option value="{{ $row[0] }}"></option>
-                                                @endforeach
-                                            </datalist>
-                                            <datalist id="customer-suggestions" limit="10">
-                                                @foreach(array_slice($data,1) as $row)
-                                                        <option value="{{ $row[3] }}"></option>
-                                                @endforeach
-                                            </datalist> --}}
                                         @endif
                                       </div>
                                     </div>
