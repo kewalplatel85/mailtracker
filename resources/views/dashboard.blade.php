@@ -149,6 +149,12 @@
                                 </table>
                             </div>
                         </form>
+                            <div id="loadingScreen" class="fixed inset-0 z-50 bg-black bg-opacity-50 hidden flex items-center justify-center">
+                                <div class="flex flex-col items-center">
+                                <div class="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
+                                <p class="text-white text-lg font-medium">Processing, please wait...</p>
+                                </div>
+                            </div>
                     </div>
 
                     <div class="place-items-center space-y-2 md:block">

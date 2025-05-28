@@ -125,16 +125,6 @@ class DashboardController extends Controller
 
         // Send Email
             // Email with image attachment
-            // Mail::to($request->customer_email)->send(
-            //     new \App\Mail\PackageNotification(
-            //         $imagePaths,
-            //         $request->customer_name,
-            //         $trackingNumbers,
-            //         null,
-            //         $publicUrls // <-- add this
-            //     )
-            // );
-
             if ($request->filled('customer_email') && filter_var($request->customer_email, FILTER_VALIDATE_EMAIL)) {
                 Mail::to($request->customer_email)->send(
                     new \App\Mail\PackageNotification(
@@ -146,19 +136,18 @@ class DashboardController extends Controller
                     )
                 );
             }
-        // // Send SMS if customer phone is provided
-        //     if($customerPhone != null){
-        //         $trackingList = implode(", ", $trackingNumbers);
-        //         // Send SMS using Twilio
-        //         $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
-        //         $twilio->messages->create($customerPhone, [
-        //             'from' => env('TWILIO_PHONE_NUMBER'),
-        //             'body' => "Hi {$request->customer_name},{$request->sms} Tracking Number: {$trackingList}."
-        //         ]);
-        //     }
+        // Send SMS if customer phone is provided
+            if($customerPhone != null){
+                $trackingList = implode(", ", $trackingNumbers);
+                // Send SMS using Twilio
+                $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
+                $twilio->messages->create($customerPhone, [
+                    'from' => env('TWILIO_PHONE_NUMBER'),
+                    'body' => "Hi {$request->customer_name},{$request->sms} Tracking Number: {$trackingList}."
+                ]);
+            }
 
-        // return response()->json(['message' => 'Package saved and notifications sent successfully.']);
-        return response()->json(['message' => $imagePaths]);
+        return response()->json(['message' => 'Package saved and notifications sent successfully.']);
     }
 
 }

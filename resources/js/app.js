@@ -500,7 +500,7 @@ $(document).ready(function () {
         let custTab = $('#custTab1-dropdown-btn').text().trim();
         let package_stat = $('.package_stat').attr('data-stat');
         let num_packages = $('#pcounter').val();
-        let email = $('#email').val();
+        // let email = $('#email').val();
         let sms = $('#sms').val();
         let trackingNumbers = [];
 
@@ -519,10 +519,9 @@ $(document).ready(function () {
         } else {
             mailboxNumber = $('#mailbox').attr('data-mb');
             let customer = getCustomerInfo(mailboxNumber);
-            let email = getEmail(mailboxNumber);
             customerName = customer.name;
             customerPhone = customer.phone;
-            // customerEmail = email || $('#email').val().trim();
+            customerEmail = getEmail(mailboxNumber);
         }
 
 
@@ -541,7 +540,7 @@ $(document).ready(function () {
         formData.append('mailbox', mailboxNumber || '');
         formData.append('package_status', package_stat);
         formData.append('num_packages', num_packages);
-        formData.append('email', customerEmail || '');
+        formData.append('customer_email', customerEmail || '');
         formData.append('sms', sms);
 
         appendUploadedImages(formData);
@@ -549,6 +548,8 @@ $(document).ready(function () {
 
         let ajaxUrl = package_stat === 'Incoming' ? '/saveAndNotify' : '/outgoing-packge';
 
+        // alert(customerEmail);
+        $('#loadingScreen').removeClass('hidden');
         $.ajax({
             url: ajaxUrl,
             type: 'POST',
@@ -556,10 +557,12 @@ $(document).ready(function () {
             contentType: false,
             processData: false,
             success: function (response) {
+                $('#loadingScreen').addClass('hidden');
                 alert(response.message);
                 location.reload();
             },
             error: function (xhr) {
+                $('#loadingScreen').addClass('hidden');
                 alert('Error: ' + xhr.responseJSON.message);
             }
         });
@@ -798,6 +801,16 @@ $(document).on("click", ".save-edit", function(e) {
             value = value.trim();
         }
 
+        // Email validation for index 8
+        if (index === 8) {
+            if (value && !isValidEmail(value)) {
+                alert('Please enter a valid email address.');
+                $(this).focus();
+                isValid = false;
+                return false;  // stop the each() loop
+            }
+        }
+
         switch (index) {
             case 0: rowData.mailbox = value; break;
             case 1: rowData.size = value; break;
@@ -812,31 +825,22 @@ $(document).on("click", ".save-edit", function(e) {
     });
 
 
-        // Email validation for index 8
-        if (index === 8) {
-            if (value && !isValidEmail(value)) {
-                alert('Please enter a valid email address.');
-                $(this).focus();
-                isValid = false;
-                return false;  // stop the each() loop
-            }
-        }
-    // Add CSRF token for Laravel
 
-    $.post("/update-csv", rowData, function (response) {
-        alert(response.message);
-        $row.find('td:gt(0)').each(function () {
-            const $input = $(this).find('input');
-            if ($input.length) {
-                $input.prop('disabled', true).removeClass('border-1 border-white');
-            }
+        $.post("/update-csv", rowData, function (response) {
+            alert(response.message);
+            $row.find('td:gt(0)').each(function () {
+                const $input = $(this).find('input');
+                if ($input.length) {
+                    $input.prop('disabled', true).removeClass('border-1 border-white');
+                }
+            });
+            $row.find("[class^='edit-']").prop('hidden', false); // Show the edit button again
+            $row.find('.save-edit').prop('hidden', true);
+            $row.find('.cancel-edit').prop('hidden', true);
+        }).fail(function () {
+            alert("Error saving data.");
         });
-        $row.find("[class^='edit-']").prop('hidden', false); // Show the edit button again
-        $row.find('.save-edit').prop('hidden', true);
-        $row.find('.cancel-edit').prop('hidden', true);
-    }).fail(function () {
-        alert("Error saving data.");
-    });
+
 
 });
     // dateformatting for input fields
