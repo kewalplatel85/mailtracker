@@ -114,6 +114,27 @@
                                     placeholder="Rent a Mailbox for $15/ month, Avoid Porch Pirates, We accept all packages">{{old('description')}}</textarea>
                             </div>
 
+                            <div class="rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 mb-3 outline-1 outline-gray-300">
+                                <label class="block text-xs font-medium text-gray-900">Attach or Capture Image</label>
+
+                                <!-- File input for uploads -->
+                                <input type="file" accept="image/*" name="package_images[]" id="package_image" class="mb-2" multiple>
+
+                                <!-- Video stream + canvas -->
+                                <video id="cameraStream" autoplay playsinline class="w-full mb-2 hidden rounded shadow"></video>
+                                <canvas id="snapshot" class="hidden"></canvas>
+
+                                <!-- Control buttons -->
+                                <div class="flex gap-2 mb-2">
+                                    <button type="button" id="startCamera" class="bg-blue-500 text-white px-3 py-1 rounded">📷 Start Camera</button>
+                                    <button type="button" id="captureImage" class="bg-green-500 text-white px-3 py-1 rounded hidden">📸 Capture</button>
+                                    <button type="button" id="cancelCamera" class="bg-red-500 text-white px-3 py-1 rounded hidden">✖ Cancel</button>
+                                </div>
+
+                                <!-- Preview area -->
+                                <div id="imagePreview" class="flex gap-2 mt-2 flex-wrap"></div>
+                            </div>
+
                             <button type="submit" class="block px-3 pt-2.5 w-full md:w-1/2 pb-1 bg-blue-600 text-white rounded-md py-2.5 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-blue-600">Save and Send SMS</button>
                             <div class="p-1 bg-gray-900 rounded-md shadow-lg w-full md:w-1/2">
                                 <table class="min-w-full rounded-md divide-y text-white" id="tracking_table">
@@ -158,7 +179,7 @@
                                                     @foreach(array_slice($data,7) as $row)
                                                         <tr>
                                                         @foreach($row as $index => $cell)
-                                                            <td class="py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-white sm:pl-0">
+                                                            <td class="mailbox py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-white sm:pl-0">
                                                                 @php $disabled = $row[0] ? 'disabled' : '';
                                                                   switch ($index) {
                                                                     case 4:
@@ -167,6 +188,9 @@
                                                                     case 5:
                                                                     case 7:
                                                                         $inputType = 'date'; // specific date fields
+                                                                        break;
+                                                                    case 8:
+                                                                        $inputType = 'email'; // email
                                                                         break;
                                                                     default:
                                                                         $inputType = 'text'; // all others
@@ -188,7 +212,6 @@
                                                                     </svg>
                                                                 </a>
                                                                 <a href="#" class="save-edit" hidden>
-                                                                    {{-- <a href="#" class="save-edit" data-customer="{{ $row[3] }}" data-mailbox="{{ $row[0] }}" data-type="{{ $row[1] }}" data-status="{{ $row[2] }}" data-phone="{{ $row[4] }}" data-close="{{ $row[5] }}" data-term="{{ $row[6] }}" data-due="{{ $row[7] }}" hidden> --}}
                                                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 hover:text-blue-500 cursor-pointer text-green-500">
                                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                                                     </svg>

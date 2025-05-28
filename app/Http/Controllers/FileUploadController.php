@@ -78,6 +78,7 @@ class FileUploadController extends Controller
                 $rows[$i][5] = $request->date_close;    // Date Close
                 $rows[$i][6] = $request->term;          // Term
                 $rows[$i][7] = $request->due_date;      // Due Date
+                $rows[$i][8] = $request->email;         // Email
                 break;
             }
         }

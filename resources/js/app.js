@@ -201,8 +201,8 @@ $(document).ready(function () {
         }
 
         $('#clientTable tbody tr').each(function () {
-            let mailboxNumber = $(this).find('td:eq(0)').text().trim();
-            let customer = $(this).find('td:eq(3)').text().trim();
+            let mailboxNumber = $(this).find('td:eq(0) input').val().trim();
+            let customer = $(this).find('td:eq(3) input').val().trim();
 
             if (inputField === 'mailbox' && mailboxNumber === mailboxInput) {
                 $(this).show();
@@ -388,16 +388,91 @@ $(document).ready(function () {
         });
     });
 });
+
     // save package and send message
-$(document).ready(function() {
+$(document).ready(function () {
+    let capturedImages = [];
+    let mediaStream = null;
+
+    function previewImage(blob) {
+        const url = URL.createObjectURL(blob);
+        const img = $('<img>').attr('src', url).addClass('w-20 h-20 object-cover rounded border');
+        $('#imagePreview').append(img);
+    }
+
+    // Handle file input preview
+    $('#package_image').on('change', function (e) {
+        $('#imagePreview').empty(); // clear existing preview if you want fresh batch
+        for (let file of e.target.files) {
+            previewImage(file);
+        }
+    });
+
+    // Start camera
+    $('#startCamera').on('click', function () {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                mediaStream = stream;
+                $('#cameraStream').removeClass('hidden').get(0).srcObject = stream;
+                $('#captureImage').removeClass('hidden');
+                $('#cancelCamera').removeClass('hidden');
+            })
+            .catch(err => {
+                alert('Camera not available: ' + err.message);
+            });
+    });
+
+    // Capture image
+    $('#captureImage').on('click', function () {
+        const video = document.getElementById('cameraStream');
+        const canvas = document.getElementById('snapshot');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+
+        canvas.toBlob(blob => {
+            const file = new File([blob], `captured_${Date.now()}.jpg`, { type: 'image/jpeg' });
+            capturedImages.push(file);
+            previewImage(file);
+        }, 'image/jpeg');
+
+        stopCamera();
+    });
+
+    $('#cancelCamera').on('click', function () {
+        stopCamera();
+    });
+
+    function stopCamera() {
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => track.stop());
+            mediaStream = null;
+        }
+        $('#cameraStream').addClass('hidden').get(0).srcObject = null;
+        $('#captureImage').addClass('hidden');
+        $('#cancelCamera').addClass('hidden');
+    }
+
+    function getEmail(mailboxNumber){
+        let email = '';
+        $('#clientTable tbody tr').each(function () {
+            let mailbox = $(this).find('td:eq(0) input').val().trim();
+            if (mailbox == mailboxNumber) {
+                email = $(this).find('td:eq(8) input').val().trim();
+                return false; // Stop iteration once we find the match
+            }
+        });
+        return email;
+    }
+
     function getCustomerInfo(mailboxNumber) {
         let customerInfo = { name: '', phone: '' };
 
-        $('#clientTable tbody tr').each(function() {
-            let mailbox = $(this).find('td:eq(0)').text().trim();
+        $('#clientTable tbody tr').each(function () {
+            let mailbox = $(this).find('td:eq(0) input').val().trim();
             if (mailbox == mailboxNumber) {
-                customerInfo.name = $(this).find('td:eq(3)').text().trim();
-                customerInfo.phone = $(this).find('td:eq(4)').text().trim();
+                customerInfo.name = $(this).find('td:eq(3) input').val().trim();
+                customerInfo.phone = $(this).find('td:eq(4) input').val().trim();
                 return false;
             }
         });
@@ -405,39 +480,52 @@ $(document).ready(function() {
         return customerInfo;
     }
 
-    $('#packageForm').submit(function(event) {
+    function appendUploadedImages(formData) {
+        const files = $('#package_image')[0].files;
+        for (let i = 0; i < files.length; i++) {
+            formData.append('package_images[]', files[i]);
+        }
+    }
+
+    function appendCapturedImages(formData) {
+        capturedImages.forEach((file, index) => {
+            formData.append('captured_images[]', file);
+        });
+    }
+
+    $('#packageForm').submit(function (event) {
         event.preventDefault();
-        let formData = $(this).serializeArray();
-        let custTab = $('#custTab1-dropdown-btn').text().trim(); // ✅ Get selected tab
+
+        let formData = new FormData();
+        let custTab = $('#custTab1-dropdown-btn').text().trim();
         let package_stat = $('.package_stat').attr('data-stat');
         let num_packages = $('#pcounter').val();
+        let email = $('#email').val();
         let sms = $('#sms').val();
         let trackingNumbers = [];
 
-        $('#tracking_table tbody tr').each(function() {
-            let trackingNumber = $(this).find('span').text().trim();
-            trackingNumbers.push(trackingNumber);
+        $('#tracking_table tbody tr').each(function () {
+            trackingNumbers.push($(this).find('span').text().trim());
         });
 
-        trackingNumbers.forEach(trackingNumber => {
-            formData.push({ name: 'tracking_numbers[]', value: trackingNumber });
-        });
+        trackingNumbers.forEach(num => formData.append('tracking_numbers[]', num));
 
-        let customerName = '';
-        let customerPhone = '';
-        let mailboxNumber = '';
+        let customerName = '', customerPhone = '', mailboxNumber = '', customerEmail = '';
 
         if (custTab === 'New Clients') {
             customerName = $('#customer').val().trim();
-            customerPhone = $('#cnumber').val().trim().replace(/\D/g, ''); // Remove non-numeric characters
+            customerPhone = $('#cnumber').val().trim().replace(/\D/g, '');
+            email = $('#email').val().trim();
         } else {
             mailboxNumber = $('#mailbox').attr('data-mb');
             let customer = getCustomerInfo(mailboxNumber);
+            let email = getEmail(mailboxNumber);
             customerName = customer.name;
             customerPhone = customer.phone;
+            // customerEmail = email || $('#email').val().trim();
         }
 
-        // ✅ Final validation
+
         if (!customerName) {
             alert('Valid customer name and phone number are required.');
             return;
@@ -448,12 +536,16 @@ $(document).ready(function() {
             return;
         }
 
-        formData.push({ name: 'customer_name', value: customerName });
-        formData.push({ name: 'customer_phone', value: customerPhone });
-        formData.push({ name: 'mailbox', value: mailboxNumber || '' });
-        formData.push({ name: 'package_status', value: package_stat });
-        formData.push({ name: 'num_packages', value: num_packages });
-        formData.push({ name: 'sms', value: sms });
+        formData.append('customer_name', customerName);
+        formData.append('customer_phone', customerPhone);
+        formData.append('mailbox', mailboxNumber || '');
+        formData.append('package_status', package_stat);
+        formData.append('num_packages', num_packages);
+        formData.append('email', customerEmail || '');
+        formData.append('sms', sms);
+
+        appendUploadedImages(formData);
+        appendCapturedImages(formData);
 
         let ajaxUrl = package_stat === 'Incoming' ? '/saveAndNotify' : '/outgoing-packge';
 
@@ -461,16 +553,19 @@ $(document).ready(function() {
             url: ajaxUrl,
             type: 'POST',
             data: formData,
-            success: function(response) {
+            contentType: false,
+            processData: false,
+            success: function (response) {
                 alert(response.message);
                 location.reload();
             },
-            error: function(xhr) {
+            error: function (xhr) {
                 alert('Error: ' + xhr.responseJSON.message);
             }
         });
     });
 });
+
     // delete btn on tracking table
 $('#tracking_table').on('click', '.delete-track', function(e) {
     e.preventDefault();
@@ -561,15 +656,6 @@ $(document).ready(function() {
     $("[class^='edit-']").on("click", function(e) {
         e.preventDefault();
         $(this).prop('hidden', true);
-        let mailbox = $(this).attr("data-mailbox");
-        let status = $(this).attr("data-status");
-        let type = $(this).attr("data-type");
-        let customerName = $(this).attr("data-customer");
-        let customerPhone = $(this).attr("data-phone");
-        let dateclose = $(this).attr("data-close");
-        let term = $(this).attr("data-term");
-        let due= $(this).attr("data-due");
-
         const $row = $(this).closest('tr');
 
         // Loop over all <td>s with an <input> (exclude index 0)
@@ -674,6 +760,8 @@ $(document).on("input change", ".edit-info", function(e) {
                 rowData.term = value; break;
             case 7:
                 rowData.due_date = value; break;
+            case 8:
+                rowData.email = value; break;
         }
     });
     // console.log('Updated rowData:', rowData);
@@ -684,7 +772,12 @@ $(document).on("keypress", 'input.edit-info[data-index="4"]', function (e) {
         e.preventDefault();
     }
 });
-
+    // Email validation
+function isValidEmail(email) {
+    // Simple regex for email validation
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+}
     // save edited info
 $(document).on("click", ".save-edit", function(e) {
     e.preventDefault();
@@ -714,9 +807,20 @@ $(document).on("click", ".save-edit", function(e) {
             case 5: rowData.date_close = value; break;
             case 6: rowData.term = value; break;
             case 7: rowData.due_date = value; break;
+            case 8: rowData.email = value; break;
         }
     });
 
+
+        // Email validation for index 8
+        if (index === 8) {
+            if (value && !isValidEmail(value)) {
+                alert('Please enter a valid email address.');
+                $(this).focus();
+                isValid = false;
+                return false;  // stop the each() loop
+            }
+        }
     // Add CSRF token for Laravel
 
     $.post("/update-csv", rowData, function (response) {
@@ -735,7 +839,6 @@ $(document).on("click", ".save-edit", function(e) {
     });
 
 });
-
     // dateformatting for input fields
 function parseToISODate(value) {
     if (!value) return '';
@@ -846,7 +949,6 @@ function updatePackageTable(packages) {
         tableBody.append(row);
     });
 }
-
     // Handle Claim Package → Change to Outgoing
 $(document).on('click','.update-group-status-btn', function() {
         var ids = $(this).data('ids').toString().split(',');
@@ -897,7 +999,6 @@ $(document).on('click','.update-group-status-btn', function() {
     let initialStatus = $('#custom-dropdown-btn').data('stat') || 'Incoming';
     fetchPackages(initialStatus);
 });
-
     // Delete a single package
 $(document).on('click', '.delete-btn', function () {
     let packageId = $(this).data('id');
@@ -919,7 +1020,6 @@ $(document).on('click', '.delete-btn', function () {
         }
     });
 });
-
     // Delete all outgoing packages
 $('#deleteAllBtn').on('click', function () {
     if (!confirm('Are you sure you want to delete all outgoing packages?')) return;
@@ -940,7 +1040,6 @@ $('#deleteAllBtn').on('click', function () {
         }
     });
 });
-
     // seacrch function
 $(document).ready(function () {
     $("#searchInput").on("keyup", function () {
@@ -960,7 +1059,6 @@ $(document).ready(function () {
         });
     });
 });
-
 
 
 // twilio
@@ -1035,9 +1133,9 @@ $(document).ready(function () {
     // Collect data from the table
     const customersData = $('#clientTable tbody tr').map(function () {
         return {
-            mailbox: $(this).find('td:eq(0)').text().trim(),
-            customer: $(this).find('td:eq(3)').text().trim(),
-            phone: $(this).find('td:eq(4)').text().trim()
+            mailbox: $(this).find('td:eq(0) input').val().trim(),
+            customer: $(this).find('td:eq(3) input').val().trim(),
+            phone: $(this).find('td:eq(4) input').val().trim()
         };
     }).get();
 
@@ -1149,5 +1247,3 @@ $(document).ready(function () {
     });
 
 });
-
-
