@@ -13,7 +13,7 @@
                                 <p class="mt-2 text-sm text-gray-700">Clients Information</p>
                             </div>
                             <div class="relative mt-2 w-full md:w-1/3">
-                                <input type="text" id="searchInput" placeholder="Search by Mailbox #, Customer, or Package ID" class="w-full rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm">
+                                <input type="text" id="searchInput" placeholder="Search by Mailbox #, Customer, Tracking Number, or Package ID" class="w-full rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm">
                             </div>
                             <div class="relative mt-2 w-full md:w-1/2">
                                 <select id="packageStat" name="packageStat" class="hidden">
@@ -69,21 +69,22 @@
                                                 <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">{{ \Carbon\Carbon::parse($packageGroup->date_received)->format('d/m/Y') }}</td>
                                                 <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">{!! implode('<br>', $packageGroup->id) !!}</td>
                                                 <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">
-                                                    @foreach ($packageGroup->tracking_numbers as $index => $trackingNumber)
-                                                        @if ($packageGroup->status !== 'Outgoing')
-                                                            {{-- Claim Package Button --}}
-                                                            <button class="update-status-btn rounded-sm text-white border-blue-950 bg-blue-800 px-0.5 hover:bg-blue-900 hover:text-gray-500 whitespace-nowrap"
-                                                                data-id="{{ $packageGroup->id[$index] }}" data-tracking="{{ $trackingNumber }}">
-                                                                claim-package
-                                                            </button><br>
-                                                        @else
-                                                            {{-- Delete Button when status is Outgoing --}}
+                                                    @if ($packageGroup->status !== 'Outgoing')
+                                                        <button type="button"
+                                                            class="update-group-status-btn rounded-sm text-white border-blue-950 bg-blue-800 px-1 hover:bg-blue-900 hover:text-gray-500 whitespace-nowrap"
+                                                            data-ids="{{ implode(',', $packageGroup->id) }}"
+                                                            data-trackings="{{ implode(',', $packageGroup->tracking_numbers) }}"
+                                                            data-customer="{{ $packageGroup->customer_name }}">
+                                                            Claim Packages
+                                                        </button>
+                                                    @else
+                                                        @foreach ($packageGroup->id as $id)
                                                             <button type="button" class="delete-btn text-red-600 hover:text-red-900"
-                                                                data-id="{{ $packageGroup->id[$index] }}">
+                                                                data-id="{{ $id }}">
                                                                 Delete
                                                             </button><br>
-                                                        @endif
-                                                    @endforeach
+                                                        @endforeach
+                                                    @endif
                                                 </td>
                                             </tr>
                                             @endforeach

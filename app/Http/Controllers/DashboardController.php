@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Twilio\Rest\Client;
 use App\Models\Package;
 use App\Http\Controllers\MessageController;
@@ -48,13 +49,47 @@ class DashboardController extends Controller
     }
 
     public function savePackage(Request $request) {
-        $request->validate([
-            'tracking_numbers' => 'required|array',
-            'tracking_numbers.*' => 'required|string',
-            'customer_name' => 'required|string',
+        try {
+            $request->validate([
+                'tracking_numbers' => 'required|array',
+                'tracking_numbers.*' => 'required|string',
+                'customer_name' => 'required|string',
+                'customer_email' => 'nullable|email',
+                'package_images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:10120',
+                'captured_images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:10120',
+                'package_status' => 'required|string',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        }
 
-            'package_status' => 'required|string',
-        ]);
+        $imagePaths = [];
+        $publicUrls = [];
+
+        if (!Storage::disk('public')->exists('attachments')) {
+            Storage::disk('public')->makeDirectory('attachments');
+        }
+
+       // 📷 Handle images from webcam
+        if ($request->hasFile('captured_images')) {
+            foreach ($request->file('captured_images') as $image) {
+                $filename = uniqid('captured_') . '.' . $image->getClientOriginalExtension();
+                $storedPath = $image->storeAs('attachments', $filename, 'public');
+                $imagePaths[] = storage_path("app/public/{$storedPath}");
+                $publicUrls[] = Storage::url($storedPath);
+            }
+        }
+
+
+        // 📁 Handle images from file input
+        if ($request->hasFile('package_images')) {
+            foreach ($request->file('package_images') as $image) {
+                $filename = uniqid('upload_') . '.' . $image->getClientOriginalExtension();
+                $storedPath = $image->storeAs('attachments', $filename, 'public');
+                $imagePaths[] = storage_path("app/public/{$storedPath}");
+                $publicUrls[] = Storage::url($storedPath);
+            }
+        }
 
         $trackingNumbers = $request->tracking_numbers;
 
@@ -87,8 +122,21 @@ class DashboardController extends Controller
                 'status' => $request->package_status,
             ]);
         }
+
         // Send Email
-            // Mail::to($customer->email)->send(new \App\Mail\PackageNotification($package));
+            // Email with image attachment
+            if ($request->filled('customer_email') && filter_var($request->customer_email, FILTER_VALIDATE_EMAIL)) {
+                Mail::to($request->customer_email)->send(
+                    new \App\Mail\PackageNotification(
+                        $imagePaths,
+                        $request->customer_name,
+                        $trackingNumbers,
+                        null,
+                        $publicUrls
+                    )
+                );
+            }
+        // Send SMS if customer phone is provided
             if($customerPhone != null){
                 $trackingList = implode(", ", $trackingNumbers);
                 // Send SMS using Twilio

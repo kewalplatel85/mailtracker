@@ -9,6 +9,7 @@ use App\Http\Controllers\FileUploadController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\PackageController;
+use Illuminate\Support\Facades\Mail;
 
 Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
 
@@ -26,9 +27,10 @@ Route::post('password/reset', [ResetPasswordController::class, 'reset'])->name('
 
 // dashboard
 Route::get('/dashboard',[DashboardController::class,'index'])->name('dashboard');
+Route::get('/get-last-package-id', [PackageController::class, 'getLastPackageID']);
 Route::post('/upload', [FileUploadController::class, 'upload'])->name('upload');
 Route::post('/saveAndNotify',[DashboardController::class,'savePackage'])->name('saveAndNotify');
-Route::get('/get-last-package-id', [PackageController::class, 'getLastPackageID']);
+Route::post('/update-csv', [FileUploadController::class, 'updateCsv'])->name('update.csv');
 
 // messages
 Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
@@ -43,3 +45,12 @@ Route::post('/check-tracking',[PackageController::class, 'checkTrackingNumberExi
 Route::post('/outgoing-packge',[PackageController::class,'outgoingPackage'])->middleware(['auth'])->name('outgoing.package');
 Route::post('/delete-package', [PackageController::class, 'deletePackage'])->name('delete.package');
 Route::post('/updatePackageStatus', [PackageController::class, 'updateStatus'])->name('package.updateStatus');
+
+
+Route::get('/test-email', function () {
+    Mail::raw('This is a test email from Laravel via Gmail SMTP.', function ($message) {
+        $message->to('khairo.smile@gmail.com')
+                ->subject('Test Email');
+    });
+    return 'Email sent!';
+});

@@ -201,8 +201,8 @@ $(document).ready(function () {
         }
 
         $('#clientTable tbody tr').each(function () {
-            let mailboxNumber = $(this).find('td:eq(0)').text().trim();
-            let customer = $(this).find('td:eq(3)').text().trim();
+            let mailboxNumber = $(this).find('td:eq(0) input').val().trim();
+            let customer = $(this).find('td:eq(3) input').val().trim();
 
             if (inputField === 'mailbox' && mailboxNumber === mailboxInput) {
                 $(this).show();
@@ -388,16 +388,91 @@ $(document).ready(function () {
         });
     });
 });
+
     // save package and send message
-$(document).ready(function() {
+$(document).ready(function () {
+    let capturedImages = [];
+    let mediaStream = null;
+
+    function previewImage(blob) {
+        const url = URL.createObjectURL(blob);
+        const img = $('<img>').attr('src', url).addClass('w-20 h-20 object-cover rounded border');
+        $('#imagePreview').append(img);
+    }
+
+    // Handle file input preview
+    $('#package_image').on('change', function (e) {
+        $('#imagePreview').empty(); // clear existing preview if you want fresh batch
+        for (let file of e.target.files) {
+            previewImage(file);
+        }
+    });
+
+    // Start camera
+    $('#startCamera').on('click', function () {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                mediaStream = stream;
+                $('#cameraStream').removeClass('hidden').get(0).srcObject = stream;
+                $('#captureImage').removeClass('hidden');
+                $('#cancelCamera').removeClass('hidden');
+            })
+            .catch(err => {
+                alert('Camera not available: ' + err.message);
+            });
+    });
+
+    // Capture image
+    $('#captureImage').on('click', function () {
+        const video = document.getElementById('cameraStream');
+        const canvas = document.getElementById('snapshot');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+
+        canvas.toBlob(blob => {
+            const file = new File([blob], `captured_${Date.now()}.jpg`, { type: 'image/jpeg' });
+            capturedImages.push(file);
+            previewImage(file);
+        }, 'image/jpeg');
+
+        stopCamera();
+    });
+
+    $('#cancelCamera').on('click', function () {
+        stopCamera();
+    });
+
+    function stopCamera() {
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => track.stop());
+            mediaStream = null;
+        }
+        $('#cameraStream').addClass('hidden').get(0).srcObject = null;
+        $('#captureImage').addClass('hidden');
+        $('#cancelCamera').addClass('hidden');
+    }
+
+    function getEmail(mailboxNumber){
+        let email = '';
+        $('#clientTable tbody tr').each(function () {
+            let mailbox = $(this).find('td:eq(0) input').val().trim();
+            if (mailbox == mailboxNumber) {
+                email = $(this).find('td:eq(8) input').val().trim();
+                return false; // Stop iteration once we find the match
+            }
+        });
+        return email;
+    }
+
     function getCustomerInfo(mailboxNumber) {
         let customerInfo = { name: '', phone: '' };
 
-        $('#clientTable tbody tr').each(function() {
-            let mailbox = $(this).find('td:eq(0)').text().trim();
+        $('#clientTable tbody tr').each(function () {
+            let mailbox = $(this).find('td:eq(0) input').val().trim();
             if (mailbox == mailboxNumber) {
-                customerInfo.name = $(this).find('td:eq(3)').text().trim();
-                customerInfo.phone = $(this).find('td:eq(4)').text().trim();
+                customerInfo.name = $(this).find('td:eq(3) input').val().trim();
+                customerInfo.phone = $(this).find('td:eq(4) input').val().trim();
                 return false;
             }
         });
@@ -405,39 +480,51 @@ $(document).ready(function() {
         return customerInfo;
     }
 
-    $('#packageForm').submit(function(event) {
+    function appendUploadedImages(formData) {
+        const files = $('#package_image')[0].files;
+        for (let i = 0; i < files.length; i++) {
+            formData.append('package_images[]', files[i]);
+        }
+    }
+
+    function appendCapturedImages(formData) {
+        capturedImages.forEach((file, index) => {
+            formData.append('captured_images[]', file);
+        });
+    }
+
+    $('#packageForm').submit(function (event) {
         event.preventDefault();
-        let formData = $(this).serializeArray();
-        let custTab = $('#custTab1-dropdown-btn').text().trim(); // ✅ Get selected tab
+
+        let formData = new FormData();
+        let custTab = $('#custTab1-dropdown-btn').text().trim();
         let package_stat = $('.package_stat').attr('data-stat');
         let num_packages = $('#pcounter').val();
+        // let email = $('#email').val();
         let sms = $('#sms').val();
         let trackingNumbers = [];
 
-        $('#tracking_table tbody tr').each(function() {
-            let trackingNumber = $(this).find('span').text().trim();
-            trackingNumbers.push(trackingNumber);
+        $('#tracking_table tbody tr').each(function () {
+            trackingNumbers.push($(this).find('span').text().trim());
         });
 
-        trackingNumbers.forEach(trackingNumber => {
-            formData.push({ name: 'tracking_numbers[]', value: trackingNumber });
-        });
+        trackingNumbers.forEach(num => formData.append('tracking_numbers[]', num));
 
-        let customerName = '';
-        let customerPhone = '';
-        let mailboxNumber = '';
+        let customerName = '', customerPhone = '', mailboxNumber = '', customerEmail = '';
 
         if (custTab === 'New Clients') {
             customerName = $('#customer').val().trim();
-            customerPhone = $('#cnumber').val().trim().replace(/\D/g, ''); // Remove non-numeric characters
+            customerPhone = $('#cnumber').val().trim().replace(/\D/g, '');
+            email = $('#email').val().trim();
         } else {
             mailboxNumber = $('#mailbox').attr('data-mb');
             let customer = getCustomerInfo(mailboxNumber);
             customerName = customer.name;
             customerPhone = customer.phone;
+            customerEmail = getEmail(mailboxNumber);
         }
 
-        // ✅ Final validation
+
         if (!customerName) {
             alert('Valid customer name and phone number are required.');
             return;
@@ -448,29 +535,40 @@ $(document).ready(function() {
             return;
         }
 
-        formData.push({ name: 'customer_name', value: customerName });
-        formData.push({ name: 'customer_phone', value: customerPhone });
-        formData.push({ name: 'mailbox', value: mailboxNumber || '' });
-        formData.push({ name: 'package_status', value: package_stat });
-        formData.push({ name: 'num_packages', value: num_packages });
-        formData.push({ name: 'sms', value: sms });
+        formData.append('customer_name', customerName);
+        formData.append('customer_phone', customerPhone);
+        formData.append('mailbox', mailboxNumber || '');
+        formData.append('package_status', package_stat);
+        formData.append('num_packages', num_packages);
+        formData.append('customer_email', customerEmail || '');
+        formData.append('sms', sms);
+
+        appendUploadedImages(formData);
+        appendCapturedImages(formData);
 
         let ajaxUrl = package_stat === 'Incoming' ? '/saveAndNotify' : '/outgoing-packge';
 
+        // alert(customerEmail);
+        $('#loadingScreen').removeClass('hidden');
         $.ajax({
             url: ajaxUrl,
             type: 'POST',
             data: formData,
-            success: function(response) {
+            contentType: false,
+            processData: false,
+            success: function (response) {
+                $('#loadingScreen').addClass('hidden');
                 alert(response.message);
                 location.reload();
             },
-            error: function(xhr) {
+            error: function (xhr) {
+                $('#loadingScreen').addClass('hidden');
                 alert('Error: ' + xhr.responseJSON.message);
             }
         });
     });
 });
+
     // delete btn on tracking table
 $('#tracking_table').on('click', '.delete-track', function(e) {
     e.preventDefault();
@@ -556,12 +654,234 @@ $(document).ready(function() {
     }
 });
 
+    // table editing
+$(document).ready(function() {
+    $("[class^='edit-']").on("click", function(e) {
+        e.preventDefault();
+        $(this).prop('hidden', true);
+        const $row = $(this).closest('tr');
+
+        // Loop over all <td>s with an <input> (exclude index 0)
+        $row.find('td:gt(0)').each(function () {
+            const $input = $(this).find('input');
+            if ($input.length) {
+                $input.prop('disabled', false).addClass('border-1 border-white'); // Enable all except the first column
+
+                const colIndex = parseInt($input.data('index'));
+                const raw = $input.data('raw');
+                const value = (colIndex === 5 || colIndex === 7) ? parseToISODate(raw) : $input.val();
+                const type = (colIndex === 5 || colIndex === 7) ? 'date' : $input.attr('type');
+
+                const newInput = $('<input>', {
+                    type: type,
+                    value: value,
+                    class: 'edit-info w-full border-1 border-white rounded-sm',
+                    'data-index': colIndex,
+                    'data-raw': raw
+                });
+
+                $input.replaceWith(newInput);
+            }
+        });
+        $row.find('.cancel-edit').prop('hidden', false);
+        $row.find('.save-edit').prop('hidden', false); // show the save button
+    });
+});
+    // cancel edit
+$(document).on("click", ".cancel-edit", function(e) {
+    e.preventDefault();
+    $(this).prop('hidden', true); // Hide the cancel button
+
+    const $row = $(this).closest('tr');
+
+    // Loop over all <td>s with an <input> (exclude index 0)
+    $row.find('td:gt(0)').each(function () {
+        const $input = $(this).find('input');
+        if ($input.length) {
+            $input.prop('disabled', true).removeClass('border-1 border-white');
+        }
+    });
+    $row.find("[class^='edit-']").prop('hidden', false); // Show the edit button again
+    $row.find('.save-edit').prop('hidden', true); // Hide the save button
+});
+    // edit info
+$(document).on("input change", ".edit-info", function(e) {
+    e.preventDefault();
+    const $row = $(this).closest("tr");
+
+    let rowData = {};
+    let isValid = true;
+    // Index-based mapping from CSV columns
+    $row.find("input.edit-info").each(function () {
+        const index = $(this).data("index");
+
+        // Read native DOM value directly, with a fallback to jQuery val()
+        let value = this.value ?? $(this).val();
+
+        // For date inputs, treat empty string as null
+        if ($(this).attr('type') === 'date') {
+            if (!value) {
+                value = null;
+            }
+        } else {
+            value = value.trim();
+        }
+
+        // 📞 Format phone number
+        if (index === 4) {
+            let digits = value.replace(/\D/g, ''); // Remove non-digits
+
+            if (digits.length > 10) {
+                digits = digits.slice(0, 10); // Limit to 10 digits
+            }
+
+            if (digits.length >= 7) {
+                value = `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
+            } else if (digits.length >= 4) {
+                value = `(${digits.slice(0,3)}) ${digits.slice(3)}`;
+            } else if (digits.length >= 1) {
+                value = `(${digits}`;
+            }
+
+            $(this).val(value);
+        }
+
+        switch (index) {
+            case 0:
+                rowData.mailbox = value; break;
+            case 1:
+                rowData.size = value; break;
+            case 2:
+                rowData.status = value; break;
+            case 3:
+                rowData.customer = value; break;
+            case 4:
+                rowData.phone = value; break;
+            case 5:
+                rowData.date_close = value; break;
+            case 6:
+                rowData.term = value; break;
+            case 7:
+                rowData.due_date = value; break;
+            case 8:
+                rowData.email = value; break;
+        }
+    });
+    // console.log('Updated rowData:', rowData);
+});
+$(document).on("keypress", 'input.edit-info[data-index="4"]', function (e) {
+    const char = String.fromCharCode(e.which);
+    if (!/[0-9]/.test(char)) {
+        e.preventDefault();
+    }
+});
+    // Email validation
+function isValidEmail(email) {
+    // Simple regex for email validation
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+}
+    // save edited info
+$(document).on("click", ".save-edit", function(e) {
+    e.preventDefault();
+    const $row = $(this).closest("tr");
+
+    let rowData = {};
+
+    $row.find("input.edit-info").each(function () {
+        const index = $(this).data("index");
+        let value = this.value ?? $(this).val();
+
+        // For date inputs, treat empty string as null
+        if ($(this).attr('type') === 'date') {
+            if (!value) {
+                value = null;
+            }
+        } else {
+            value = value.trim();
+        }
+
+        // Email validation for index 8
+        if (index === 8) {
+            if (value && !isValidEmail(value)) {
+                alert('Please enter a valid email address.');
+                $(this).focus();
+                isValid = false;
+                return false;  // stop the each() loop
+            }
+        }
+
+        switch (index) {
+            case 0: rowData.mailbox = value; break;
+            case 1: rowData.size = value; break;
+            case 2: rowData.status = value; break;
+            case 3: rowData.customer = value; break;
+            case 4: rowData.phone = value; break;
+            case 5: rowData.date_close = value; break;
+            case 6: rowData.term = value; break;
+            case 7: rowData.due_date = value; break;
+            case 8: rowData.email = value; break;
+        }
+    });
+
+
+
+        $.post("/update-csv", rowData, function (response) {
+            alert(response.message);
+            $row.find('td:gt(0)').each(function () {
+                const $input = $(this).find('input');
+                if ($input.length) {
+                    $input.prop('disabled', true).removeClass('border-1 border-white');
+                }
+            });
+            $row.find("[class^='edit-']").prop('hidden', false); // Show the edit button again
+            $row.find('.save-edit').prop('hidden', true);
+            $row.find('.cancel-edit').prop('hidden', true);
+        }).fail(function () {
+            alert("Error saving data.");
+        });
+
+
+});
+    // dateformatting for input fields
+function parseToISODate(value) {
+    if (!value) return '';
+
+    // Match ISO yyyy-mm-dd or yyyy/mm/dd
+    const isoMatch = value.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+    if (isoMatch) {
+        const y = isoMatch[1];
+        const m = isoMatch[2].padStart(2, '0');
+        const d = isoMatch[3].padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    // Match US mm/dd/yyyy
+    const usMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (usMatch) {
+        const m = usMatch[1].padStart(2, '0');
+        const d = usMatch[2].padStart(2, '0');
+        const y = usMatch[3];
+        return `${y}-${m}-${d}`;
+    }
+
+    // Attempt native Date parsing as fallback
+    const date = new Date(value);
+    if (!isNaN(date.getTime())) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    return '';
+}
+
 
 // Packagelogs
 $(document).ready(function () {
-    // Handle dropdown selection and fetch packages based on status
     $('.package_Logstat li').on('click', function () {
-        let status = $(this).text().trim(); // Get selected status (Incoming/Outgoing)
+        let status = $(this).text().trim();
         $('#custom-dropdown-btn').text(status).data('stat', status);
 
         if (status === 'Outgoing') {
@@ -574,83 +894,116 @@ $(document).ready(function () {
 
         fetchPackages(status);
     });
+});
 
-    function fetchPackages(status) {
-        $.ajax({
-            url: '/get-packages',
-            method: 'GET',
-            data: { status: status },
-            success: function (response) {
-                updatePackageTable(response, status);
-            },
-            error: function () {
-                alert('Error fetching package logs.');
-            }
-        });
+function fetchPackages(status) {
+    $.ajax({
+        url: '/get-packages',
+        method: 'GET',
+        data: { status: status },
+        success: function (response) {
+            updatePackageTable(response, status);
+        },
+        error: function () {
+            alert('Error fetching package logs.');
+        }
+    });
+}
+
+function updatePackageTable(packages) {
+    let tableBody = $('#packageLogs tbody');
+    tableBody.empty();
+
+    if (!packages.length) {
+        tableBody.append('<tr><td colspan="10" class="text-center text-white py-3">No records found.</td></tr>');
+        return;
     }
 
-    function updatePackageTable(packages) {
-        let tableBody = $('#packageLogs tbody');
-        tableBody.empty();
+    packages.forEach(function (packageGroup) {
+        let formattedDate = new Date(packageGroup.date_received).toLocaleDateString('en-GB');
+        let isOutgoing = packageGroup.status === 'Outgoing';
+        let actionButtons = '';
 
-        if (!packages.length) {
-            tableBody.append('<tr><td colspan="10" class="text-center text-white py-3">No records found.</td></tr>');
-            return;
+        if (isOutgoing) {
+            actionButtons = `<button class="delete-btn text-red-600 hover:text-red-900" data-id="${packageGroup.id}">Delete</button>`;
+        } else {
+            // Create a single claim button for the whole group
+            actionButtons = `
+                <button class="update-group-status-btn rounded-sm text-white border-blue-950 bg-blue-800 px-1 py-0.5 hover:bg-blue-900 hover:text-gray-500 whitespace-nowrap"
+                    data-ids="${packageGroup.id.join(',')}"
+                    data-trackings="${packageGroup.tracking_numbers.join(',')}"
+                    data-customer="${packageGroup.customer_name}">
+                    Claim Package
+                </button>`;
         }
 
-        packages.forEach(function (packageGroup) {
-            let formattedDate = new Date(packageGroup.date_received).toLocaleDateString('en-GB');
-            let isOutgoing = packageGroup.status === 'Outgoing';
-            let actionButtons = '';
+        let row = `
+            <tr>
+                <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.mailbox_number}</td>
+                <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.customer_name}</td>
+                <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.phone_number}</td>
+                <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">${packageGroup.package_count}</td>
+                <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.tracking_numbers.join('<br>')}</td>
+                <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.status}</td>
+                <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${formattedDate}</td>
+                <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">${packageGroup.id.join('<br>')}</td>
+                <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">${actionButtons}</td>
+            </tr>`;
 
-            if (isOutgoing) {
-                actionButtons = `<button class="delete-btn text-red-600 hover:text-red-900" data-id="${packageGroup.id}">Delete</button>`;
-            } else {
-                packageGroup.tracking_numbers.forEach(function (trackingNumber, index) {
-                    actionButtons += `<button class="update-status-btn rounded-sm text-white border-blue-950 bg-blue-800 px-0.5 hover:bg-blue-900 hover:text-gray-500 whitespace-nowrap" data-id="${packageGroup.id[index]}" data-tracking="${trackingNumber}">claim-package</button><br>`;
-                });
-            }
-
-            let row = `
-                <tr>
-                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.mailbox_number}</td>
-                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.customer_name}</td>
-                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.phone_number}</td>
-                    <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">${packageGroup.package_count}</td>
-                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.tracking_numbers.join('<br>')}</td>
-                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${packageGroup.status}</td>
-                    <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">${formattedDate}</td>
-                    <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">${packageGroup.id.join('<br>')}</td>
-                    <td class="py-3 pr-3 pl-4 text-center text-sm font-semibold text-white">${actionButtons}</td>
-                </tr>`;
-
-            tableBody.append(row);
-        });
-    }
-
-
-    // Handle Claim Package → Change to Outgoing
-    $(document).on('click', '.update-status-btn', function () {
-        let packageId = $(this).data('id');
-        let trackingNumber = $(this).data('tracking');
-        let sms = 'Thanks for Picking up the package!';
-
-        $.ajax({
-            url: '/updatePackageStatus',
-            type: 'POST',
-            data: { id: packageId, tracking_number: trackingNumber, status: 'Outgoing',sms:sms },
-            success: function (response) {
-                alert(response.message);
-                fetchPackages($('#custom-dropdown-btn').data('stat')); // Refresh table
-            },
-            error: function () {
-                alert("Error updating package status.");
-            }
-        });
+        tableBody.append(row);
     });
+}
+    // Handle Claim Package → Change to Outgoing
+$(document).on('click','.update-group-status-btn', function() {
+        var ids = $(this).data('ids').toString().split(',');
+        var trackings = $(this).data('trackings').toString().split(',');
+        var customer = $(this).data('customer');
 
-    // Handle Delete Button
-// Delete a single package
+        var packages = ids.map(function(id, index) {
+            return {
+                id: parseInt(id),
+                tracking_number: trackings[index]
+            };
+        });
+
+        const payload = {
+            packages: packages,
+            status: "Outgoing",
+            sms: "Your package has been claimed!"
+        };
+
+        console.log("Sending bulk payload:", payload);
+
+        ids.forEach(function(id, index) {
+            $.ajax({
+                url: "/updatePackageStatus",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify(
+                    payload
+                    // id: parseInt(id),
+                    // tracking_number: trackings[index],
+                    // status: "Outgoing",
+                    // sms: "Your package has been claimed!"
+                ),
+                success: function(response) {
+                    if (response.success === false) {
+                        console.error(response.message);
+                    } else {
+                        console.log(response.message);
+                        // location.reload(); // Optional: refresh page after update
+                        fetchPackages($('#custom-dropdown-btn').data('stat'));
+                    }
+                },
+                error: function(xhr) {
+                    console.error("Request failed: " + xhr.responseText);
+                }
+            });
+        });
+    let initialStatus = $('#custom-dropdown-btn').data('stat') || 'Incoming';
+    fetchPackages(initialStatus);
+});
+    // Delete a single package
 $(document).on('click', '.delete-btn', function () {
     let packageId = $(this).data('id');
 
@@ -671,8 +1024,7 @@ $(document).on('click', '.delete-btn', function () {
         }
     });
 });
-
-// Delete all outgoing packages
+    // Delete all outgoing packages
 $('#deleteAllBtn').on('click', function () {
     if (!confirm('Are you sure you want to delete all outgoing packages?')) return;
 
@@ -692,10 +1044,7 @@ $('#deleteAllBtn').on('click', function () {
         }
     });
 });
-
-});
-
-// seacrch function
+    // seacrch function
 $(document).ready(function () {
     $("#searchInput").on("keyup", function () {
         let query = $(this).val().toLowerCase();
@@ -704,8 +1053,9 @@ $(document).ready(function () {
             let mailbox = $(this).find("td:nth-child(1)").text().toLowerCase();
             let customer = $(this).find("td:nth-child(2)").text().toLowerCase();
             let packageId = $(this).find("td:nth-child(8)").text().toLowerCase();
+            let tracking_number = $(this).find("td:nth-child(5)").text().toLowerCase();
 
-            if (mailbox.includes(query) || customer.includes(query) || packageId.includes(query)) {
+            if (mailbox.includes(query) || customer.includes(query) || packageId.includes(query) || tracking_number.includes(query)) {
                 $(this).show();
             } else {
                 $(this).hide();
@@ -713,8 +1063,6 @@ $(document).ready(function () {
         });
     });
 });
-
-
 
 
 // twilio
@@ -789,9 +1137,9 @@ $(document).ready(function () {
     // Collect data from the table
     const customersData = $('#clientTable tbody tr').map(function () {
         return {
-            mailbox: $(this).find('td:eq(0)').text().trim(),
-            customer: $(this).find('td:eq(3)').text().trim(),
-            phone: $(this).find('td:eq(4)').text().trim()
+            mailbox: $(this).find('td:eq(0) input').val().trim(),
+            customer: $(this).find('td:eq(3) input').val().trim(),
+            phone: $(this).find('td:eq(4) input').val().trim()
         };
     }).get();
 
@@ -903,5 +1251,3 @@ $(document).ready(function () {
     });
 
 });
-
-
