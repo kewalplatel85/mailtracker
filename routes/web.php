@@ -50,8 +50,6 @@ Route::post('/updatePackageStatus', [PackageController::class, 'updateStatus'])-
 // Storage label printing routes
 Route::get('/labels', [LabelController::class, 'index'])->middleware(['auth'])->name('labels.index');
 Route::get('/labels/single/{id}', [LabelController::class, 'generateSingle'])->middleware(['auth'])->name('labels.single');
-Route::post('/labels/pdf', [LabelController::class, 'generatePdf'])->middleware(['auth'])->name('labels.pdf');
-Route::get('/labels/pdf/{id}', [LabelController::class, 'generateSinglePdf'])->middleware(['auth'])->name('labels.single.pdf');
 
 
 Route::get('/test-email', function () {

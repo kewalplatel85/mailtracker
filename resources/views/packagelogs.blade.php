@@ -79,12 +79,8 @@
                                                         </button><br>
                                                         <a href="{{ route('labels.index', ['mailbox_number' => $packageGroup->mailbox_number]) }}"
                                                            target="_blank"
-                                                           class="inline-block rounded-sm text-white border-green-950 bg-green-700 px-1 hover:bg-green-800 hover:text-gray-200 whitespace-nowrap text-xs mb-1">
+                                                           class="inline-block rounded-sm text-white border-green-950 bg-green-700 px-1 hover:bg-green-800 hover:text-gray-200 whitespace-nowrap text-xs">
                                                             Print Storage Label
-                                                        </a><br>
-                                                        <a href="{{ route('labels.single.pdf', ['id' => $packageGroup->id[0]]) }}"
-                                                           class="inline-block rounded-sm text-white border-purple-950 bg-purple-700 px-1 hover:bg-purple-800 hover:text-gray-200 whitespace-nowrap text-xs">
-                                                            Download PDF Label
                                                         </a>
                                                     @else
                                                         @foreach ($packageGroup->id as $id)

@@ -91,44 +91,4 @@ class LabelController extends Controller
             'package' => $package
         ]);
     }
-
-    /**
-     * Generate PDF labels for selected packages
-     */
-    public function generatePdf(Request $request)
-    {
-        $packageIds = $request->input('package_ids', []);
-
-        if (empty($packageIds)) {
-            return redirect()->back()->with('error', 'No packages selected for printing.');
-        }
-
-        $packages = Package::whereIn('id', $packageIds)->get();
-
-        $pdf = Pdf::loadView('labels.pdf', compact('packages'))
-                  ->setPaper([0, 0, 288, 432], 'portrait') // 4x6 inches in points (72 points per inch)
-                  ->setOptions([
-                      'isHtml5ParserEnabled' => true,
-                      'isRemoteEnabled' => true,
-                  ]);
-
-        return $pdf->download('storage-labels-' . now()->format('Y-m-d-H-i-s') . '.pdf');
-    }
-
-    /**
-     * Generate single PDF label
-     */
-    public function generateSinglePdf($id)
-    {
-        $package = Package::findOrFail($id);
-
-        $pdf = Pdf::loadView('labels.pdf-single', compact('package'))
-                  ->setPaper([0, 0, 288, 432], 'portrait') // 4x6 inches in points
-                  ->setOptions([
-                      'isHtml5ParserEnabled' => true,
-                      'isRemoteEnabled' => true,
-                  ]);
-
-        return $pdf->download('storage-label-' . $package->mailbox_number . '-' . now()->format('Y-m-d-H-i-s') . '.pdf');
-    }
 }
