@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\MessageController;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 use Twilio\Rest\Client;
 use App\Models\Package;
 
@@ -72,7 +73,34 @@ class PackageController extends Controller
         return response()->json($packages);
     }
 
-    public function checkTrackingNumberExist(Request $request)
+    public function getPackagesByMailbox($mailboxNumber)
+    {
+        try {
+            $packages = Package::where('mailbox_number', $mailboxNumber)
+                ->whereIn('status', ['Incoming', 'Ready to Pickup', 'Picked up'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $result = [];
+            foreach ($packages as $index => $package) {
+                $result[] = [
+                    'id' => $package->id,
+                    'tracking_number' => $package->tracking_number ?? 'N/A',
+                    'status' => $package->status ?? 'Unknown',
+                    'created_at' => $package->created_at ? $package->created_at->format('M d, Y') : 'Unknown',
+                    'customer_name' => $package->customer_name ?? 'N/A',
+                    'phone_number' => $package->phone_number ?? 'N/A',
+                ];
+            }
+
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }    public function checkTrackingNumberExist(Request $request)
     {
         $request->validate([
             'tracking_number' => 'required|string|max:255',
