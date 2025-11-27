@@ -127,7 +127,7 @@ class User extends Authenticatable
     /**
      * Check if user has any of the given permissions
      */
-    public function hasAnyPermission(array $permissions, int $companyId = null): bool
+    public function hasAnyPermission(array $permissions, ?int $companyId = null): bool
     {
         foreach ($permissions as $permission) {
             if ($this->hasPermission($permission, $companyId)) {
@@ -140,7 +140,7 @@ class User extends Authenticatable
     /**
      * Check if user has all of the given permissions
      */
-    public function hasAllPermissions(array $permissions, int $companyId = null): bool
+    public function hasAllPermissions(array $permissions, ?int $companyId = null): bool
     {
         foreach ($permissions as $permission) {
             if (!$this->hasPermission($permission, $companyId)) {
@@ -153,7 +153,7 @@ class User extends Authenticatable
     /**
      * Get all permissions for user in a company
      */
-    public function getPermissions(int $companyId = null): array
+    public function getPermissions(?int $companyId = null): array
     {
         // Super admins have all permissions
         if ($this->is_super_admin) {
@@ -172,9 +172,9 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if user can manage other users
+     * Check if user can manage users
      */
-    public function canManageUsers(int $companyId = null): bool
+    public function canManageUsers(?int $companyId = null): bool
     {
         return $this->hasAnyPermission(['users.create', 'users.edit', 'users.delete'], $companyId);
     }
@@ -182,7 +182,7 @@ class User extends Authenticatable
     /**
      * Check if user is company admin
      */
-    public function isCompanyAdmin(int $companyId = null): bool
+    public function isCompanyAdmin(?int $companyId = null): bool
     {
         $companyId = $companyId ?? $this->company_id;
         $roles = $this->rolesInCompany($companyId)->get();

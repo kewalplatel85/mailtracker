@@ -9,7 +9,7 @@ class PermissionHelper
     /**
      * Check if current user has permission
      */
-    public static function can(string $permission, int $companyId = null): bool
+    public static function can(string $permission, ?int $companyId = null): bool
     {
         if (!Auth::check()) {
             return false;
@@ -21,7 +21,7 @@ class PermissionHelper
     /**
      * Check if current user has any of the given permissions
      */
-    public static function canAny(array $permissions, int $companyId = null): bool
+    public static function canAny(array $permissions, ?int $companyId = null): bool
     {
         if (!Auth::check()) {
             return false;
@@ -33,7 +33,7 @@ class PermissionHelper
     /**
      * Check if current user has all of the given permissions
      */
-    public static function canAll(array $permissions, int $companyId = null): bool
+    public static function canAll(array $permissions, ?int $companyId = null): bool
     {
         if (!Auth::check()) {
             return false;
@@ -57,7 +57,7 @@ class PermissionHelper
     /**
      * Check if current user is company admin
      */
-    public static function isCompanyAdmin(int $companyId = null): bool
+    public static function isCompanyAdmin(?int $companyId = null): bool
     {
         if (!Auth::check()) {
             return false;
@@ -69,7 +69,7 @@ class PermissionHelper
     /**
      * Get current user's permissions
      */
-    public static function getPermissions(int $companyId = null): array
+    public static function getPermissions(?int $companyId = null): array
     {
         if (!Auth::check()) {
             return [];
