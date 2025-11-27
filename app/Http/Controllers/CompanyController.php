@@ -28,9 +28,10 @@ class CompanyController extends Controller
     {
         $companies = Company::with(['users', 'packages'])
             ->withCount(['users', 'packages'])
-            ->paginate(10);
-
-        return view('admin.companies.index', compact('companies'));
+            ->orderBy('name')
+            ->paginate(15);
+        
+        return view('companies.index', compact('companies'));
     }
 
     /**
@@ -40,15 +41,18 @@ class CompanyController extends Controller
     {
         $company->load(['users.roles', 'packages', 'roles']);
 
-        return view('admin.companies.show', compact('company'));
+        return view('companies.show', compact('company'));
     }
 
     /**
      * Show form for creating a new company
      */
+    /**
+     * Show form for creating a new company
+     */
     public function create()
     {
-        return view('admin.companies.create');
+        return view('companies.create');
     }
 
     /**
@@ -58,18 +62,18 @@ class CompanyController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:100|unique:companies,slug',
-            'subdomain' => 'nullable|string|max:63|unique:companies,subdomain',
-            'email' => 'required|email|unique:companies,email',
+            'email' => 'nullable|email|unique:companies,email',
             'phone' => 'nullable|string|max:20',
+            'website' => 'nullable|url|max:255',
             'address' => 'nullable|string',
-            'logo' => 'nullable|image|max:2048',
+            'description' => 'nullable|string',
+            'status' => 'required|in:active,inactive,suspended',
+            'timezone' => 'nullable|string|max:50',
         ]);
 
-        // Handle logo upload
-        if ($request->hasFile('logo')) {
-            $logoPath = $request->file('logo')->store('company-logos', 'public');
-            $validated['logo'] = $logoPath;
+        // Set default status if not provided
+        if (!isset($validated['status'])) {
+            $validated['status'] = 'active';
         }
 
         $company = Company::create($validated);
@@ -86,7 +90,7 @@ class CompanyController extends Controller
      */
     public function edit(Company $company)
     {
-        return view('admin.companies.edit', compact('company'));
+        return view('companies.edit', compact('company'));
     }
 
     /**
@@ -96,38 +100,22 @@ class CompanyController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'slug' => [
-                'required',
-                'string',
-                'max:100',
-                Rule::unique('companies')->ignore($company->id)
-            ],
-            'subdomain' => [
-                'nullable',
-                'string',
-                'max:63',
-                Rule::unique('companies')->ignore($company->id)
-            ],
             'email' => [
-                'required',
+                'nullable',
                 'email',
                 Rule::unique('companies')->ignore($company->id)
             ],
             'phone' => 'nullable|string|max:20',
+            'website' => 'nullable|url|max:255',
             'address' => 'nullable|string',
-            'logo' => 'nullable|image|max:2048',
+            'description' => 'nullable|string',
             'status' => 'required|in:active,inactive,suspended',
+            'timezone' => 'nullable|string|max:50',
         ]);
-
-        // Handle logo upload
-        if ($request->hasFile('logo')) {
-            $logoPath = $request->file('logo')->store('company-logos', 'public');
-            $validated['logo'] = $logoPath;
-        }
 
         $company->update($validated);
 
-        return redirect()->route('companies.show', $company)
+        return redirect()->route('companies.index')
             ->with('success', 'Company updated successfully.');
     }
 

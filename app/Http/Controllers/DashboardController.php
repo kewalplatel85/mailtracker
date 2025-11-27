@@ -22,6 +22,7 @@ class DashboardController extends Controller
     }
 
     public function index(){
+        $currentUser = auth()->user();
         $filePath = 'uploads/latest_file.csv';
         $data = [];
 
@@ -29,6 +30,9 @@ class DashboardController extends Controller
         if (Storage::exists($filePath)) {
             $data = $this->parseFile(Storage::path($filePath));
         }
+
+        // Get company-scoped statistics
+        $stats = $this->getCompanyStats();
 
         // Instantiate MessageController and fetch SMS messages
         $messagesController = new MessageController();
@@ -40,7 +44,9 @@ class DashboardController extends Controller
         return view('dashboard', [
             'data' => $data,
             'receivedMessages' => $receivedMessages,
-            'sentMessages' => $sentMessages
+            'sentMessages' => $sentMessages,
+            'stats' => $stats,
+            'user' => $currentUser
         ]);
     }
 
@@ -155,6 +161,64 @@ class DashboardController extends Controller
             }
 
         return response()->json(['message' => 'Package saved and notifications sent successfully.']);
+    }
+
+    /**
+     * Get statistics based on user's company scope
+     */
+    private function getCompanyStats()
+    {
+        $currentUser = auth()->user();
+        
+        // For super admins, use selected company or show global stats
+        if ($currentUser->is_super_admin) {
+            $companyId = session('selected_company_id');
+            
+            if ($companyId) {
+                // Company-specific stats for super admin
+                $packages = Package::where('company_id', $companyId);
+                $companyName = \App\Models\Company::find($companyId)->name ?? 'Unknown';
+            } else {
+                // Global stats for super admin
+                $packages = Package::query();
+                $companyName = 'All Companies';
+            }
+        } else {
+            // Company-specific stats for regular users
+            $companyId = $currentUser->company_id;
+            $packages = Package::where('company_id', $companyId);
+            $companyName = $currentUser->company->name ?? 'Unknown';
+        }
+
+        // Calculate statistics
+        $totalPackages = $packages->count();
+        $pendingPackages = (clone $packages)->where('status', 'pending')->count();
+        $shippedPackages = (clone $packages)->where('status', 'shipped')->count();
+        $deliveredPackages = (clone $packages)->where('status', 'delivered')->count();
+        
+        // Recent packages (last 7 days)
+        $recentPackages = (clone $packages)->where('created_at', '>=', now()->subDays(7))->count();
+        
+        // Additional company stats if super admin
+        $companyStats = [];
+        if ($currentUser->is_super_admin && !$companyId) {
+            $companyStats = [
+                'total_companies' => \App\Models\Company::where('status', 'active')->count(),
+                'total_users' => \App\Models\User::whereHas('company', function($q) {
+                    $q->where('status', 'active');
+                })->count(),
+            ];
+        }
+
+        return [
+            'company_name' => $companyName,
+            'total_packages' => $totalPackages,
+            'pending_packages' => $pendingPackages,
+            'shipped_packages' => $shippedPackages,
+            'delivered_packages' => $deliveredPackages,
+            'recent_packages' => $recentPackages,
+            'company_stats' => $companyStats
+        ];
     }
 
 }

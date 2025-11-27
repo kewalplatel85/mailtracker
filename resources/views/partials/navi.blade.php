@@ -8,11 +8,53 @@
                     </div>
 
                     @if($permission::getCurrentCompany())
-                    <div class="ml-4 text-white">
-                        <span class="text-xs text-gray-300">Company:</span>
-                        <span class="text-sm font-medium">{{ $permission::getCurrentCompany()->name }}</span>
+                    <div class="ml-4 text-white flex items-center">
+                        <div>
+                            <span class="text-xs text-gray-300">Company:</span>
+                            <span class="text-sm font-medium">{{ $permission::getCurrentCompany()->name }}</span>
+                            @if($permission::isSuperAdmin())
+                            <span class="ml-1 text-xs text-yellow-400">(Super Admin)</span>
+                            @endif
+                        </div>
+
                         @if($permission::isSuperAdmin())
-                        <span class="ml-1 text-xs text-yellow-400">(Super Admin)</span>
+                        <!-- Company Selector Dropdown -->
+                        <div class="relative ml-4">
+                            <button type="button" id="company-selector-button" 
+                                    class="bg-gray-600 text-white px-3 py-1 rounded text-xs hover:bg-gray-500 flex items-center"
+                                    onclick="toggleCompanySelector()">
+                                <i class="fas fa-exchange-alt mr-1"></i> Switch
+                                <svg class="ml-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            
+                            <div id="company-selector-dropdown" 
+                                 class="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg hidden z-50">
+                                <div class="py-1">
+                                    <div class="px-4 py-2 text-xs font-semibold text-gray-600 border-b">
+                                        Switch Company Context
+                                    </div>
+                                    @php
+                                        $allCompanies = \App\Models\Company::where('status', 'active')->orderBy('name')->get();
+                                        $currentCompanyId = session('selected_company_id') ?? $permission::getCurrentCompany()->id;
+                                    @endphp
+                                    @foreach($allCompanies as $company)
+                                    <form method="POST" action="{{ route('companies.switch', $company) }}">
+                                        @csrf
+                                        <button type="submit" 
+                                                class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center justify-between
+                                                       {{ $company->id == $currentCompanyId ? 'bg-blue-50 text-blue-700' : '' }}">
+                                            <span>{{ $company->name }}</span>
+                                            @if($company->id == $currentCompanyId)
+                                                <i class="fas fa-check text-blue-500"></i>
+                                            @endif
+                                        </button>
+                                    </form>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
                         @endif
                     </div>
                     @endif
@@ -142,3 +184,21 @@
         </div>
     </nav>
 </div>
+
+<script>
+// Company selector dropdown functionality
+function toggleCompanySelector() {
+    const dropdown = document.getElementById('company-selector-dropdown');
+    dropdown.classList.toggle('hidden');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    const button = document.getElementById('company-selector-button');
+    const dropdown = document.getElementById('company-selector-dropdown');
+    
+    if (button && dropdown && !button.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.classList.add('hidden');
+    }
+});
+</script>

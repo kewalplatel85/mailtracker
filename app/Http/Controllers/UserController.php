@@ -32,13 +32,21 @@ class UserController extends Controller
 
         // Super admins see all users, others see only their company
         if (!$currentUser->is_super_admin) {
-            $companyId = session('current_company_id') ?? $currentUser->company_id;
+            $companyId = session('selected_company_id') ?? $currentUser->company_id;
             $query->where('company_id', $companyId);
         }
 
-        $users = $query->paginate(10);
+        $users = $query->paginate(15);
 
-        return view('admin.users.index', compact('users'));
+        // Get roles for the role assignment modal
+        if ($currentUser->is_super_admin) {
+            $companyId = session('selected_company_id');
+            $roles = $companyId ? Role::where('company_id', $companyId)->get() : collect();
+        } else {
+            $roles = Role::where('company_id', $currentUser->company_id)->get();
+        }
+
+        return view('users.index', compact('users', 'roles'));
     }
 
     /**
@@ -48,9 +56,9 @@ class UserController extends Controller
     {
         $this->authorizeUserAccess($user);
 
-        $user->load(['company', 'userRoles.role', 'packages']);
+        $user->load(['company', 'userRoles.role']);
 
-        return view('admin.users.show', compact('user'));
+        return view('users.show', compact('user'));
     }
 
     /**
@@ -196,6 +204,49 @@ class UserController extends Controller
 
         return redirect()->route('users.show', $user)
             ->with('success', 'User updated successfully.');
+    }
+
+    /**
+     * Assign role to user for current company context
+     */
+    public function assignRole(Request $request, User $user)
+    {
+        $this->authorizeUserAccess($user);
+
+        $validated = $request->validate([
+            'role_id' => 'required|exists:roles,id',
+        ]);
+
+        $currentUser = Auth::user();
+        
+        // Determine the company context
+        if ($currentUser->is_super_admin) {
+            $companyId = session('selected_company_id') ?? $user->company_id;
+        } else {
+            $companyId = $currentUser->company_id;
+        }
+
+        // Verify the role belongs to the correct company
+        $role = Role::where('id', $validated['role_id'])
+                   ->where('company_id', $companyId)
+                   ->first();
+
+        if (!$role) {
+            return redirect()->back()
+                ->with('error', 'Invalid role for this company context.');
+        }
+
+        // Remove existing role for this company
+        $user->userRoles()->where('company_id', $companyId)->delete();
+
+        // Assign new role
+        $user->userRoles()->create([
+            'company_id' => $companyId,
+            'role_id' => $role->id,
+        ]);
+
+        return redirect()->back()
+            ->with('success', "Role '{$role->name}' assigned to {$user->name}.");
     }
 
     /**

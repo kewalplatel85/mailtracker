@@ -62,6 +62,7 @@ Route::middleware(['auth'])->group(function () {
 
     // User management routes
     Route::resource('users', UserController::class);
+    Route::put('/users/{user}/assign-role', [UserController::class, 'assignRole'])->name('users.assign-role');
 });
 
 
