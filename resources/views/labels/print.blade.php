@@ -326,7 +326,13 @@
                         <div class="label-customer">{{ $package->customer_name }}</div>
                         <div class="label-phone">{{ $package->phone_number }}</div>
                         <div class="label-barcode">
-                            {!! \Milon\Barcode\Facades\DNS1DFacade::getBarcodeHTML($package->mailbox_number ?: '000', 'C128', 2.5, 80) !!}
+                            @if(class_exists('Milon\Barcode\Facades\DNS1DFacade'))
+                                {!! \Milon\Barcode\Facades\DNS1DFacade::getBarcodeHTML($package->mailbox_number ?: '000', 'C128', 2.5, 80) !!}
+                            @else
+                                <div style="height: 80px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-family: monospace; font-size: 24px; background: #fff; color: #000;">
+                                    *{{ $package->mailbox_number ?: '000' }}*
+                                </div>
+                            @endif
                         </div>
                         <div class="label-expiry">
                             Expires: {{ $package->created_at->addDays(30)->format('n/j/Y') }}
