@@ -9,6 +9,7 @@ use App\Http\Controllers\FileUploadController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\PackageController;
+use App\Http\Controllers\LabelController;
 use Illuminate\Support\Facades\Mail;
 
 Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
@@ -45,6 +46,12 @@ Route::post('/check-tracking',[PackageController::class, 'checkTrackingNumberExi
 Route::post('/outgoing-packge',[PackageController::class,'outgoingPackage'])->middleware(['auth'])->name('outgoing.package');
 Route::post('/delete-package', [PackageController::class, 'deletePackage'])->name('delete.package');
 Route::post('/updatePackageStatus', [PackageController::class, 'updateStatus'])->name('package.updateStatus');
+
+// Storage label printing routes
+Route::get('/labels', [LabelController::class, 'index'])->middleware(['auth'])->name('labels.index');
+Route::get('/labels/single/{id}', [LabelController::class, 'generateSingle'])->middleware(['auth'])->name('labels.single');
+Route::post('/labels/pdf', [LabelController::class, 'generatePdf'])->middleware(['auth'])->name('labels.pdf');
+Route::get('/labels/pdf/{id}', [LabelController::class, 'generateSinglePdf'])->middleware(['auth'])->name('labels.single.pdf');
 
 
 Route::get('/test-email', function () {

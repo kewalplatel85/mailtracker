@@ -71,12 +71,21 @@
                                                 <td class="py-3 pr-3 pl-4 text-left text-sm font-semibold text-white">
                                                     @if ($packageGroup->status !== 'Outgoing')
                                                         <button type="button"
-                                                            class="update-group-status-btn rounded-sm text-white border-blue-950 bg-blue-800 px-1 hover:bg-blue-900 hover:text-gray-500 whitespace-nowrap"
+                                                            class="update-group-status-btn rounded-sm text-white border-blue-950 bg-blue-800 px-1 hover:bg-blue-900 hover:text-gray-500 whitespace-nowrap mb-1"
                                                             data-ids="{{ implode(',', $packageGroup->id) }}"
                                                             data-trackings="{{ implode(',', $packageGroup->tracking_numbers) }}"
                                                             data-customer="{{ $packageGroup->customer_name }}">
                                                             Claim Packages
-                                                        </button>
+                                                        </button><br>
+                                                        <a href="{{ route('labels.index', ['mailbox_number' => $packageGroup->mailbox_number]) }}"
+                                                           target="_blank"
+                                                           class="inline-block rounded-sm text-white border-green-950 bg-green-700 px-1 hover:bg-green-800 hover:text-gray-200 whitespace-nowrap text-xs mb-1">
+                                                            Print Storage Label
+                                                        </a><br>
+                                                        <a href="{{ route('labels.single.pdf', ['id' => $packageGroup->id[0]]) }}"
+                                                           class="inline-block rounded-sm text-white border-purple-950 bg-purple-700 px-1 hover:bg-purple-800 hover:text-gray-200 whitespace-nowrap text-xs">
+                                                            Download PDF Label
+                                                        </a>
                                                     @else
                                                         @foreach ($packageGroup->id as $id)
                                                             <button type="button" class="delete-btn text-red-600 hover:text-red-900"
