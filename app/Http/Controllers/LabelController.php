@@ -6,43 +6,78 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Package;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Storage;
 
 class LabelController extends Controller
 {
     /**
-     * Display label printing page with all packages or filtered packages
+     * Display label printing page with mailboxes from uploaded CSV
      */
     public function index(Request $request)
     {
-        $query = Package::query();
+        $filePath = 'uploads/latest_file.csv';
+        $csvData = [];
 
-        // Filter by specific criteria if provided
-        if ($request->has('mailbox_number') && !empty($request->mailbox_number)) {
-            $query->where('mailbox_number', $request->mailbox_number);
+        // Check if the CSV file exists and load its contents
+        if (Storage::exists($filePath)) {
+            $csvData = $this->parseFile(Storage::path($filePath));
         }
 
-        if ($request->has('customer_name') && !empty($request->customer_name)) {
-            $query->where('customer_name', 'like', '%' . $request->customer_name . '%');
-        }
+        $mailboxes = collect();
 
-        if ($request->has('phone_number') && !empty($request->phone_number)) {
-            $query->where('phone_number', 'like', '%' . $request->phone_number . '%');
-        }
+        if (!empty($csvData)) {
+            // Skip header rows and process data (assuming headers are in row 6 and data starts from row 7)
+            $dataRows = array_slice($csvData, 7);
 
-        // Default to only incoming packages unless specified
-        $status = $request->get('status', 'Incoming');
-        if ($status !== 'all') {
-            $query->where('status', $status);
-        }
+            foreach ($dataRows as $row) {
+                if (!empty($row[0])) { // Make sure mailbox number exists
+                    $mailboxNumber = trim($row[0]);
+                    $customerName = isset($row[3]) ? trim($row[3]) : '';
+                    $phoneNumber = isset($row[4]) ? trim($row[4]) : '';
 
-        $packages = $query->orderBy('mailbox_number')
-                          ->orderBy('customer_name')
-                          ->get();
+                    // Apply filters if provided
+                    $include = true;
+
+                    if ($request->has('mailbox_number') && !empty($request->mailbox_number)) {
+                        $include = $include && (strpos($mailboxNumber, $request->mailbox_number) !== false);
+                    }
+
+                    if ($request->has('customer_name') && !empty($request->customer_name)) {
+                        $include = $include && (stripos($customerName, $request->customer_name) !== false);
+                    }
+
+                    if ($request->has('phone_number') && !empty($request->phone_number)) {
+                        $include = $include && (strpos($phoneNumber, $request->phone_number) !== false);
+                    }
+
+                    if ($include) {
+                        $mailboxes->push((object) [
+                            'id' => $mailboxNumber, // Use mailbox number as ID
+                            'mailbox_number' => $mailboxNumber,
+                            'customer_name' => $customerName,
+                            'phone_number' => $phoneNumber,
+                            'created_at' => now(), // Use current date for expiry calculation
+                        ]);
+                    }
+                }
+            }
+        }
 
         return view('labels.print', [
-            'packages' => $packages,
+            'packages' => $mailboxes, // Using 'packages' variable name to maintain compatibility with view
             'filters' => $request->all()
         ]);
+    }
+
+    private function parseFile($filePath){
+        $rows = [];
+        if (($handle = fopen($filePath, 'r')) !== false) {
+            while (($data = fgetcsv($handle, 1000, ',')) !== false) {
+                $rows[] = $data;
+            }
+            fclose($handle);
+        }
+        return $rows;
     }
 
     /**

@@ -6,15 +6,29 @@
     @page {
         size: 4in 6in;
         margin: 0.1in;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
     }
 
     @media print {
+        @page {
+            size: 4in 6in !important;
+            margin: 0.1in !important;
+        }
+        * {
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
         html, body {
-            width: 4in;
-            height: 6in;
-            margin: 0;
-            padding: 0;
+            width: 4in !important;
+            height: 6in !important;
+            margin: 0 !important;
+            padding: 0 !important;
             overflow: hidden;
+            background: white !important;
         }
 
         body * {
@@ -27,14 +41,14 @@
             position: absolute;
             left: 0;
             top: 0;
-            width: 3.8in;
-            height: 5.8in;
+            width: 4in;
+            height: 6in;
         }
         .no-print {
             display: none !important;
         }
 
-        /* Each label fills the 3.5x5 inch page */
+        /* Each label fills the 4x6 inch page */
         .label-grid {
             display: block !important;
         }
@@ -42,8 +56,8 @@
         .label-item {
             page-break-after: always;
             margin: 0;
-            width: 3.8in;
-            height: 5.8in;
+            width: 4in;
+            height: 6in;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -57,40 +71,58 @@
         }
 
         .label-item:last-child {
-            page-break-after: auto;
+            page-break-after: avoid;
         }
 
         .label-number {
-            font-size: 72pt;
+            font-size: 60pt;
             font-weight: bold;
-            margin-bottom: 24pt;
+            margin-bottom: 20pt;
             color: #000;
-            line-height: 1;
+            line-height: 0.9;
         }
 
         .label-customer {
-            font-size: 28pt;
+            font-size: 24pt;
             font-weight: 600;
-            margin-bottom: 18pt;
+            margin-bottom: 15pt;
             color: #000;
-            line-height: 1.1;
+            line-height: 1.0;
             word-wrap: break-word;
-            max-width: 100%;
+            max-width: 3.6in;
+            text-align: center;
         }
 
         .label-phone {
-            font-size: 24pt;
-            margin-bottom: 0;
+            font-size: 20pt;
+            margin-bottom: 15pt;
             color: #000;
-            line-height: 1.1;
+            line-height: 1.0;
+        }
+
+        .label-barcode {
+            margin: 15pt 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        .label-barcode svg {
+            width: 2.8in !important;
+            height: 0.6in !important;
+            max-width: 100% !important;
+            print-color-adjust: exact !important;
         }
 
         .label-expiry {
-            font-size: 12pt;
+            font-size: 10pt;
             color: #333;
             position: absolute;
-            bottom: 12pt;
-            line-height: 1.1;
+            bottom: 15pt;
+            left: 50%;
+            transform: translateX(-50%);
+            line-height: 1.0;
         }
     }
 
@@ -155,6 +187,31 @@
         color: #666;
         margin-top: 10px;
         line-height: 1.2;
+    }
+
+    .label-barcode {
+        margin: 20px 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+    }
+
+    .label-barcode svg {
+        width: 280px;
+        height: 60px;
+        max-width: 100%;
+    }
+
+    @media print {
+        .label-barcode {
+            margin: 15pt 0;
+        }
+
+        .label-barcode svg {
+            width: 2.8in;
+            height: 0.6in;
+        }
     }
 
     .print-options {
@@ -237,15 +294,20 @@
                         Print Selected Labels (Perfect 4" × 6")
                     </button>
 
-                    <span class="text-sm text-gray-600">
-                        Perfect 4" × 6" label printing with step-by-step instructions
-                    </span>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
+                        <p class="font-semibold mb-1">📋 Print Instructions:</p>
+                        <ul class="space-y-1 text-xs">
+                            <li><strong>Best method:</strong> Click "Print Selected Labels" button above</li>
+                            <li><strong>Browser print (Ctrl+P):</strong> Set paper size to 4"×6" in print settings</li>
+                            <li><strong>Physical print:</strong> Use 4"×6" shipping label paper</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
             @endif
 
             <div class="mt-4 text-sm text-gray-600">
-                <strong>{{ $packages->count() }}</strong> packages found
+                <strong>{{ $packages->count() }}</strong> mailboxes found
                 @if(request()->hasAny(['mailbox_number', 'customer_name', 'phone_number']))
                     (filtered)
                 @endif
@@ -263,6 +325,9 @@
                         <div class="label-number">{{ $package->mailbox_number ?: '' }}</div>
                         <div class="label-customer">{{ $package->customer_name }}</div>
                         <div class="label-phone">{{ $package->phone_number }}</div>
+                        <div class="label-barcode">
+                            {!! \Milon\Barcode\Facades\DNS1DFacade::getBarcodeHTML($package->mailbox_number ?: '000', 'C128', 2.5, 80) !!}
+                        </div>
                         <div class="label-expiry">
                             Expires: {{ $package->created_at->addDays(30)->format('n/j/Y') }}
                         </div>
@@ -365,6 +430,12 @@ function printSelectedLabels() {
             }
 
             @media print {
+                * {
+                    -webkit-print-color-adjust: exact !important;
+                    color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
+
                 html, body {
                     width: 4in !important;
                     height: 6in !important;
@@ -374,6 +445,18 @@ function printSelectedLabels() {
 
                 .no-print {
                     display: none !important;
+                }
+
+                svg {
+                    print-color-adjust: exact !important;
+                    -webkit-print-color-adjust: exact !important;
+                }
+
+                .barcode-section svg {
+                    width: 2.8in !important;
+                    height: 0.6in !important;
+                    max-width: 100% !important;
+                    print-color-adjust: exact !important;
                 }
             }
 
@@ -418,9 +501,24 @@ function printSelectedLabels() {
 
             .phone-number {
                 font-size: 24pt;
-                margin-bottom: 0;
+                margin-bottom: 15pt;
                 color: #000;
                 line-height: 1.0;
+            }
+
+            .barcode-section {
+                margin: 15pt 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                width: 100%;
+                height: 60pt;
+            }
+
+            .barcode-section svg {
+                width: 2.8in;
+                height: 0.6in;
+                max-width: 100%;
             }
 
             .expiry-date {
@@ -431,6 +529,14 @@ function printSelectedLabels() {
                 left: 50%;
                 transform: translateX(-50%);
                 line-height: 1.0;
+            }
+
+            .barcode-section {
+                margin: 15pt 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                width: 100%;
             }
 
             .print-instructions {
@@ -474,11 +580,16 @@ function printSelectedLabels() {
         const phone = labelItem.querySelector('.label-phone').textContent.trim();
         const expiry = labelItem.querySelector('.label-expiry').textContent.trim();
 
+        // Get the actual barcode HTML from the label
+        const barcodeElement = labelItem.querySelector('.label-barcode');
+        const barcodeHtml = barcodeElement ? barcodeElement.innerHTML : `<div style="height: 60pt; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-family: monospace; font-size: 24pt;">*${number}*</div>`;
+
         labelHtml += `
         <div class="label-item">
             <div class="mailbox-number">${number}</div>
             <div class="customer-name">${customer}</div>
             <div class="phone-number">${phone}</div>
+            <div class="barcode-section">${barcodeHtml}</div>
             <div class="expiry-date">${expiry}</div>
         </div>
         `;
