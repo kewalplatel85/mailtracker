@@ -58,15 +58,15 @@
                                     <td>{{ $company->created_at->format('M d, Y') }}</td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="{{ route('companies.show', $company) }}" 
+                                            <a href="{{ route('companies.show', $company) }}"
                                                class="btn btn-sm btn-outline-primary" title="View">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            <a href="{{ route('companies.edit', $company) }}" 
+                                            <a href="{{ route('companies.edit', $company) }}"
                                                class="btn btn-sm btn-outline-warning" title="Edit">
                                                 <i class="fas fa-edit"></i>
                                             </a>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
                                                     title="Delete" onclick="confirmDelete({{ $company->id }})">
                                                 <i class="fas fa-trash"></i>
                                             </button>

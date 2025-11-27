@@ -72,8 +72,8 @@
                                             <span class="badge bg-danger">Super Admin</span>
                                         @else
                                             @php
-                                                $companyId = Auth::user()->is_super_admin 
-                                                    ? ($user->company_id ?? session('selected_company_id')) 
+                                                $companyId = Auth::user()->is_super_admin
+                                                    ? ($user->company_id ?? session('selected_company_id'))
                                                     : Auth::user()->company_id;
                                                 $userRole = $user->userRoles()->where('company_id', $companyId)->with('role')->first();
                                             @endphp
@@ -95,18 +95,18 @@
                                     <td>
                                         <div class="btn-group" role="group">
                                             @can('users.edit')
-                                                <a href="{{ route('users.show', $user) }}" 
+                                                <a href="{{ route('users.show', $user) }}"
                                                    class="btn btn-sm btn-outline-primary" title="View">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
-                                                <button type="button" class="btn btn-sm btn-outline-warning" 
+                                                <button type="button" class="btn btn-sm btn-outline-warning"
                                                         title="Edit Role" onclick="editUserRole({{ $user->id }})">
                                                     <i class="fas fa-user-tag"></i>
                                                 </button>
                                             @endcan
                                             @can('users.delete')
                                                 @if(!$user->is_super_admin && $user->id !== Auth::id())
-                                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                <button type="button" class="btn btn-sm btn-outline-danger"
                                                         title="Delete" onclick="confirmDelete({{ $user->id }})">
                                                     <i class="fas fa-trash"></i>
                                                 </button>

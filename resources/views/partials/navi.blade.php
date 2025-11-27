@@ -20,7 +20,7 @@
                         @if($permission::isSuperAdmin())
                         <!-- Company Selector Dropdown -->
                         <div class="relative ml-4">
-                            <button type="button" id="company-selector-button" 
+                            <button type="button" id="company-selector-button"
                                     class="bg-gray-600 text-white px-3 py-1 rounded text-xs hover:bg-gray-500 flex items-center"
                                     onclick="toggleCompanySelector()">
                                 <i class="fas fa-exchange-alt mr-1"></i> Switch
@@ -28,8 +28,8 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
                             </button>
-                            
-                            <div id="company-selector-dropdown" 
+
+                            <div id="company-selector-dropdown"
                                  class="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg hidden z-50">
                                 <div class="py-1">
                                     <div class="px-4 py-2 text-xs font-semibold text-gray-600 border-b">
@@ -42,7 +42,7 @@
                                     @foreach($allCompanies as $company)
                                     <form method="POST" action="{{ route('companies.switch', $company) }}">
                                         @csrf
-                                        <button type="submit" 
+                                        <button type="submit"
                                                 class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center justify-between
                                                        {{ $company->id == $currentCompanyId ? 'bg-blue-50 text-blue-700' : '' }}">
                                             <span>{{ $company->name }}</span>
@@ -196,7 +196,7 @@ function toggleCompanySelector() {
 document.addEventListener('click', function(event) {
     const button = document.getElementById('company-selector-button');
     const dropdown = document.getElementById('company-selector-dropdown');
-    
+
     if (button && dropdown && !button.contains(event.target) && !dropdown.contains(event.target)) {
         dropdown.classList.add('hidden');
     }

@@ -28,7 +28,7 @@
                                 <div class="col-sm-4"><strong>Name:</strong></div>
                                 <div class="col-sm-8">{{ $company->name }}</div>
                             </div>
-                            
+
                             @if($company->email)
                             <div class="row mb-3">
                                 <div class="col-sm-4"><strong>Email:</strong></div>

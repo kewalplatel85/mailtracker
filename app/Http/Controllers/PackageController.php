@@ -10,8 +10,9 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Twilio\Rest\Client;
 use App\Models\Package;
+use Illuminate\Routing\Controller as BaseController;
 
-class PackageController extends Controller
+class PackageController extends BaseController
 {
     public function __construct()
     {

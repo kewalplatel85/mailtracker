@@ -9,9 +9,14 @@ use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\Routing\Controller as BaseController;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Foundation\Validation\ValidatesRequests;
 
-class CompanyController extends Controller
+class CompanyController extends BaseController
 {
+    use AuthorizesRequests, ValidatesRequests;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -30,7 +35,7 @@ class CompanyController extends Controller
             ->withCount(['users', 'packages'])
             ->orderBy('name')
             ->paginate(15);
-        
+
         return view('companies.index', compact('companies'));
     }
 

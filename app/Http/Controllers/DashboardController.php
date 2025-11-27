@@ -10,9 +10,15 @@ use Illuminate\Support\Str;
 use Twilio\Rest\Client;
 use App\Models\Package;
 use App\Http\Controllers\MessageController;
+use Illuminate\Routing\Controller as BaseController;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Foundation\Validation\ValidatesRequests;
 
-class DashboardController extends Controller
+class DashboardController extends BaseController
 {
+    use AuthorizesRequests, ValidatesRequests;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -22,7 +28,7 @@ class DashboardController extends Controller
     }
 
     public function index(){
-        $currentUser = auth()->user();
+        $currentUser = Auth::user();
         $filePath = 'uploads/latest_file.csv';
         $data = [];
 
@@ -168,12 +174,12 @@ class DashboardController extends Controller
      */
     private function getCompanyStats()
     {
-        $currentUser = auth()->user();
-        
+        $currentUser = Auth::user();
+
         // For super admins, use selected company or show global stats
         if ($currentUser->is_super_admin) {
             $companyId = session('selected_company_id');
-            
+
             if ($companyId) {
                 // Company-specific stats for super admin
                 $packages = Package::where('company_id', $companyId);
@@ -195,10 +201,10 @@ class DashboardController extends Controller
         $pendingPackages = (clone $packages)->where('status', 'pending')->count();
         $shippedPackages = (clone $packages)->where('status', 'shipped')->count();
         $deliveredPackages = (clone $packages)->where('status', 'delivered')->count();
-        
+
         // Recent packages (last 7 days)
         $recentPackages = (clone $packages)->where('created_at', '>=', now()->subDays(7))->count();
-        
+
         // Additional company stats if super admin
         $companyStats = [];
         if ($currentUser->is_super_admin && !$companyId) {

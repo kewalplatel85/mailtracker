@@ -30,7 +30,7 @@
                                 <div class="col-sm-4"><strong>Name:</strong></div>
                                 <div class="col-sm-8">{{ $user->name }}</div>
                             </div>
-                            
+
                             <div class="row mb-3">
                                 <div class="col-sm-4"><strong>Email:</strong></div>
                                 <div class="col-sm-8">
@@ -63,8 +63,8 @@
                                         <span class="badge bg-danger">Super Admin</span>
                                     @else
                                         @php
-                                            $companyId = Auth::user()->is_super_admin 
-                                                ? ($user->company_id ?? session('selected_company_id')) 
+                                            $companyId = Auth::user()->is_super_admin
+                                                ? ($user->company_id ?? session('selected_company_id'))
                                                 : Auth::user()->company_id;
                                             $userRole = $user->userRoles()->where('company_id', $companyId)->with('role')->first();
                                         @endphp
@@ -112,8 +112,8 @@
                         </div>
                         <div class="card-body">
                             @php
-                                $companyId = Auth::user()->is_super_admin 
-                                    ? ($user->company_id ?? session('selected_company_id')) 
+                                $companyId = Auth::user()->is_super_admin
+                                    ? ($user->company_id ?? session('selected_company_id'))
                                     : Auth::user()->company_id;
                                 $userRole = $user->userRoles()->where('company_id', $companyId)->with('role')->first();
                             @endphp

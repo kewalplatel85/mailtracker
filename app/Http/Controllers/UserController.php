@@ -10,9 +10,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Routing\Controller as BaseController;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Foundation\Validation\ValidatesRequests;
 
-class UserController extends Controller
+class UserController extends BaseController
 {
+    use AuthorizesRequests, ValidatesRequests;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -218,7 +223,7 @@ class UserController extends Controller
         ]);
 
         $currentUser = Auth::user();
-        
+
         // Determine the company context
         if ($currentUser->is_super_admin) {
             $companyId = session('selected_company_id') ?? $user->company_id;
