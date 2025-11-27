@@ -6,11 +6,38 @@
                     <div class="shrink-0">
                         <img class="size-8" src="https://tailwindui.com/plus-assets/img/logos/mark.svg?color=indigo&shade=500" alt="Your Company">
                     </div>
+
+                    @if($permission::getCurrentCompany())
+                    <div class="ml-4 text-white">
+                        <span class="text-xs text-gray-300">Company:</span>
+                        <span class="text-sm font-medium">{{ $permission::getCurrentCompany()->name }}</span>
+                        @if($permission::isSuperAdmin())
+                        <span class="ml-1 text-xs text-yellow-400">(Super Admin)</span>
+                        @endif
+                    </div>
+                    @endif
                     <div class="hidden md:block">
                         <div class="ml-10 flex items-baseline space-x-4">
+                            @if($permission::can('dashboard.view'))
                             <a href="{{route('dashboard')}}" data-route="{{url(route('dashboard'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-white" aria-current="page">Dashboard</a>
+                            @endif
+
+                            @if($permission::can('packages.view'))
                             <a href="{{route('packagelogs')}}" data-route="{{url(route('packagelogs'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Package Logs</a>
+                            @endif
+
+                            @if($permission::can('packages.view'))
                             <a href="{{route('labels.index')}}" data-route="{{url(route('labels.index'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Storage Labels</a>
+                            @endif
+
+                            @if($permission::can('users.view'))
+                            <a href="{{route('users.index')}}" data-route="{{url(route('users.index'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Users</a>
+                            @endif
+
+                            @if($permission::isSuperAdmin() || $permission::can('companies.view'))
+                            <a href="{{route('companies.index')}}" data-route="{{url(route('companies.index'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Companies</a>
+                            @endif
+
                             {{-- <a href="#" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Custom SMS</a> --}}
                         </div>
                     </div>
@@ -36,10 +63,24 @@
                             </div>
 
                             <!-- Dropdown menu -->
-                            <div class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 ring-1 shadow-lg ring-black/5 focus:outline-hidden hidden" id="user-menu">
+                            <div class="absolute right-0 z-10 mt-2 w-64 origin-top-right rounded-md bg-white py-1 ring-1 shadow-lg ring-black/5 focus:outline-hidden hidden" id="user-menu">
+                                @auth
+                                <div class="px-4 py-2 border-b border-gray-200">
+                                    <div class="text-sm font-medium text-gray-900">{{ Auth::user()->name }}</div>
+                                    <div class="text-xs text-gray-500">{{ Auth::user()->email }}</div>
+                                    @if($permission::getCurrentCompany())
+                                    <div class="text-xs text-gray-500 mt-1">{{ $permission::getCurrentCompany()->name }}</div>
+                                    @endif
+                                    @if($permission::isSuperAdmin())
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 mt-1">Super Admin</span>
+                                    @elseif($permission::isCompanyAdmin())
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mt-1">Admin</span>
+                                    @endif
+                                </div>
+                                @endauth
                                 {{-- <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="user-menu-item-0">Your Profile</a>
                                 <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="user-menu-item-1">Settings</a> --}}
-                                <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="user-menu-item-2" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Sign out</a>
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" tabindex="-1" id="user-menu-item-2" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Sign out</a>
                                     <form id="logout-form" action="{{route('logout')}}" method="POST" style="display: none">
                                         @csrf
                                     </form>

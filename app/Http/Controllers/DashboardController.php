@@ -13,7 +13,14 @@ use App\Http\Controllers\MessageController;
 
 class DashboardController extends Controller
 {
-    //
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('permission:dashboard.view')->only(['index']);
+        $this->middleware('permission:reports.view')->only(['getReports']);
+        $this->middleware('permission:files.upload')->only(['upload']);
+    }
+
     public function index(){
         $filePath = 'uploads/latest_file.csv';
         $data = [];

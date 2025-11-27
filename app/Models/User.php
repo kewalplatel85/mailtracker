@@ -125,6 +125,74 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if user has any of the given permissions
+     */
+    public function hasAnyPermission(array $permissions, int $companyId = null): bool
+    {
+        foreach ($permissions as $permission) {
+            if ($this->hasPermission($permission, $companyId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if user has all of the given permissions
+     */
+    public function hasAllPermissions(array $permissions, int $companyId = null): bool
+    {
+        foreach ($permissions as $permission) {
+            if (!$this->hasPermission($permission, $companyId)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Get all permissions for user in a company
+     */
+    public function getPermissions(int $companyId = null): array
+    {
+        // Super admins have all permissions
+        if ($this->is_super_admin) {
+            return \App\Models\Role::SYSTEM_PERMISSIONS;
+        }
+
+        $companyId = $companyId ?? $this->company_id;
+        $permissions = [];
+
+        $roles = $this->rolesInCompany($companyId)->get();
+        foreach ($roles as $role) {
+            $permissions = array_merge($permissions, $role->permissions);
+        }
+
+        return array_unique($permissions);
+    }
+
+    /**
+     * Check if user can manage other users
+     */
+    public function canManageUsers(int $companyId = null): bool
+    {
+        return $this->hasAnyPermission(['users.create', 'users.edit', 'users.delete'], $companyId);
+    }
+
+    /**
+     * Check if user is company admin
+     */
+    public function isCompanyAdmin(int $companyId = null): bool
+    {
+        $companyId = $companyId ?? $this->company_id;
+        $roles = $this->rolesInCompany($companyId)->get();
+
+        return $roles->contains(function($role) {
+            return $role->name === 'Company Admin' || $role->hasPermission('company.manage');
+        });
+    }
+
+    /**
      * Check if user has role in company
      */
     public function hasRole($roleSlug, $companyId = null): bool

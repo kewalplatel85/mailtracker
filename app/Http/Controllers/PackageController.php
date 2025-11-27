@@ -7,22 +7,33 @@ use App\Http\Controllers\MessageController;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use Twilio\Rest\Client;
 use App\Models\Package;
 
 class PackageController extends Controller
 {
-    //
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('permission:packages.view')->only(['index', 'show']);
+        $this->middleware('permission:packages.create')->only(['create', 'store']);
+        $this->middleware('permission:packages.edit')->only(['edit', 'update']);
+        $this->middleware('permission:packages.delete')->only(['destroy']);
+        $this->middleware('permission:packages.bulk_operations')->only(['bulkUpdate', 'bulkDelete', 'bulkSms']);
+    }
+
     public function index()
     {
+        // Packages are automatically scoped by company via global scope
         $packageLogs = Package::select(
             'mailbox_number',
             'customer_name',
             'phone_number',
             'status',
             'created_at',
-            'tracking_number', // Added this
-            'id' // Added this
+            'tracking_number',
+            'id'
         )
         ->where('status', 'Incoming')
         ->get()
@@ -33,7 +44,7 @@ class PackageController extends Controller
                 'customer_name' => $group->first()->customer_name,
                 'phone_number' => $group->first()->phone_number,
                 'status' => $group->first()->status,
-                'date_received' => \Carbon\Carbon::parse($group->first()->created_at)->format('d-m-Y'), // Fix here
+                'date_received' => \Carbon\Carbon::parse($group->first()->created_at)->format('d-m-Y'),
                 'package_count' => $group->count(),
                 'tracking_numbers' => $group->pluck('tracking_number')->toArray(),
                 'id' => $group->pluck('id')->toArray(),

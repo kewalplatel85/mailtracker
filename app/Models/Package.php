@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class Package extends Model
 {
@@ -26,6 +27,37 @@ class Package extends Model
     protected $casts = [
         'metadata' => 'array',
     ];
+
+    /**
+     * Boot the model and add global scopes
+     */
+    protected static function booted()
+    {
+        // Auto-scope packages to user's company unless user is super admin
+        static::addGlobalScope('company', function (Builder $builder) {
+            if (Auth::check() && !Auth::user()->is_super_admin) {
+                $companyId = session('current_company_id') ?? Auth::user()->company_id;
+                if ($companyId) {
+                    $builder->where('company_id', $companyId);
+                }
+            }
+        });
+
+        // Auto-set company_id when creating packages
+        static::creating(function ($package) {
+            if (Auth::check() && !$package->company_id) {
+                $companyId = session('current_company_id') ?? Auth::user()->company_id;
+                if ($companyId) {
+                    $package->company_id = $companyId;
+                }
+            }
+
+            // Set created_by
+            if (Auth::check() && !$package->created_by) {
+                $package->created_by = Auth::id();
+            }
+        });
+    }
 
     /**
      * Get the company this package belongs to

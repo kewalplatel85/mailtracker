@@ -9,6 +9,8 @@ use App\Http\Controllers\FileUploadController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\PackageController;
+use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\LabelController;
 use Illuminate\Support\Facades\Mail;
 
@@ -51,6 +53,16 @@ Route::post('/updatePackageStatus', [PackageController::class, 'updateStatus'])-
 // Storage label printing routes
 Route::get('/labels', [LabelController::class, 'index'])->middleware(['auth'])->name('labels.index');
 Route::get('/labels/single/{id}', [LabelController::class, 'generateSingle'])->middleware(['auth'])->name('labels.single');
+
+// Company management routes (requires authentication)
+Route::middleware(['auth'])->group(function () {
+    // Company routes
+    Route::resource('companies', CompanyController::class);
+    Route::post('/companies/{company}/switch', [CompanyController::class, 'switchCompany'])->name('companies.switch');
+
+    // User management routes
+    Route::resource('users', UserController::class);
+});
 
 
 Route::get('/test-email', function () {
