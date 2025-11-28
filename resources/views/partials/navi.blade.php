@@ -64,6 +64,10 @@
                             <a href="{{route('dashboard')}}" data-route="{{url(route('dashboard'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-white" aria-current="page">Dashboard</a>
                             @endif
 
+                            @if($permission::isSuperAdmin())
+                            <a href="{{route('admin.dashboard')}}" data-route="{{url(route('admin.dashboard'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Admin Dashboard</a>
+                            @endif
+
                             @if($permission::can('packages.view'))
                             <a href="{{route('packagelogs')}}" data-route="{{url(route('packagelogs'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Package Logs</a>
                             @endif

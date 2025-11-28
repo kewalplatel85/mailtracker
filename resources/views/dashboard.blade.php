@@ -12,9 +12,6 @@
                         <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
                         <p class="text-sm text-gray-600">
                             Viewing data for: <span class="font-medium text-blue-600">{{ $stats['company_name'] }}</span>
-                            @if(auth()->user()->is_super_admin)
-                                <span class="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Super Admin</span>
-                            @endif
                         </p>
                     </div>
                     <div class="text-right text-sm text-gray-500">
@@ -86,39 +83,6 @@
                 </div>
             </div>
         </div>
-
-        @if(auth()->user()->is_super_admin && !empty($stats['company_stats']))
-        <!-- Super Admin Global Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div class="bg-gradient-to-r from-red-50 to-red-100 rounded-lg shadow p-6 border border-red-200">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
-                            <span class="text-white font-bold">🏢</span>
-                        </div>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-red-600">Active Companies</p>
-                        <p class="text-2xl font-semibold text-red-800">{{ $stats['company_stats']['total_companies'] }}</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-gradient-to-r from-red-50 to-red-100 rounded-lg shadow p-6 border border-red-200">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
-                            <span class="text-white font-bold">👥</span>
-                        </div>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-red-600">Total Users</p>
-                        <p class="text-2xl font-semibold text-red-800">{{ $stats['company_stats']['total_users'] }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        @endif
 
         <!-- Role-Based Quick Actions -->
         <div class="mb-6">
@@ -787,7 +751,6 @@ function togglePackageDetails(mailboxNumber) {
 }
 </script>
 
-@endsection
                             </div>
 
                             <div class="relative w-full">
@@ -889,7 +852,7 @@ function togglePackageDetails(mailboxNumber) {
                                 </table>
                             </div>
                         </form>
-                            <div id="loadingScreen" class="fixed inset-0 z-50 bg-black bg-opacity-50 hidden flex items-center justify-center">
+                            <div id="loadingScreen" class="fixed inset-0 z-50 bg-black bg-opacity-50 hidden items-center justify-center">
                                 <div class="flex flex-col items-center">
                                 <div class="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
                                 <p class="text-white text-lg font-medium">Processing, please wait...</p>

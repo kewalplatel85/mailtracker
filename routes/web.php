@@ -12,6 +12,7 @@ use App\Http\Controllers\PackageController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\LabelController;
+use App\Http\Controllers\Admin\AdminController;
 use Illuminate\Support\Facades\Mail;
 
 Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
@@ -56,6 +57,14 @@ Route::get('/labels/single/{id}', [LabelController::class, 'generateSingle'])->m
 
 // Company management routes (requires authentication)
 Route::middleware(['auth'])->group(function () {
+    // Admin routes (super admin only)
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+        Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
+        Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
+        Route::get('/health-check', [AdminController::class, 'healthCheck'])->name('health-check');
+    });
+
     // Company routes
     Route::resource('companies', CompanyController::class);
     Route::post('/companies/{company}/switch', [CompanyController::class, 'switchCompany'])->name('companies.switch');

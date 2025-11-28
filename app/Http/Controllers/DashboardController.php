@@ -29,6 +29,12 @@ class DashboardController extends BaseController
 
     public function index(){
         $currentUser = Auth::user();
+        
+        // Redirect super admins to admin dashboard
+        if ($currentUser->is_super_admin) {
+            return redirect()->route('admin.dashboard');
+        }
+        
         $filePath = 'uploads/latest_file.csv';
         $data = [];
 
@@ -175,46 +181,20 @@ class DashboardController extends BaseController
     private function getCompanyStats()
     {
         $currentUser = Auth::user();
-
-        // For super admins, use selected company or show global stats
-        if ($currentUser->is_super_admin) {
-            $companyId = session('selected_company_id');
-
-            if ($companyId) {
-                // Company-specific stats for super admin
-                $packages = Package::where('company_id', $companyId);
-                $companyName = \App\Models\Company::find($companyId)->name ?? 'Unknown';
-            } else {
-                // Global stats for super admin
-                $packages = Package::query();
-                $companyName = 'All Companies';
-            }
-        } else {
-            // Company-specific stats for regular users
-            $companyId = $currentUser->company_id;
-            $packages = Package::where('company_id', $companyId);
-            $companyName = $currentUser->company->name ?? 'Unknown';
-        }
+        
+        // Only for regular company users (super admins are redirected)
+        $companyId = $currentUser->company_id;
+        $packages = Package::where('company_id', $companyId);
+        $companyName = $currentUser->company->name ?? 'Unknown';
 
         // Calculate statistics
         $totalPackages = $packages->count();
         $pendingPackages = (clone $packages)->where('status', 'pending')->count();
         $shippedPackages = (clone $packages)->where('status', 'shipped')->count();
         $deliveredPackages = (clone $packages)->where('status', 'delivered')->count();
-
+        
         // Recent packages (last 7 days)
         $recentPackages = (clone $packages)->where('created_at', '>=', now()->subDays(7))->count();
-
-        // Additional company stats if super admin
-        $companyStats = [];
-        if ($currentUser->is_super_admin && !$companyId) {
-            $companyStats = [
-                'total_companies' => \App\Models\Company::where('status', 'active')->count(),
-                'total_users' => \App\Models\User::whereHas('company', function($q) {
-                    $q->where('status', 'active');
-                })->count(),
-            ];
-        }
 
         return [
             'company_name' => $companyName,
@@ -223,8 +203,5 @@ class DashboardController extends BaseController
             'shipped_packages' => $shippedPackages,
             'delivered_packages' => $deliveredPackages,
             'recent_packages' => $recentPackages,
-            'company_stats' => $companyStats
         ];
-    }
-
-}
+    }}
