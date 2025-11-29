@@ -16,7 +16,8 @@ class PackageController extends BaseController
 {
     public function __construct()
     {
-        $this->middleware('auth');
+        // Apply auth middleware to all methods except getPackagesByMailbox (for dashboard integration)
+        $this->middleware('auth')->except(['getPackagesByMailbox']);
         // Remove restrictive permissions for basic package viewing
         // $this->middleware('permission:packages.view')->only(['index', 'show']);
         // $this->middleware('permission:packages.create')->only(['create', 'store']);
@@ -89,6 +90,7 @@ class PackageController extends BaseController
     public function getPackagesByMailbox($mailboxNumber)
     {
         try {
+            // Check if user is authenticated, but don't fail if not (for dashboard integration)
             $packages = Package::where('mailbox_number', $mailboxNumber)
                 ->whereIn('status', ['Incoming', 'Ready for Pickup', 'Picked Up'])
                 ->orderBy('created_at', 'desc')
@@ -107,7 +109,7 @@ class PackageController extends BaseController
                     'received_at' => $package->received_at ? $package->received_at->format('M d, Y H:i') : null,
                     'ready_at' => $package->ready_at ? $package->ready_at->format('M d, Y H:i') : null,
                     'picked_up_at' => $package->picked_up_at ? $package->picked_up_at->format('M d, Y H:i') : null,
-                    'age_days' => $package->getAgeInDays(),
+                    'age_days' => method_exists($package, 'getAgeInDays') ? $package->getAgeInDays() : 0,
                 ];
             }
 

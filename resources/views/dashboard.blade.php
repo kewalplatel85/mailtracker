@@ -746,15 +746,7 @@ function togglePackageDetails(mailboxNumber) {
         $('#packageList').html('<div class="text-center py-4"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div><p class="text-sm text-gray-500 mt-2">Loading packages...</p></div>');
 
         // Fetch real package data from API
-        fetch(`/get-packages-by-mailbox/${mailboxNumber}`, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            credentials: 'same-origin'
-        })
+        fetch(`/get-packages-by-mailbox/${mailboxNumber}`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
