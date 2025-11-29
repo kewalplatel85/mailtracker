@@ -117,6 +117,7 @@
                                 <select name="status" required
                                         class="w-full px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <option value="Incoming">Incoming</option>
+                                    <option value="Ready for Pickup">Ready for Pickup</option>
                                     <option value="Picked Up">Picked Up</option>
                                 </select>
                             </div>

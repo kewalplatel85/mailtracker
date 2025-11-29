@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Twilio\Rest\Client;
 use App\Models\Package;
 use App\Http\Controllers\MessageController;
+use App\Services\PackageWorkflowService;
 
 class DashboardController extends Controller
 {
@@ -48,7 +49,7 @@ class DashboardController extends Controller
         return $rows;
     }
 
-    public function savePackage(Request $request) {
+    public function savePackage(Request $request, PackageWorkflowService $workflowService) {
         try {
             $request->validate([
                 'mailbox_number' => 'nullable|string',
@@ -119,17 +120,29 @@ class DashboardController extends Controller
             }
         }
 
-        // Create packages based on package count
+        $createdPackages = [];
+
+        // Create packages based on package count with workflow support
         for ($i = 0; $i < $packageCount; $i++) {
             $trackingNumber = isset($trackingNumbers[$i]) ? $trackingNumbers[$i] : '';
 
-            Package::create([
+            $package = Package::create([
                 'customer_name' => $request->customer_name,
                 'phone_number' => $customerPhone,
                 'mailbox_number' => $mailbox,
                 'tracking_number' => $trackingNumber,
                 'status' => $request->status,
+                // Workflow fields
+                'auto_ready' => true, // Enable auto-transition by default
+                'days_to_ready' => 0, // Immediate transition
             ]);
+
+            $createdPackages[] = $package;
+
+            // If package is incoming, process auto-transition
+            if ($request->status === 'Incoming') {
+                $workflowService->processAutoTransitions();
+            }
         }
 
         // TODO: Send SMS if customer phone is provided and SMS message is set
@@ -159,11 +172,10 @@ class DashboardController extends Controller
         */
 
         return response()->json([
-            'message' => 'Package(s) saved successfully.',
+            'message' => 'Package(s) saved successfully with workflow tracking.',
             'packages_created' => $packageCount,
             'phone_found' => $customerPhone ? true : false,
-            'sms_sent' => false // SMS temporarily disabled
+            'sms_sent' => false, // SMS temporarily disabled
+            'workflow_status' => $request->status === 'Incoming' ? 'Auto-transition enabled' : 'Manual workflow'
         ]);
-    }
-
-}
+    }}

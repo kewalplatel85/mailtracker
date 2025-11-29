@@ -19,10 +19,13 @@
 
 - 📦 **Package Management** - Track incoming/outgoing packages with full lifecycle management
 - 🏷️ **Storage Label Printing** - Generate 4"×6" barcode labels for easy identification
-- 💬 **SMS Integration** - Automated customer notifications via Twilio
+- 🔧 **Admin Dashboard** - Comprehensive administrative interface with system monitoring
+- 🎯 **Auto-fill Customer Data** - Smart customer lookup when entering mailbox numbers
+- 🍞 **Toast Notifications** - Modern notification system with visual feedback
 - 👥 **Customer Database** - CSV-based customer information management
 - 📱 **Responsive Design** - Works seamlessly on desktop and mobile devices
 - 🔐 **Secure Authentication** - User login and access control
+- 💬 **Communication System** - SMS/Email notification capabilities (configurable)
 
 ## 🛠️ Technology Stack
 
@@ -100,56 +103,102 @@
 ## 📋 Features Overview
 
 ### Package Management
-- Scan and register incoming packages
-- Track package status (Incoming/Outgoing)
-- Associate packages with customer mailboxes
-- Bulk package operations
+- 📥 Scan and register incoming packages with auto-fill customer data
+- 📊 Track package status with optimized workflow transitions
+- 📮 Associate packages with customer mailboxes automatically
+- 🔄 Bulk package operations and status management
+- 🍞 Real-time toast notifications for all operations
+
+### Admin Dashboard
+- 📈 System statistics and health monitoring
+- ⚙️ Configuration management and settings
+- 📋 Administrative reports and analytics
+- 🔧 User management tools
+- 🎛️ Accessible via profile dropdown menu
 
 ### Customer Management
-- CSV-based customer database
-- Mailbox number assignment
-- Contact information management
-- Customer search and filtering
+- 📁 CSV-based customer database with enhanced validation
+- 🔢 Automatic mailbox number to customer name mapping
+- 📞 Contact information management with phone lookup
+- 🔍 Advanced customer search and filtering
+- ✨ Auto-fill functionality for efficient data entry
 
 ### Storage Label System
-- Generate 4"×6" barcode labels
-- Print-optimized label design
-- Batch label printing
-- Mobile-friendly label interface
+- 🏷️ Generate 4"×6" barcode labels with enhanced design
+- 🖨️ Print-optimized label layouts
+- 📦 Batch label printing capabilities
+- 📱 Mobile-friendly label interface
 
-### Communication
-- Automated SMS notifications
-- Custom message templates
-- SMS inbox management
-- Customer notification history
+### Communication System
+- 📧 Email notification system (primary)
+- 📱 SMS integration capabilities (configurable)
+- 📝 Custom message templates and personalization
+- 📬 Message history and inbox management
+- 🍞 Toast notifications for delivery status
 
 ## 📱 Usage
 
-### Dashboard
-- Upload customer CSV files
-- Quick package entry with barcode scanning
-- Real-time package tracking
-- Customer information lookup
+### Main Dashboard
+- 📁 Upload customer CSV files with enhanced validation
+- ⚡ Quick package entry with auto-fill customer data
+- 🎯 Smart mailbox number to customer name mapping
+- 📊 Real-time package tracking with toast notifications
+- 🔍 Efficient customer information lookup
 
-### Package Logs
-- View all packages by status
-- Filter and search packages
-- Print storage labels
-- Manage package lifecycle
+### Admin Dashboard
+- 🎛️ Access via profile dropdown menu
+- 📈 View system statistics and health metrics
+- ⚙️ Manage system settings and configurations
+- 📋 Generate administrative reports
+- 👥 User management and access control
 
-### Storage Labels
-- Select mailboxes for label printing
-- Generate scannable barcodes
-- Print 4"×6" labels for storage boxes
-- Support for various label printers
+### Package Management
+- 📦 Streamlined package entry with auto-fill
+- 🍞 Toast notifications for all operations
+- 🔄 Optimized package status transitions
+- 📊 Enhanced tracking and lifecycle management
+- 🎯 Smart workflow automation
+
+### Communication Center
+- 📧 Email notification management (primary)
+- 📱 SMS capabilities (when enabled)
+- 📝 Custom message templates
+- 📬 Notification history and tracking
+- 🍞 Real-time delivery status updates
 
 ## 🔧 Configuration
 
-### Twilio SMS Setup
-1. Create a Twilio account at [twilio.com](https://www.twilio.com)
-2. Get your Account SID and Auth Token
-3. Purchase a phone number
-4. Add credentials to `.env` file
+### Communication Setup
+1. **Email Configuration** (Primary notification method)
+   ```env
+   MAIL_MAILER=smtp
+   MAIL_HOST=your-smtp-host
+   MAIL_PORT=587
+   MAIL_USERNAME=your-email
+   MAIL_PASSWORD=your-password
+   ```
+
+2. **SMS Setup** (Optional - Twilio integration)
+   - Create a Twilio account at [twilio.com](https://www.twilio.com)
+   - Get your Account SID and Auth Token
+   - Purchase a phone number
+   - Add credentials to `.env` file:
+   ```env
+   TWILIO_SID=your_twilio_sid
+   TWILIO_AUTH_TOKEN=your_twilio_token
+   TWILIO_PHONE_NUMBER=your_twilio_phone
+   ```
+
+### Admin Dashboard Access
+- Admin dashboard is accessible from the profile dropdown menu
+- Provides system statistics, health monitoring, and configuration options
+- Requires appropriate user permissions
+
+### Toast Notifications
+- Modern notification system replaces traditional alerts
+- Visual feedback for all user actions
+- Auto-dismissing with manual close options
+- Different types: success, error, warning, info
 
 ### CSV Format
 Customer data should follow this structure:
