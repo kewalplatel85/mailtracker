@@ -2,157 +2,52 @@
 @section('title','Dashboard')
 
 @section('content')
+
+@section('content')
 <div class="min-h-screen bg-gray-50 py-4">
     <div class="max-w-full mx-auto px-6 sm:px-8 lg:px-12">
-        <!-- Company Context Header -->
-        <div class="mb-6">
-            <div class="bg-white rounded-lg shadow p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
-                        <p class="text-sm text-gray-600">
-                            Viewing data for: <span class="font-medium text-blue-600">{{ $stats['company_name'] }}</span>
-                        </p>
-                    </div>
-                    <div class="text-right text-sm text-gray-500">
-                        {{ now()->format('M j, Y \a\t g:i A') }}
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Header Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <!-- Total Packages -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
                         <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                            <span class="text-white font-bold">📦</span>
+                            <span class="text-white font-bold">📬</span>
                         </div>
                     </div>
                     <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500">Total Packages</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ $stats['total_packages'] }}</p>
+                        <p class="text-sm font-medium text-gray-500">Total Mailboxes</p>
+                        <p class="text-2xl font-semibold text-gray-900">345</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Pending Packages -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
-                            <span class="text-white font-bold">⏳</span>
-                        </div>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500">Pending</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ $stats['pending_packages'] }}</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Shipped Packages -->
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
                         <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                            <span class="text-white font-bold">📦</span>
+                        </div>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">With Packages</p>
+                        <p class="text-2xl font-semibold text-gray-900">42</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
                             <span class="text-white font-bold">🚚</span>
                         </div>
                     </div>
                     <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500">Shipped</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ $stats['shipped_packages'] }}</p>
+                        <p class="text-sm font-medium text-gray-500">Total Packages</p>
+                        <p class="text-2xl font-semibold text-gray-900">89</p>
                     </div>
                 </div>
-            </div>
-
-            <!-- Delivered Packages -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                            <span class="text-white font-bold">✅</span>
-                        </div>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500">Delivered</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ $stats['delivered_packages'] }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Role-Based Quick Actions -->
-        <div class="mb-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                @if(\App\Helpers\PermissionHelper::can('packages.create'))
-                <a href="{{ route('dashboard') }}#package-form" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow">
-                    <div class="flex flex-col items-center text-center">
-                        <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center mb-2">
-                            <span class="text-white font-bold">📦</span>
-                        </div>
-                        <span class="text-sm font-medium text-gray-900">Add Package</span>
-                    </div>
-                </a>
-                @endif
-
-                @if(\App\Helpers\PermissionHelper::can('packages.view'))
-                <a href="{{ route('packagelogs') }}" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow">
-                    <div class="flex flex-col items-center text-center">
-                        <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mb-2">
-                            <span class="text-white font-bold">📋</span>
-                        </div>
-                        <span class="text-sm font-medium text-gray-900">View Packages</span>
-                    </div>
-                </a>
-                @endif
-
-                @if(\App\Helpers\PermissionHelper::can('packages.view'))
-                <a href="{{ route('labels.index') }}" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow">
-                    <div class="flex flex-col items-center text-center">
-                        <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center mb-2">
-                            <span class="text-white font-bold">🏷️</span>
-                        </div>
-                        <span class="text-sm font-medium text-gray-900">Print Labels</span>
-                    </div>
-                </a>
-                @endif
-
-                @if(\App\Helpers\PermissionHelper::can('users.view'))
-                <a href="{{ route('users.index') }}" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow">
-                    <div class="flex flex-col items-center text-center">
-                        <div class="w-10 h-10 bg-indigo-500 rounded-lg flex items-center justify-center mb-2">
-                            <span class="text-white font-bold">👥</span>
-                        </div>
-                        <span class="text-sm font-medium text-gray-900">Manage Users</span>
-                    </div>
-                </a>
-                @endif
-
-                @if(\App\Helpers\PermissionHelper::can('companies.view'))
-                <a href="{{ route('companies.index') }}" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow">
-                    <div class="flex flex-col items-center text-center">
-                        <div class="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center mb-2">
-                            <span class="text-white font-bold">🏢</span>
-                        </div>
-                        <span class="text-sm font-medium text-gray-900">Companies</span>
-                    </div>
-                </a>
-                @endif
-
-                @if(\App\Helpers\PermissionHelper::can('reports.view'))
-                <a href="#" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow">
-                    <div class="flex flex-col items-center text-center">
-                        <div class="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center mb-2">
-                            <span class="text-white font-bold">📊</span>
-                        </div>
-                        <span class="text-sm font-medium text-gray-900">Reports</span>
-                    </div>
-                </a>
-                @endif
             </div>
         </div>
 
@@ -751,6 +646,7 @@ function togglePackageDetails(mailboxNumber) {
 }
 </script>
 
+@endsection
                             </div>
 
                             <div class="relative w-full">
@@ -852,7 +748,7 @@ function togglePackageDetails(mailboxNumber) {
                                 </table>
                             </div>
                         </form>
-                            <div id="loadingScreen" class="fixed inset-0 z-50 bg-black bg-opacity-50 hidden items-center justify-center">
+                            <div id="loadingScreen" class="fixed inset-0 z-50 bg-black bg-opacity-50 hidden flex items-center justify-center">
                                 <div class="flex flex-col items-center">
                                 <div class="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
                                 <p class="text-white text-lg font-medium">Processing, please wait...</p>

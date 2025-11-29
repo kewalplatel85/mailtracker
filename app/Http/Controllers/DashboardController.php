@@ -10,31 +10,11 @@ use Illuminate\Support\Str;
 use Twilio\Rest\Client;
 use App\Models\Package;
 use App\Http\Controllers\MessageController;
-use Illuminate\Routing\Controller as BaseController;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Foundation\Validation\ValidatesRequests;
 
-class DashboardController extends BaseController
+class DashboardController extends Controller
 {
-    use AuthorizesRequests, ValidatesRequests;
-
-    public function __construct()
-    {
-        $this->middleware('auth');
-        $this->middleware('permission:dashboard.view')->only(['index']);
-        $this->middleware('permission:reports.view')->only(['getReports']);
-        $this->middleware('permission:files.upload')->only(['upload']);
-    }
-
+    //
     public function index(){
-        $currentUser = Auth::user();
-        
-        // Redirect super admins to admin dashboard
-        if ($currentUser->is_super_admin) {
-            return redirect()->route('admin.dashboard');
-        }
-        
         $filePath = 'uploads/latest_file.csv';
         $data = [];
 
@@ -42,9 +22,6 @@ class DashboardController extends BaseController
         if (Storage::exists($filePath)) {
             $data = $this->parseFile(Storage::path($filePath));
         }
-
-        // Get company-scoped statistics
-        $stats = $this->getCompanyStats();
 
         // Instantiate MessageController and fetch SMS messages
         $messagesController = new MessageController();
@@ -56,9 +33,7 @@ class DashboardController extends BaseController
         return view('dashboard', [
             'data' => $data,
             'receivedMessages' => $receivedMessages,
-            'sentMessages' => $sentMessages,
-            'stats' => $stats,
-            'user' => $currentUser
+            'sentMessages' => $sentMessages
         ]);
     }
 
@@ -175,33 +150,4 @@ class DashboardController extends BaseController
         return response()->json(['message' => 'Package saved and notifications sent successfully.']);
     }
 
-    /**
-     * Get statistics based on user's company scope
-     */
-    private function getCompanyStats()
-    {
-        $currentUser = Auth::user();
-        
-        // Only for regular company users (super admins are redirected)
-        $companyId = $currentUser->company_id;
-        $packages = Package::where('company_id', $companyId);
-        $companyName = $currentUser->company->name ?? 'Unknown';
-
-        // Calculate statistics
-        $totalPackages = $packages->count();
-        $pendingPackages = (clone $packages)->where('status', 'pending')->count();
-        $shippedPackages = (clone $packages)->where('status', 'shipped')->count();
-        $deliveredPackages = (clone $packages)->where('status', 'delivered')->count();
-        
-        // Recent packages (last 7 days)
-        $recentPackages = (clone $packages)->where('created_at', '>=', now()->subDays(7))->count();
-
-        return [
-            'company_name' => $companyName,
-            'total_packages' => $totalPackages,
-            'pending_packages' => $pendingPackages,
-            'shipped_packages' => $shippedPackages,
-            'delivered_packages' => $deliveredPackages,
-            'recent_packages' => $recentPackages,
-        ];
-    }}
+}

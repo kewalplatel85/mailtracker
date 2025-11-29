@@ -8,6 +8,9 @@ use App\Models\User;
 use App\Models\Package;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Routing\Controller as BaseController;
@@ -35,7 +38,7 @@ class AdminController extends BaseController
         $stats = $this->getSystemStats();
         $recentCompanies = Company::latest()->take(5)->get();
 
-        return view('admin.dashboard', compact('stats', 'recentCompanies'));
+        return response()->json(compact('stats', 'recentCompanies'));
     }
 
     /**
@@ -92,7 +95,7 @@ class AdminController extends BaseController
             ->orderBy('date')
             ->get();
 
-        return view('admin.reports', compact('companyStats', 'packageTrends'));
+        return response()->json(compact('companyStats', 'packageTrends'));
     }
 
     /**
@@ -106,12 +109,12 @@ class AdminController extends BaseController
             'app_env' => config('app.env'),
             'app_debug' => config('app.debug'),
             'database_connection' => config('database.default'),
-            'mail_driver' => config('mail.driver'),
+            'mail_driver' => Config::get('mail.default', 'smtp'),
             'cache_driver' => config('cache.default'),
             'session_driver' => config('session.driver'),
         ];
 
-        return view('admin.settings', compact('settings'));
+        return response()->json(compact('settings'));
     }
 
     /**
@@ -132,7 +135,7 @@ class AdminController extends BaseController
     private function checkDatabaseHealth()
     {
         try {
-            \DB::connection()->getPdo();
+            DB::connection()->getPdo();
             return ['status' => 'healthy', 'message' => 'Database connection successful'];
         } catch (\Exception $e) {
             return ['status' => 'unhealthy', 'message' => 'Database connection failed: ' . $e->getMessage()];
@@ -156,9 +159,9 @@ class AdminController extends BaseController
     {
         try {
             $testFile = 'health_check_' . time() . '.txt';
-            \Storage::put($testFile, 'test');
-            $content = \Storage::get($testFile);
-            \Storage::delete($testFile);
+            Storage::put($testFile, 'test');
+            $content = Storage::get($testFile);
+            Storage::delete($testFile);
 
             return ['status' => $content === 'test' ? 'healthy' : 'unhealthy', 'message' => 'Storage system operational'];
         } catch (\Exception $e) {
@@ -170,7 +173,7 @@ class AdminController extends BaseController
     {
         try {
             // Just check if mail configuration is properly set
-            $driver = config('mail.driver');
+            $driver = Config::get('mail.default', 'smtp');
             return ['status' => 'healthy', 'message' => "Mail driver: $driver"];
         } catch (\Exception $e) {
             return ['status' => 'unhealthy', 'message' => 'Mail configuration error: ' . $e->getMessage()];
