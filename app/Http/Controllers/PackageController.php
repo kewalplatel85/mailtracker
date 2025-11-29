@@ -6,22 +6,35 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\MessageController;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use Twilio\Rest\Client;
 use App\Models\Package;
+use Illuminate\Routing\Controller as BaseController;
 
-class PackageController extends Controller
+class PackageController extends BaseController
 {
-    //
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('permission:packages.view')->only(['index', 'show']);
+        $this->middleware('permission:packages.create')->only(['create', 'store']);
+        $this->middleware('permission:packages.edit')->only(['edit', 'update']);
+        $this->middleware('permission:packages.delete')->only(['destroy']);
+        $this->middleware('permission:packages.bulk_operations')->only(['bulkUpdate', 'bulkDelete', 'bulkSms']);
+    }
+
     public function index()
     {
+        // Packages are automatically scoped by company via global scope
         $packageLogs = Package::select(
             'mailbox_number',
             'customer_name',
             'phone_number',
             'status',
             'created_at',
-            'tracking_number', // Added this
-            'id' // Added this
+            'tracking_number',
+            'id'
         )
         ->where('status', 'Incoming')
         ->get()
@@ -32,7 +45,7 @@ class PackageController extends Controller
                 'customer_name' => $group->first()->customer_name,
                 'phone_number' => $group->first()->phone_number,
                 'status' => $group->first()->status,
-                'date_received' => \Carbon\Carbon::parse($group->first()->created_at)->format('d-m-Y'), // Fix here
+                'date_received' => \Carbon\Carbon::parse($group->first()->created_at)->format('d-m-Y'),
                 'package_count' => $group->count(),
                 'tracking_numbers' => $group->pluck('tracking_number')->toArray(),
                 'id' => $group->pluck('id')->toArray(),
@@ -72,7 +85,34 @@ class PackageController extends Controller
         return response()->json($packages);
     }
 
-    public function checkTrackingNumberExist(Request $request)
+    public function getPackagesByMailbox($mailboxNumber)
+    {
+        try {
+            $packages = Package::where('mailbox_number', $mailboxNumber)
+                ->whereIn('status', ['Incoming', 'Ready to Pickup', 'Picked up'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $result = [];
+            foreach ($packages as $index => $package) {
+                $result[] = [
+                    'id' => $package->id,
+                    'tracking_number' => $package->tracking_number ?? 'N/A',
+                    'status' => $package->status ?? 'Unknown',
+                    'created_at' => $package->created_at ? $package->created_at->format('M d, Y') : 'Unknown',
+                    'customer_name' => $package->customer_name ?? 'N/A',
+                    'phone_number' => $package->phone_number ?? 'N/A',
+                ];
+            }
+
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }    public function checkTrackingNumberExist(Request $request)
     {
         $request->validate([
             'tracking_number' => 'required|string|max:255',

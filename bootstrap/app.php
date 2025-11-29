@@ -11,7 +11,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        $middleware->alias([
+            'company.scope' => \App\Http\Middleware\CompanyScope::class,
+            'permission' => \App\Http\Middleware\CheckPermission::class,
+        ]);
+
+        // Add company scope to web middleware group
+        $middleware->web(append: [
+            \App\Http\Middleware\CompanyScope::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
