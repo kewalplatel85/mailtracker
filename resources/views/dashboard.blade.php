@@ -117,7 +117,6 @@
                                 <select name="status" required
                                         class="w-full px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <option value="Incoming">Incoming</option>
-                                    <option value="Ready for Pickup">Ready for Pickup</option>
                                     <option value="Picked Up">Picked Up</option>
                                 </select>
                             </div>
@@ -338,8 +337,48 @@
     </div>
 </div>
 
+<!-- Toast Notification Container -->
+<div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
+// Toast notification function
+function showToast(message, type = 'success') {
+    const toast = $(`
+        <div class="toast animate-fade-in-down bg-white shadow-lg rounded-lg border-l-4 ${
+            type === 'success' ? 'border-green-500' :
+            type === 'error' ? 'border-red-500' :
+            type === 'warning' ? 'border-yellow-500' : 'border-blue-500'
+        } p-4 mb-3 max-w-sm">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <span class="text-lg">${
+                        type === 'success' ? '✅' :
+                        type === 'error' ? '❌' :
+                        type === 'warning' ? '⚠️' : 'ℹ️'
+                    }</span>
+                </div>
+                <div class="ml-3 flex-1">
+                    <p class="text-sm font-medium text-gray-900">${message}</p>
+                </div>
+                <button class="ml-4 text-gray-400 hover:text-gray-600" onclick="$(this).closest('.toast').remove()">
+                    <span class="sr-only">Close</span>
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `);
+
+    $('#toast-container').append(toast);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        toast.fadeOut(300, () => toast.remove());
+    }, 5000);
+}
+
 $(document).ready(function() {
     let currentPage = 1;
     let itemsPerPage = 40;
@@ -574,11 +613,120 @@ $(document).ready(function() {
         $(this).addClass('active bg-blue-600 text-white').removeClass('bg-gray-200 text-gray-700');
     });
 
+    // Auto-fill customer name when mailbox number is entered
+    $('input[name="mailbox_number"]').on('input', function() {
+        const mailboxNumber = $(this).val().trim();
+        const customerNameField = $('input[name="customer_name"]');
+
+        if (mailboxNumber) {
+            // Find matching mailbox in the grid
+            const matchingMailbox = $('.mailbox-item').filter(function() {
+                return $(this).data('mailbox').toString() === mailboxNumber;
+            });
+
+            if (matchingMailbox.length > 0) {
+                // Auto-fill customer name from matching mailbox
+                const customerName = matchingMailbox.data('customer');
+                if (customerName && customerName.trim() !== '') {
+                    customerNameField.val(customerName);
+                    // Visual feedback that auto-fill worked
+                    customerNameField.addClass('bg-green-50 border-green-300');
+                    setTimeout(() => {
+                        customerNameField.removeClass('bg-green-50 border-green-300');
+                    }, 1500);
+                }
+            } else {
+                // Clear customer name if mailbox not found
+                customerNameField.val('');
+            }
+        } else {
+            // Clear customer name if mailbox number is empty
+            customerNameField.val('');
+        }
+    });
+
     // Form submission
     $('#packageForm').submit(function(e) {
         e.preventDefault();
-        // Add form submission logic here
-        alert('Package form submitted!');
+
+        // Collect form data
+        const formData = new FormData();
+        const mailboxNumber = $('input[name="mailbox_number"]').val().trim();
+        const customerName = $('input[name="customer_name"]').val().trim();
+        const packageCount = $('input[name="package_count"]').val() || 1;
+        const status = $('select[name="status"]').val();
+        const trackingNumber = $('textarea[name="tracking_number"]').val().trim();
+        const smsMessage = $('textarea[name="sms_message"]').val().trim();
+
+        // Validation
+        if (!customerName) {
+            alert('Customer name is required.');
+            return;
+        }
+
+        if (!status) {
+            alert('Status is required.');
+            return;
+        }
+
+        // Add form data
+        formData.append('mailbox_number', mailboxNumber);
+        formData.append('customer_name', customerName);
+        formData.append('package_count', packageCount);
+        formData.append('status', status);
+        formData.append('tracking_number', trackingNumber);
+        formData.append('sms_message', smsMessage);
+
+        // Add CSRF token
+        formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
+
+        // Add images if any
+        const fileInput = $('input[name="package_images[]"]')[0];
+        if (fileInput && fileInput.files) {
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append('package_images[]', fileInput.files[i]);
+            }
+        }
+
+        // Submit form
+        $.ajax({
+            url: '/saveAndNotify',
+            type: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function(response) {
+                showToast(response.message || 'Package saved successfully!', 'success');
+
+                // Show additional info if available
+                if (response.packages_created > 1) {
+                    showToast(`Created ${response.packages_created} packages`, 'info');
+                }
+
+                if (response.phone_found) {
+                    showToast('Customer phone number found in records', 'info');
+                } else if (mailboxNumber) {
+                    showToast('No phone number found for this mailbox', 'warning');
+                }
+
+                // Reset form
+                $('#packageForm')[0].reset();
+                // Optionally refresh page or update UI
+                setTimeout(() => location.reload(), 2000);
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON;
+                if (error && error.errors) {
+                    Object.keys(error.errors).forEach(key => {
+                        error.errors[key].forEach(msg => {
+                            showToast(`${key}: ${msg}`, 'error');
+                        });
+                    });
+                } else {
+                    showToast(error?.message || 'Error saving package. Please try again.', 'error');
+                }
+            }
+        });
     });
 
     // Initialize

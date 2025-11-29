@@ -38,7 +38,12 @@ class AdminController extends BaseController
         $stats = $this->getSystemStats();
         $recentCompanies = Company::latest()->take(5)->get();
 
-        return response()->json(compact('stats', 'recentCompanies'));
+        // Return JSON for AJAX requests, view for regular requests
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json(compact('stats', 'recentCompanies'));
+        }
+
+        return view('admin.dashboard', compact('stats', 'recentCompanies'));
     }
 
     /**
