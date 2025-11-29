@@ -45,7 +45,7 @@ Route::post('/textblast', [MessageController::class, 'sendTextBlast'])->name('me
 // PackageLogs
 Route::get('/packagelogs',[PackageController::class, 'index'])->middleware(['auth'])->name('packagelogs');
 Route::get('/get-packages',[PackageController::class, 'getPackages'])->middleware(['auth'])->name('packages');
-Route::get('/get-packages-by-mailbox/{mailbox}',[PackageController::class, 'getPackagesByMailbox'])->name('packages.by.mailbox');
+Route::get('/get-packages-by-mailbox/{mailbox}',[PackageController::class, 'getPackagesByMailbox'])->middleware(['auth'])->name('packages.by.mailbox');
 Route::post('/check-tracking',[PackageController::class, 'checkTrackingNumberExist'])->name('check.tracking.number');
 Route::post('/outgoing-packge',[PackageController::class,'outgoingPackage'])->middleware(['auth'])->name('outgoing.package');
 Route::post('/delete-package', [PackageController::class, 'deletePackage'])->name('delete.package');

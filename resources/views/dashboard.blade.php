@@ -746,8 +746,21 @@ function togglePackageDetails(mailboxNumber) {
         $('#packageList').html('<div class="text-center py-4"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div><p class="text-sm text-gray-500 mt-2">Loading packages...</p></div>');
 
         // Fetch real package data from API
-        fetch(`/get-packages-by-mailbox/${mailboxNumber}`)
-            .then(response => response.json())
+        fetch(`/get-packages-by-mailbox/${mailboxNumber}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            credentials: 'same-origin'
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
             .then(packages => {
                 console.log('Packages received:', packages);
 
@@ -763,9 +776,25 @@ function togglePackageDetails(mailboxNumber) {
 
                 let packagesHtml = '';
                 packages.forEach((pkg, index) => {
-                    const statusColor = pkg.status === 'Incoming' ? 'green' :
-                                      pkg.status === 'Ready to Pickup' ? 'yellow' :
-                                      pkg.status === 'Picked up' ? 'blue' : 'gray';
+                    const statusColor = pkg.status === 'Incoming' ? 'blue' :
+                                      pkg.status === 'Ready for Pickup' ? 'yellow' :
+                                      pkg.status === 'Picked Up' ? 'green' : 'gray';
+
+                    // Build workflow timeline
+                    let workflowHtml = '<div class="text-xs text-gray-500 mt-2">';
+                    if (pkg.received_at) {
+                        workflowHtml += `<div>📥 Received: ${pkg.received_at}</div>`;
+                    }
+                    if (pkg.ready_at) {
+                        workflowHtml += `<div>✅ Ready: ${pkg.ready_at}</div>`;
+                    }
+                    if (pkg.picked_up_at) {
+                        workflowHtml += `<div>📦 Picked up: ${pkg.picked_up_at}</div>`;
+                    }
+                    if (pkg.age_days > 0) {
+                        workflowHtml += `<div class="font-medium ${pkg.age_days > 7 ? 'text-red-600' : 'text-blue-600'}">Age: ${pkg.age_days} days</div>`;
+                    }
+                    workflowHtml += '</div>';
 
                     packagesHtml += `
                         <div class="bg-gray-50 p-4 rounded-lg border-l-4 border-${statusColor}-500 mb-3">
@@ -773,9 +802,13 @@ function togglePackageDetails(mailboxNumber) {
                                 <div>
                                     <p class="font-medium text-gray-900">Package #${index + 1}</p>
                                     <p class="text-sm text-gray-600">Tracking: ${pkg.tracking_number}</p>
-                                    <p class="text-sm text-gray-500">Arrived: ${pkg.created_at}</p>
+                                    <p class="text-sm text-gray-500">Created: ${pkg.created_at}</p>
+                                    ${workflowHtml}
                                 </div>
-                                <span class="bg-${statusColor}-100 text-${statusColor}-800 text-xs font-medium px-2 py-1 rounded-full">${pkg.status}</span>
+                                <div class="text-right">
+                                    <span class="bg-${statusColor}-100 text-${statusColor}-800 text-xs font-medium px-2 py-1 rounded-full">${pkg.status}</span>
+                                    ${pkg.age_days > 7 && pkg.status === 'Ready for Pickup' ? '<div class="text-xs text-red-600 mt-1">⚠️ Aging</div>' : ''}
+                                </div>
                             </div>
                         </div>
                     `;

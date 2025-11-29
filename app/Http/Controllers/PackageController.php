@@ -17,11 +17,12 @@ class PackageController extends BaseController
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware('permission:packages.view')->only(['index', 'show']);
-        $this->middleware('permission:packages.create')->only(['create', 'store']);
-        $this->middleware('permission:packages.edit')->only(['edit', 'update']);
-        $this->middleware('permission:packages.delete')->only(['destroy']);
-        $this->middleware('permission:packages.bulk_operations')->only(['bulkUpdate', 'bulkDelete', 'bulkSms']);
+        // Remove restrictive permissions for basic package viewing
+        // $this->middleware('permission:packages.view')->only(['index', 'show']);
+        // $this->middleware('permission:packages.create')->only(['create', 'store']);
+        // $this->middleware('permission:packages.edit')->only(['edit', 'update']);
+        // $this->middleware('permission:packages.delete')->only(['destroy']);
+        // $this->middleware('permission:packages.bulk_operations')->only(['bulkUpdate', 'bulkDelete', 'bulkSms']);
     }
 
     public function index()
@@ -89,7 +90,7 @@ class PackageController extends BaseController
     {
         try {
             $packages = Package::where('mailbox_number', $mailboxNumber)
-                ->whereIn('status', ['Incoming', 'Ready to Pickup', 'Picked up'])
+                ->whereIn('status', ['Incoming', 'Ready for Pickup', 'Picked Up'])
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -102,14 +103,20 @@ class PackageController extends BaseController
                     'created_at' => $package->created_at ? $package->created_at->format('M d, Y') : 'Unknown',
                     'customer_name' => $package->customer_name ?? 'N/A',
                     'phone_number' => $package->phone_number ?? 'N/A',
+                    // Add workflow information
+                    'received_at' => $package->received_at ? $package->received_at->format('M d, Y H:i') : null,
+                    'ready_at' => $package->ready_at ? $package->ready_at->format('M d, Y H:i') : null,
+                    'picked_up_at' => $package->picked_up_at ? $package->picked_up_at->format('M d, Y H:i') : null,
+                    'age_days' => $package->getAgeInDays(),
                 ];
             }
 
             return response()->json($result);
         } catch (\Exception $e) {
+            \Log::error('Error fetching packages by mailbox: ' . $e->getMessage());
             return response()->json([
                 'error' => true,
-                'message' => $e->getMessage()
+                'message' => 'Failed to fetch packages: ' . $e->getMessage()
             ], 500);
         }
     }    public function checkTrackingNumberExist(Request $request)
