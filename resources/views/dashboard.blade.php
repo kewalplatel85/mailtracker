@@ -220,7 +220,52 @@
                                 </div>
                             </div>
 
-                            <!-- View Toggle -->
+                            <!-- Expiration Filter -->
+                            <div class="flex items-center space-x-2">
+                                <select id="expirationFilter" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                    <option value="">All Expirations</option>
+                                    <option value="no-due-date">No Due Date</option>
+                                    <option value="expired">Expired</option>
+                                    <option value="expiring-soon">Expiring This Month</option>
+                                    <option value="expiring-next">Expiring Next Month</option>
+                                    <optgroup label="Recent Months">
+                                        @php
+                                            $currentYear = date('Y');
+                                            $currentMonth = date('n'); // 1-12
+                                            $months = [
+                                                'January', 'February', 'March', 'April', 'May', 'June',
+                                                'July', 'August', 'September', 'October', 'November', 'December'
+                                            ];
+
+                                            // Show previous 2 months, current month, and next 3 months
+                                            for ($i = -2; $i <= 3; $i++) {
+                                                $targetMonth = $currentMonth + $i;
+                                                $targetYear = $currentYear;
+
+                                                if ($targetMonth <= 0) {
+                                                    $targetMonth += 12;
+                                                    $targetYear--;
+                                                } elseif ($targetMonth > 12) {
+                                                    $targetMonth -= 12;
+                                                    $targetYear++;
+                                                }
+
+                                                $monthName = $months[$targetMonth - 1];
+                                                $monthValue = sprintf('%04d-%02d', $targetYear, $targetMonth);
+                                                echo "<option value=\"{$monthValue}\">{$monthName} {$targetYear}</option>";
+                                            }
+                                        @endphp
+                                    </optgroup>
+                                    <optgroup label="By Year">
+                                        <option value="{{ $currentYear - 1 }}">{{ $currentYear - 1 }}</option>
+                                        <option value="{{ $currentYear }}">{{ $currentYear }}</option>
+                                        <option value="{{ $currentYear + 1 }}">{{ $currentYear + 1 }}</option>
+                                    </optgroup>
+                                </select>
+                                <button id="clearFilters" class="px-3 py-2 bg-gray-500 text-white text-sm rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                                    Clear
+                                </button>
+                            </div>                            <!-- View Toggle -->
                             <div class="flex bg-gray-200 rounded-md">
                                 <button class="view-toggle active px-3 py-2 text-sm font-medium rounded-l-md bg-blue-600 text-white" data-view="grid">
                                     Grid
@@ -594,18 +639,12 @@ function filterToMailbox(mailboxNumber) {
 }
 
 function resetMailboxFilter() {
-    const searchQuery = $('#searchMailbox').val().toLowerCase();
-    if (searchQuery) {
-        // Keep search filter if active
-        filteredMailboxes = allMailboxes.filter(item => {
-            const mailbox = $(item).data('mailbox').toString().toLowerCase();
-            const customer = $(item).data('customer').toString().toLowerCase();
-            return mailbox.includes(searchQuery) || customer.includes(searchQuery);
-        });
-    } else {
-        // Show all mailboxes
-        filteredMailboxes = allMailboxes;
-    }
+    // Clear search and expiration filters
+    $('#searchMailbox').val('');
+    $('#expirationFilter').val('');
+
+    // Reset to all mailboxes
+    filteredMailboxes = allMailboxes;
     currentPage = 1;
     updatePagination();
 }
@@ -709,17 +748,96 @@ $(document).ready(function() {
 
     // Search functionality
     $('#searchMailbox').on('input', function() {
-        const query = $(this).val().toLowerCase();
+        applyFilters();
+    });
+
+    // Expiration filter functionality
+    $('#expirationFilter').on('change', function() {
+        applyFilters();
+    });
+
+    // Clear filters functionality
+    $('#clearFilters').on('click', function() {
+        $('#searchMailbox').val('');
+        $('#expirationFilter').val('');
+        applyFilters();
+    });
+
+    // Combined filter function
+    function applyFilters() {
+        const searchQuery = $('#searchMailbox').val().toLowerCase();
+        const expirationFilter = $('#expirationFilter').val();
+
         filteredMailboxes = allMailboxes.filter(item => {
             const mailbox = $(item).data('mailbox').toString().toLowerCase();
             const customer = $(item).data('customer').toString().toLowerCase();
-            return mailbox.includes(query) || customer.includes(query);
+            const dueDate = $(item).data('due-date');
+
+            // Search filter
+            let matchesSearch = true;
+            if (searchQuery) {
+                matchesSearch = mailbox.includes(searchQuery) || customer.includes(searchQuery);
+            }
+
+            // Expiration filter
+            let matchesExpiration = true;
+            if (expirationFilter) {
+                const hasNoDueDate = !dueDate || dueDate === 'N/A' || dueDate === '' || dueDate === 'null';
+
+                if (expirationFilter === 'no-due-date') {
+                    // Show only mailboxes with no due date
+                    matchesExpiration = hasNoDueDate;
+                } else {
+                    // For other filters, exclude mailboxes with no due date
+                    if (hasNoDueDate) {
+                        matchesExpiration = false;
+                    } else {
+                        const expDate = new Date(dueDate);
+                        const today = new Date();
+                        const currentMonth = today.getMonth();
+                        const currentYear = today.getFullYear();
+
+                        // Skip invalid dates
+                        if (isNaN(expDate.getTime())) {
+                            matchesExpiration = false;
+                        } else {
+                            switch (expirationFilter) {
+                                case 'expired':
+                                    matchesExpiration = expDate < today;
+                                    break;
+                                case 'expiring-soon':
+                                    const endOfMonth = new Date(currentYear, currentMonth + 1, 0);
+                                    matchesExpiration = expDate >= today && expDate <= endOfMonth;
+                                    break;
+                                case 'expiring-next':
+                                    const nextMonthStart = new Date(currentYear, currentMonth + 1, 1);
+                                    const nextMonthEnd = new Date(currentYear, currentMonth + 2, 0);
+                                    matchesExpiration = expDate >= nextMonthStart && expDate <= nextMonthEnd;
+                                    break;
+                                default:
+                                    if (expirationFilter.includes('-')) {
+                                        // Month filter (YYYY-MM)
+                                        const [filterYear, filterMonth] = expirationFilter.split('-').map(Number);
+                                        matchesExpiration = expDate.getFullYear() === filterYear &&
+                                                           expDate.getMonth() === (filterMonth - 1);
+                                    } else {
+                                        // Year filter
+                                        const filterYear = parseInt(expirationFilter);
+                                        matchesExpiration = expDate.getFullYear() === filterYear;
+                                    }
+                                    break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return matchesSearch && matchesExpiration;
         });
+
         currentPage = 1;
         updatePagination();
-    });
-
-    // View toggle
+    }    // View toggle
     $('.view-toggle').click(function() {
         $('.view-toggle').removeClass('active bg-blue-600 text-white').addClass('text-gray-700');
         $(this).addClass('active bg-blue-600 text-white').removeClass('text-gray-700');
@@ -1034,6 +1152,13 @@ $(document).ready(function() {
                     showToast('Customer phone number found in records', 'info');
                 } else if (mailboxNumber) {
                     showToast('No phone number found for this mailbox', 'warning');
+                }
+
+                // Show SMS sending result
+                if (response.sms_sent) {
+                    showToast('📱 SMS notification sent successfully!', 'success');
+                } else if (response.sms_message && response.sms_message !== 'No SMS message provided') {
+                    showToast(`📱 SMS: ${response.sms_message}`, 'warning');
                 }
 
                 // Display tracking numbers with label printing options

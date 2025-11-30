@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Twilio\Rest\Client;
+use Twilio\Exceptions\TwilioException;
 use App\Models\Package;
 use App\Http\Controllers\MessageController;
 use App\Services\PackageWorkflowService;
@@ -145,9 +148,9 @@ class DashboardController extends Controller
             }
         }
 
-        // TODO: Send SMS if customer phone is provided and SMS message is set
-        // SMS functionality temporarily disabled
-        /*
+        // Send SMS if customer phone is provided and SMS message is set
+        $smsResult = ['sent' => false, 'message' => 'No SMS message provided'];
+
         if ($customerPhone && $request->sms_message) {
             $trackingList = implode(", ", array_filter($trackingNumbers));
             $smsBody = $request->sms_message;
@@ -158,24 +161,49 @@ class DashboardController extends Controller
             }
 
             try {
+                // Clean phone number format
+                $cleanPhone = preg_replace('/\D/', '', $customerPhone);
+                if (strlen($cleanPhone) == 10) {
+                    $cleanPhone = "+1{$cleanPhone}";
+                } elseif (!str_starts_with($cleanPhone, '+')) {
+                    $cleanPhone = "+{$cleanPhone}";
+                }
+
                 // Send SMS using Twilio
                 $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
-                $twilio->messages->create($customerPhone, [
+                $twilio->messages->create($cleanPhone, [
                     'from' => env('TWILIO_PHONE_NUMBER'),
                     'body' => $smsBody
                 ]);
+
+                $smsResult = ['sent' => true, 'message' => 'SMS sent successfully'];
+                Log::info("SMS sent to {$cleanPhone}: {$smsBody}");
+
+            } catch (TwilioException $e) {
+                $smsResult = ['sent' => false, 'message' => 'SMS sending failed: ' . $e->getMessage()];
+                Log::error('Twilio SMS sending failed: ' . $e->getMessage());
             } catch (\Exception $e) {
-                // Log SMS error but don't fail the package creation
-                \Log::error('SMS sending failed: ' . $e->getMessage());
+                $smsResult = ['sent' => false, 'message' => 'SMS error: ' . $e->getMessage()];
+                Log::error('SMS sending error: ' . $e->getMessage());
             }
+        } elseif (!$customerPhone && $request->sms_message) {
+            $smsResult = ['sent' => false, 'message' => 'No phone number found for this mailbox'];
         }
-        */
 
         return response()->json([
             'message' => 'Package(s) saved successfully with workflow tracking.',
             'packages_created' => $packageCount,
             'phone_found' => $customerPhone ? true : false,
-            'sms_sent' => false, // SMS temporarily disabled
+            'sms_sent' => $smsResult['sent'],
+            'sms_message' => $smsResult['message'],
+            'packages' => collect($createdPackages)->map(function($package) {
+                return [
+                    'id' => $package->id,
+                    'tracking_number' => $package->tracking_number,
+                    'customer_name' => $package->customer_name,
+                    'mailbox_number' => $package->mailbox_number,
+                ];
+            }),
             'workflow_status' => $request->status === 'Incoming' ? 'Auto-transition enabled' : 'Manual workflow'
         ]);
     }}

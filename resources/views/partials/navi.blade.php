@@ -25,6 +25,25 @@
                 </div>
                 <div class="hidden md:block">
                     <div class="ml-4 flex items-center md:ml-6">
+                        <!-- User Info Section -->
+                        <div class="flex items-center space-x-3 mr-4">
+                            <div class="text-right">
+                                <div class="text-sm font-medium text-white">{{ Auth::user()->name ?? 'User' }}</div>
+                                <div class="text-xs text-gray-300">
+                                    @if(Auth::user()->company)
+                                        {{ Auth::user()->company->name }}
+                                    @endif
+                                    @if(Auth::user()->isCompanyAdmin())
+                                        <span class="ml-1 text-blue-300">• Admin</span>
+                                    @elseif(Auth::user()->isSuperAdmin())
+                                        <span class="ml-1 text-purple-300">• Super Admin</span>
+                                    @else
+                                        <span class="ml-1 text-green-300">• User</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
                         <button type="button" class="relative rounded-full bg-gray-800 p-1 text-gray-400 hover:text-white focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800 focus:outline-hidden">
                             <span class="absolute -inset-1.5"></span>
                             <span class="sr-only">View notifications</span>
@@ -39,7 +58,15 @@
                                 <button type="button" class="relative flex max-w-xs items-center rounded-full bg-gray-800 text-sm focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800 focus:outline-hidden" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
                                     <span class="absolute -inset-1.5"></span>
                                     <span class="sr-only">Open user menu</span>
-                                    <img class="size-8 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="">
+                                    @if(Auth::user()->profile_picture ?? false)
+                                        <img class="size-8 rounded-full" src="{{ Auth::user()->profile_picture }}" alt="{{ Auth::user()->name }}">
+                                    @else
+                                        <div class="size-8 rounded-full bg-indigo-600 flex items-center justify-center">
+                                            <span class="text-sm font-medium text-white">
+                                                {{ strtoupper(substr(Auth::user()->name ?? 'U', 0, 1)) }}{{ strtoupper(substr(explode(' ', Auth::user()->name ?? 'User')[1] ?? '', 0, 1)) }}
+                                            </span>
+                                        </div>
+                                    @endif
                                 </button>
                             </div>
 
@@ -95,7 +122,15 @@
             <div class="border-t border-gray-700 pt-4 pb-3">
                 <div class="flex items-center px-5">
                     <div class="shrink-0">
-                        <img class="size-10 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="">
+                        @if(Auth::user()->profile_picture ?? false)
+                            <img class="size-10 rounded-full" src="{{ Auth::user()->profile_picture }}" alt="{{ Auth::user()->name }}">
+                        @else
+                            <div class="size-10 rounded-full bg-indigo-600 flex items-center justify-center">
+                                <span class="text-base font-medium text-white">
+                                    {{ strtoupper(substr(Auth::user()->name ?? 'U', 0, 1)) }}{{ strtoupper(substr(explode(' ', Auth::user()->name ?? 'User')[1] ?? '', 0, 1)) }}
+                                </span>
+                            </div>
+                        @endif
                     </div>
                     <div class="ml-3">
                         <div class="text-base/5 font-medium text-white">{{ Auth::user()->name ?? 'User' }}</div>
