@@ -17,10 +17,12 @@ class LabelController extends Controller
      */
     public function index(Request $request)
     {
-        $filePath = 'uploads/latest_file.csv';
+        // Get current company ID for multi-tenancy
+        $currentCompanyId = session('current_company_id') ?? Auth::user()->company_id;
+        $filePath = "uploads/company_{$currentCompanyId}_latest_file.csv";
         $csvData = [];
 
-        // Check if the CSV file exists and load its contents
+        // Check if the company-specific CSV file exists and load its contents
         if (Storage::exists($filePath)) {
             $csvData = $this->parseFile(Storage::path($filePath));
         }
