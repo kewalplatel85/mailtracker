@@ -265,7 +265,7 @@
                                             $dateClose = isset($row[5]) ? trim($row[5]) : '';
                                             $term = isset($row[6]) ? trim($row[6]) : '';
                                             $dueDate = isset($row[7]) ? trim($row[7]) : '';
-                                            $packageCount = \App\Models\Package::where('mailbox_number', $mailboxNumber)->where('status', 'Incoming')->count();
+                                            $packageCount = \App\Models\Package::where('mailbox_number', $mailboxNumber)->where('status', 'Ready for Pickup')->count();
                                         @endphp
                                         <div class="mailbox-item group relative aspect-square bg-white border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:shadow-md transition-all cursor-pointer min-w-0"
                                              data-mailbox="{{ $mailboxNumber }}"
@@ -401,6 +401,53 @@ function showToast(message, type = 'success') {
     setTimeout(() => {
         toast.fadeOut(300, () => toast.remove());
     }, 5000);
+}
+
+// Confirmation toast function
+function showConfirmationToast(title, message, onConfirm, onCancel = null) {
+    const confirmToast = $(`
+        <div class="toast animate-fade-in-down bg-white shadow-xl rounded-lg border border-gray-300 p-4 mb-3 max-w-sm">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <span class="text-lg">❓</span>
+                </div>
+                <div class="ml-3 flex-1">
+                    <p class="text-sm font-semibold text-gray-900 mb-1">${title}</p>
+                    <p class="text-xs text-gray-600 mb-3">${message}</p>
+                    <div class="flex space-x-2">
+                        <button class="confirm-yes px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 font-medium">
+                            ✅ Yes
+                        </button>
+                        <button class="confirm-no px-3 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 font-medium">
+                            ❌ Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+
+    $('#toast-container').append(confirmToast);
+
+    // Handle confirmation
+    confirmToast.find('.confirm-yes').on('click', function() {
+        confirmToast.remove();
+        if (onConfirm) onConfirm();
+    });
+
+    // Handle cancellation
+    confirmToast.find('.confirm-no').on('click', function() {
+        confirmToast.remove();
+        if (onCancel) onCancel();
+    });
+
+    // Auto-remove after 10 seconds if no action taken
+    setTimeout(() => {
+        if (confirmToast.length) {
+            confirmToast.fadeOut(300, () => confirmToast.remove());
+            if (onCancel) onCancel();
+        }
+    }, 10000);
 }
 
 $(document).ready(function() {
@@ -1241,25 +1288,75 @@ function togglePackageDetails(mailboxNumber) {
                     }
                     workflowHtml += '</div>';
 
+                    // Build action buttons based on status
+                    let actionButtonsHtml = '';
+                    if (pkg.status === 'Ready for Pickup') {
+                        actionButtonsHtml = `
+                            <div class="mt-2">
+                                <button onclick="markAsPickedUp(${pkg.id}, '${pkg.tracking_number}')"
+                                        class="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 flex items-center space-x-1">
+                                    <span>✅</span>
+                                    <span>Mark as Picked Up</span>
+                                </button>
+                            </div>
+                        `;
+                    }
+
                     packagesHtml += `
-                        <div class="bg-gray-50 p-4 rounded-lg border-l-4 border-${statusColor}-500 mb-3">
+                        <div class="bg-gray-50 p-4 rounded-lg border-l-4 border-${statusColor}-500 mb-3" data-package-id="${pkg.id}" data-package-status="${pkg.status}">
                             <div class="flex justify-between items-start mb-2">
-                                <div>
-                                    <p class="font-medium text-gray-900">Package #${index + 1}</p>
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-2">
+                                        ${pkg.status === 'Ready for Pickup' ? `<input type="checkbox" class="package-checkbox rounded" data-package-id="${pkg.id}" data-tracking="${pkg.tracking_number}">` : ''}
+                                        <span class="font-medium text-gray-900">Package #${index + 1}</span>
+                                    </div>
                                     <p class="text-sm text-gray-600">Tracking: ${pkg.tracking_number}</p>
-                                    <p class="text-sm text-gray-500">Created: ${pkg.created_at}</p>
                                     ${workflowHtml}
                                 </div>
                                 <div class="text-right">
                                     <span class="bg-${statusColor}-100 text-${statusColor}-800 text-xs font-medium px-2 py-1 rounded-full">${pkg.status}</span>
-                                    ${pkg.age_days > 7 && pkg.status === 'Ready for Pickup' ? '<div class="text-xs text-red-600 mt-1">⚠️ Aging</div>' : ''}
+                                    ${actionButtonsHtml}
                                 </div>
                             </div>
                         </div>
                     `;
                 });
 
-                $('#packageList').html(packagesHtml);
+                // Add bulk action controls if there are Ready for Pickup packages
+                const readyPackages = packages.filter(pkg => pkg.status === 'Ready for Pickup');
+                let finalHtml = '';
+
+                if (readyPackages.length > 0) {
+                    const bulkControlsHtml = `
+                        <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center space-x-2">
+                                    <input type="checkbox" id="selectAllPackages" class="rounded">
+                                    <label for="selectAllPackages" class="text-sm font-medium text-gray-700">Select All (${readyPackages.length} packages)</label>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button id="bulkMarkPickedUp" class="px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50" disabled>
+                                        ✅ Mark Selected as Picked Up
+                                    </button>
+                                    <button id="bulkMarkAllPickedUp" class="px-3 py-2 bg-orange-600 text-white text-sm rounded hover:bg-orange-700">
+                                        📦 Mark ALL as Picked Up
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="bulkActionStatus" class="text-sm text-gray-600"></div>
+                        </div>
+                    `;
+                    finalHtml = bulkControlsHtml + packagesHtml;
+                } else {
+                    finalHtml = packagesHtml;
+                }
+
+                $('#packageList').html(finalHtml);
+
+                if (readyPackages.length > 0) {
+                    // Setup bulk action handlers
+                    setupBulkActions(mailboxNumber, readyPackages);
+                }
             })
             .catch(error => {
                 console.error('Error fetching packages:', error);
@@ -1270,6 +1367,175 @@ function togglePackageDetails(mailboxNumber) {
         button.text('📦 View Package Details');
         packageDetails.addClass('hidden');
     }
+}
+
+// Individual package mark as picked up function
+function markAsPickedUp(packageId, trackingNumber) {
+    showConfirmationToast(
+        `Mark package ${trackingNumber} as picked up?`,
+        'Are you sure you want to mark this package as picked up?',
+        () => {
+            // Confirmed - proceed with the action
+            $.ajax({
+                url: '/packages/mark-picked-up',
+                method: 'POST',
+                data: {
+                    package_id: packageId,
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    showToast(`Package ${trackingNumber} marked as picked up!`, 'success');
+                    // Refresh the package details
+                    const mailboxNumber = $('#modalTitle').text().match(/Mailbox (\d+)/)[1];
+                    if (mailboxNumber) {
+                        setTimeout(() => {
+                            togglePackageDetails(mailboxNumber);
+                            togglePackageDetails(mailboxNumber); // Call twice to refresh
+                        }, 500);
+                    }
+                    // Update mailbox count in grid
+                    updateMailboxPackageCount(mailboxNumber);
+                },
+                error: function(xhr) {
+                    const error = xhr.responseJSON;
+                    showToast(error?.message || 'Error marking package as picked up', 'error');
+                }
+            });
+        }
+    );
+}
+
+// Setup bulk actions
+function setupBulkActions(mailboxNumber, packages) {
+    // Select all checkbox
+    $('#selectAllPackages').off('change').on('change', function() {
+        const isChecked = $(this).is(':checked');
+        $('.package-checkbox').prop('checked', isChecked);
+        updateBulkButtonState();
+    });
+
+    // Individual checkboxes
+    $(document).off('change', '.package-checkbox').on('change', '.package-checkbox', function() {
+        updateBulkButtonState();
+        // Update select all state
+        const totalCheckboxes = $('.package-checkbox').length;
+        const checkedCheckboxes = $('.package-checkbox:checked').length;
+        $('#selectAllPackages').prop('checked', totalCheckboxes === checkedCheckboxes);
+    });
+
+    // Bulk mark selected as picked up
+    $('#bulkMarkPickedUp').off('click').on('click', function() {
+        const selectedPackages = $('.package-checkbox:checked');
+        if (selectedPackages.length === 0) {
+            showToast('Please select packages to mark as picked up', 'warning');
+            return;
+        }
+
+        const packageIds = [];
+        const trackingNumbers = [];
+        selectedPackages.each(function() {
+            packageIds.push($(this).data('package-id'));
+            trackingNumbers.push($(this).data('tracking'));
+        });
+
+        showConfirmationToast(
+            `Mark ${packageIds.length} selected packages as picked up?`,
+            'This action will mark all selected packages as picked up.',
+            () => {
+                bulkMarkAsPickedUp(packageIds, trackingNumbers, mailboxNumber);
+            }
+        );
+    });
+
+    // Bulk mark ALL as picked up
+    $('#bulkMarkAllPickedUp').off('click').on('click', function() {
+        const allReadyPackages = packages.filter(pkg => pkg.status === 'Ready for Pickup');
+        if (allReadyPackages.length === 0) {
+            showToast('No packages available to mark as picked up', 'warning');
+            return;
+        }
+
+        showConfirmationToast(
+            `Mark ALL ${allReadyPackages.length} packages as picked up?`,
+            'This action will mark ALL packages in this mailbox as picked up.',
+            () => {
+                const packageIds = allReadyPackages.map(pkg => pkg.id);
+                const trackingNumbers = allReadyPackages.map(pkg => pkg.tracking_number);
+                bulkMarkAsPickedUp(packageIds, trackingNumbers, mailboxNumber);
+            }
+        );
+    });
+}
+
+// Update bulk button state
+function updateBulkButtonState() {
+    const selectedCount = $('.package-checkbox:checked').length;
+    const bulkButton = $('#bulkMarkPickedUp');
+
+    if (selectedCount > 0) {
+        bulkButton.prop('disabled', false).text(`✅ Mark Selected (${selectedCount}) as Picked Up`);
+        $('#bulkActionStatus').text(`${selectedCount} packages selected`);
+    } else {
+        bulkButton.prop('disabled', true).text('✅ Mark Selected as Picked Up');
+        $('#bulkActionStatus').text('');
+    }
+}
+
+// Bulk mark as picked up function
+function bulkMarkAsPickedUp(packageIds, trackingNumbers, mailboxNumber) {
+    $.ajax({
+        url: '/packages/bulk-mark-picked-up',
+        method: 'POST',
+        data: {
+            package_ids: packageIds,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+            showToast(`${packageIds.length} packages marked as picked up!`, 'success');
+            // Refresh the package details
+            setTimeout(() => {
+                togglePackageDetails(mailboxNumber);
+                togglePackageDetails(mailboxNumber); // Call twice to refresh
+            }, 500);
+            // Update mailbox count in grid
+            updateMailboxPackageCount(mailboxNumber);
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON;
+            showToast(error?.message || 'Error marking packages as picked up', 'error');
+        }
+    });
+}
+
+// Update mailbox package count in the grid
+function updateMailboxPackageCount(mailboxNumber) {
+    $.ajax({
+        url: `/get-packages-by-mailbox/${mailboxNumber}`,
+        method: 'GET',
+        success: function(packages) {
+            const readyPackages = packages.filter(pkg => pkg.status === 'Ready for Pickup');
+            const mailboxElement = $(`.mailbox-item[data-mailbox="${mailboxNumber}"]`);
+            const packageCountBadge = mailboxElement.find('.absolute.-top-1.-right-1');
+
+            if (readyPackages.length > 0) {
+                if (packageCountBadge.length > 0) {
+                    packageCountBadge.text(readyPackages.length);
+                } else {
+                    mailboxElement.prepend(`<div class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center z-10 shadow-md">${readyPackages.length}</div>`);
+                }
+                mailboxElement.find('.h-full').addClass('bg-blue-50 border-blue-500');
+            } else {
+                packageCountBadge.remove();
+                mailboxElement.find('.h-full').removeClass('bg-blue-50 border-blue-500');
+            }
+
+            // Update data attribute
+            mailboxElement.attr('data-packages', readyPackages.length);
+        },
+        error: function() {
+            // Silently handle error
+        }
+    });
 }
 </script>
 

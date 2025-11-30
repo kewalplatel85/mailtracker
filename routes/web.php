@@ -50,6 +50,8 @@ Route::post('/check-tracking',[PackageController::class, 'checkTrackingNumberExi
 Route::post('/outgoing-packge',[PackageController::class,'outgoingPackage'])->middleware(['auth'])->name('outgoing.package');
 Route::post('/delete-package', [PackageController::class, 'deletePackage'])->name('delete.package');
 Route::post('/updatePackageStatus', [PackageController::class, 'updateStatus'])->name('package.updateStatus');
+Route::post('/packages/mark-picked-up', [PackageController::class, 'markAsPickedUp'])->middleware(['auth'])->name('packages.mark-picked-up');
+Route::post('/packages/bulk-mark-picked-up', [PackageController::class, 'bulkMarkAsPickedUp'])->middleware(['auth'])->name('packages.bulk-mark-picked-up');
 
 // Storage label printing routes
 Route::get('/labels', [LabelController::class, 'index'])->middleware(['auth'])->name('labels.index');

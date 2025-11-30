@@ -16,21 +16,39 @@ class MultiCompanySeeder extends Seeder
      */
     public function run(): void
     {
-        // Create demo company
-        $company = Company::create([
-            'name' => 'Demo Mail Center',
-            'slug' => 'demo-mail-center',
-            'subdomain' => 'demo',
-            'email' => 'admin@demo.mailtracker.com',
-            'phone' => '555-123-4567',
-            'address' => '123 Demo Street, Demo City, DC 12345',
-            'status' => 'active',
-            'subscription_plan' => 'premium',
-        ]);
+        // Create or find Mail All Center as the default company (Company #1)
+        $mailAllCenter = Company::where('slug', 'mail-all-center')->first();
+        if (!$mailAllCenter) {
+            $mailAllCenter = Company::create([
+                'name' => 'Mail All Center',
+                'slug' => 'mail-all-center',
+                'subdomain' => 'mailallcenter',
+                'email' => 'info@mailallcenter.com',
+                'phone' => '555-MAIL-ALL',
+                'address' => '123 Main Street, Anytown, ST 12345',
+                'status' => 'active',
+                'subscription_plan' => 'premium',
+            ]);
+        }
 
-        // Create system roles (no company_id)
+        // Create or find demo company for testing
+        $demoCompany = Company::where('slug', 'demo-mail-center')->first();
+        if (!$demoCompany) {
+            $demoCompany = Company::create([
+                'name' => 'Demo Mail Center',
+                'slug' => 'demo-mail-center',
+                'subdomain' => 'demo',
+                'email' => 'admin@demo.mailtracker.com',
+                'phone' => '555-123-4567',
+                'address' => '123 Demo Street, Demo City, DC 12345',
+                'status' => 'active',
+                'subscription_plan' => 'premium',
+            ]);
+        }
+
+        // Create super admin role (system-wide)
         $superAdminRole = Role::create([
-            'name' => 'Super Administrator',
+            'name' => 'Super Admin',
             'slug' => 'super-admin',
             'description' => 'Full system access across all companies',
             'permissions' => [
@@ -45,7 +63,15 @@ class MultiCompanySeeder extends Seeder
                 'packages.create',
                 'packages.edit',
                 'packages.delete',
+                'packages.bulk_operations',
                 'packages.view_all',
+                'packages.reports',
+                'packages.export',
+                'mailboxes.view',
+                'mailboxes.create',
+                'mailboxes.edit',
+                'mailboxes.delete',
+                'mailboxes.reports',
                 'company.view',
                 'company.edit',
                 'company.settings',
@@ -53,8 +79,8 @@ class MultiCompanySeeder extends Seeder
                 'roles.create',
                 'roles.edit',
                 'roles.delete',
-                'reports.view',
-                'reports.export',
+                'dashboard.view',
+                'files.upload',
                 'messages.send',
                 'messages.view',
             ],
@@ -62,11 +88,11 @@ class MultiCompanySeeder extends Seeder
             'company_id' => null,
         ]);
 
-        // Create company-specific roles
-        $companyAdminRole = Role::create([
-            'name' => 'Company Administrator',
-            'slug' => 'company-admin',
-            'description' => 'Full access to company data and settings',
+        // Create Mail All Center Admin role
+        $mailAllAdminRole = Role::create([
+            'name' => 'Admin',
+            'slug' => 'admin',
+            'description' => 'Admin access for Mail All Center',
             'permissions' => [
                 'users.view',
                 'users.create',
@@ -76,124 +102,207 @@ class MultiCompanySeeder extends Seeder
                 'packages.create',
                 'packages.edit',
                 'packages.delete',
-                'packages.view_all',
+                'packages.bulk_operations',
+                'packages.reports',
+                'packages.export',
+                'mailboxes.view',
+                'mailboxes.create',
+                'mailboxes.edit',
+                'mailboxes.delete',
+                'mailboxes.reports',
                 'company.view',
                 'company.edit',
-                'company.settings',
                 'roles.view',
-                'roles.create',
-                'roles.edit',
-                'roles.delete',
-                'reports.view',
-                'reports.export',
+                'dashboard.view',
+                'files.upload',
                 'messages.send',
                 'messages.view',
             ],
             'is_system_role' => false,
-            'company_id' => $company->id,
+            'company_id' => $mailAllCenter->id,
         ]);
 
-        $managerRole = Role::create([
-            'name' => 'Manager',
-            'slug' => 'manager',
-            'description' => 'Manage packages and view reports',
+        // Create Mail All Center User role
+        $mailAllUserRole = Role::create([
+            'name' => 'User',
+            'slug' => 'user',
+            'description' => 'User access for Mail All Center',
+            'permissions' => [
+                'packages.view',
+                'packages.create',
+                'packages.edit',
+                'mailboxes.view',
+                'dashboard.view',
+                'messages.view',
+            ],
+            'is_system_role' => false,
+            'company_id' => $mailAllCenter->id,
+        ]);
+
+        // Create Demo Company Admin role
+        $demoAdminRole = Role::create([
+            'name' => 'Admin',
+            'slug' => 'admin',
+            'description' => 'Admin access for Demo Mail Center',
             'permissions' => [
                 'users.view',
+                'users.create',
+                'users.edit',
+                'users.delete',
                 'packages.view',
                 'packages.create',
                 'packages.edit',
-                'packages.view_all',
+                'packages.delete',
+                'packages.bulk_operations',
+                'packages.reports',
+                'packages.export',
+                'mailboxes.view',
+                'mailboxes.create',
+                'mailboxes.edit',
+                'mailboxes.delete',
+                'mailboxes.reports',
                 'company.view',
-                'reports.view',
-                'reports.export',
+                'company.edit',
+                'roles.view',
+                'dashboard.view',
+                'files.upload',
                 'messages.send',
                 'messages.view',
             ],
             'is_system_role' => false,
-            'company_id' => $company->id,
+            'company_id' => $demoCompany->id,
         ]);
 
-        $employeeRole = Role::create([
-            'name' => 'Employee',
-            'slug' => 'employee',
-            'description' => 'Basic package operations',
+        // Create Demo Company User role
+        $demoUserRole = Role::create([
+            'name' => 'User',
+            'slug' => 'user',
+            'description' => 'User access for Demo Mail Center',
             'permissions' => [
                 'packages.view',
                 'packages.create',
                 'packages.edit',
-                'company.view',
-                'messages.send',
+                'mailboxes.view',
+                'dashboard.view',
                 'messages.view',
             ],
             'is_system_role' => false,
-            'company_id' => $company->id,
+            'company_id' => $demoCompany->id,
         ]);
 
-        $clientRole = Role::create([
-            'name' => 'Client',
-            'slug' => 'client',
-            'description' => 'View own packages only',
-            'permissions' => [
-                'packages.view',
-                'company.view',
-            ],
-            'is_system_role' => false,
-            'company_id' => $company->id,
-        ]);
+        // Create or find default super admin user
+        $defaultSuperAdmin = User::where('username', 'superadmin')->first();
+        if (!$defaultSuperAdmin) {
+            $defaultSuperAdmin = User::create([
+                'name' => 'Default Super Admin',
+                'email' => 'superadmin@mailtracker.com',
+                'username' => 'superadmin',
+                'password' => Hash::make('password123'),
+                'is_super_admin' => true,
+                'company_id' => null,
+                'email_verified_at' => now(),
+            ]);
+        }
 
-        // Create super admin user
-        $superAdmin = User::create([
-            'name' => 'Super Admin',
-            'email' => 'superadmin@mailtracker.com',
-            'username' => 'superadmin',
-            'password' => Hash::make('password123'),
-            'is_super_admin' => true,
-            'company_id' => null,
-            'email_verified_at' => now(),
-        ]);
+        // Update existing "patel" user to be company admin (not super admin)
+        $patelUser = User::where('username', 'patel')->first();
+        if ($patelUser) {
+            $patelUser->update([
+                'company_id' => $mailAllCenter->id,
+                'is_super_admin' => false,
+            ]);
+        } else {
+            $patelUser = User::create([
+                'name' => 'Patel Admin',
+                'email' => 'patel@mailallcenter.com',
+                'username' => 'patel',
+                'password' => Hash::make('password123'),
+                'is_super_admin' => false,
+                'company_id' => $mailAllCenter->id,
+                'email_verified_at' => now(),
+            ]);
+        }
 
-        // Create company admin user
-        $companyAdmin = User::create([
-            'name' => 'Demo Admin',
-            'email' => 'admin@demo.mailtracker.com',
-            'username' => 'demoadmin',
-            'password' => Hash::make('password123'),
-            'is_super_admin' => false,
-            'company_id' => $company->id,
-            'email_verified_at' => now(),
-        ]);
+        // Update existing "khairo" user (Eldrin) to be super admin
+        $eldrinUser = User::where('username', 'khairo')->first();
+        if ($eldrinUser) {
+            $eldrinUser->update([
+                'is_super_admin' => true,
+                'company_id' => null,
+            ]);
+        } else {
+            $eldrinUser = User::create([
+                'name' => 'Eldrin',
+                'email' => 'eldrin.bradecina@gmail.com',
+                'username' => 'khairo',
+                'password' => Hash::make('password123'),
+                'is_super_admin' => true,
+                'company_id' => null,
+                'email_verified_at' => now(),
+            ]);
+        }
 
-        // Create manager user
-        $manager = User::create([
-            'name' => 'Demo Manager',
-            'email' => 'manager@demo.mailtracker.com',
-            'username' => 'demomanager',
-            'password' => Hash::make('password123'),
-            'is_super_admin' => false,
-            'company_id' => $company->id,
-            'email_verified_at' => now(),
-        ]);
-
-        // Create employee user
-        $employee = User::create([
-            'name' => 'Demo Employee',
-            'email' => 'employee@demo.mailtracker.com',
-            'username' => 'demoemployee',
-            'password' => Hash::make('password123'),
-            'is_super_admin' => false,
-            'company_id' => $company->id,
-            'email_verified_at' => now(),
-        ]);
+        // Create or find company admin user for demo company
+        $companyAdmin = User::where('username', 'demoadmin')->first();
+        if (!$companyAdmin) {
+            $companyAdmin = User::create([
+                'name' => 'Demo Admin',
+                'email' => 'admin@demo.mailtracker.com',
+                'username' => 'demoadmin',
+                'password' => Hash::make('password123'),
+                'is_super_admin' => false,
+                'company_id' => $demoCompany->id,
+                'email_verified_at' => now(),
+            ]);
+        } else {
+            $companyAdmin->update([
+                'company_id' => $demoCompany->id,
+                'is_super_admin' => false,
+            ]);
+        }
 
         // Assign roles to users
-        $companyAdmin->assignRole($companyAdminRole->id, $company->id);
-        $manager->assignRole($managerRole->id, $company->id);
-        $employee->assignRole($employeeRole->id, $company->id);
+        $defaultSuperAdmin->assignRole($superAdminRole->id, null);
+        $eldrinUser->assignRole($superAdminRole->id, null);
+        $patelUser->assignRole($mailAllAdminRole->id, $mailAllCenter->id);
+        $companyAdmin->assignRole($demoAdminRole->id, $demoCompany->id);
+
+        // Create regular users for testing
+        $mailAllUser = User::where('username', 'mailuser')->first();
+        if (!$mailAllUser) {
+            $mailAllUser = User::create([
+                'name' => 'Mail All User',
+                'email' => 'user@mailallcenter.com',
+                'username' => 'mailuser',
+                'password' => Hash::make('password123'),
+                'is_super_admin' => false,
+                'company_id' => $mailAllCenter->id,
+                'email_verified_at' => now(),
+            ]);
+        }
+        $mailAllUser->assignRole($mailAllUserRole->id, $mailAllCenter->id);
+
+        $demoUser = User::where('username', 'demouser')->first();
+        if (!$demoUser) {
+            $demoUser = User::create([
+                'name' => 'Demo User',
+                'email' => 'user@demo.mailtracker.com',
+                'username' => 'demouser',
+                'password' => Hash::make('password123'),
+                'is_super_admin' => false,
+                'company_id' => $demoCompany->id,
+                'email_verified_at' => now(),
+            ]);
+        }
+        $demoUser->assignRole($demoUserRole->id, $demoCompany->id);
 
         $this->command->info('Multi-company system seeded successfully!');
-        $this->command->info('Super Admin: superadmin@mailtracker.com / password123');
-        $this->command->info('Company Admin: admin@demo.mailtracker.com / password123');
-        $this->command->info('Manager: manager@demo.mailtracker.com / password123');
-        $this->command->info('Employee: employee@demo.mailtracker.com / password123');
+        $this->command->info('Default Super Admin: superadmin@mailtracker.com / password123');
+        $this->command->info('Eldrin (Super Admin): khairo / password123');
+        $this->command->info('Mail All Center Admin (patel): patel / password123');
+        $this->command->info('Mail All Center User: user@mailallcenter.com / password123');
+        $this->command->info('Demo Company Admin: admin@demo.mailtracker.com / password123');
+        $this->command->info('Demo Company User: user@demo.mailtracker.com / password123');
     }
 }
+

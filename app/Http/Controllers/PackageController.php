@@ -38,7 +38,7 @@ class PackageController extends BaseController
             'tracking_number',
             'id'
         )
-        ->where('status', 'Incoming')
+        ->where('status', 'Ready for Pickup')
         ->get()
         ->groupBy('mailbox_number')
         ->map(function ($group) {
@@ -289,6 +289,93 @@ class PackageController extends BaseController
     {
         $lastPackage = Package::latest('id')->first();
         return response()->json(['last_id' => $lastPackage ? $lastPackage->id : 0]);
+    }
+
+    public function markAsPickedUp(Request $request)
+    {
+        $request->validate([
+            'package_id' => 'required|integer|exists:packages,id',
+        ]);
+
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json(['error' => true, 'message' => 'Authentication required'], 401);
+            }
+
+            $package = Package::findOrFail($request->package_id);
+
+            // Check if package belongs to current user's company
+            if ($package->company_id !== $user->company_id) {
+                return response()->json(['error' => true, 'message' => 'Unauthorized access to package'], 403);
+            }
+
+            if ($package->status !== 'Ready for Pickup') {
+                return response()->json(['error' => true, 'message' => 'Package is not ready for pickup'], 400);
+            }
+
+            $package->update([
+                'status' => 'Picked Up',
+                'picked_up_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Package marked as picked up successfully',
+                'package_id' => $package->id,
+                'tracking_number' => $package->tracking_number
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error marking package as picked up: ' . $e->getMessage());
+            return response()->json(['error' => true, 'message' => 'Failed to update package status'], 500);
+        }
+    }
+
+    public function bulkMarkAsPickedUp(Request $request)
+    {
+        $request->validate([
+            'package_ids' => 'required|array',
+            'package_ids.*' => 'integer|exists:packages,id',
+        ]);
+
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json(['error' => true, 'message' => 'Authentication required'], 401);
+            }
+
+            $packageIds = $request->package_ids;
+            $userCompanyId = $user->company_id;
+
+            // Get packages that belong to the user's company and are ready for pickup
+            $packages = Package::whereIn('id', $packageIds)
+                ->where('company_id', $userCompanyId)
+                ->where('status', 'Ready for Pickup')
+                ->get();
+
+            if ($packages->isEmpty()) {
+                return response()->json(['error' => true, 'message' => 'No valid packages found for pickup'], 400);
+            }
+
+            // Update all packages
+            $updatedCount = Package::whereIn('id', $packages->pluck('id'))
+                ->update([
+                    'status' => 'Picked Up',
+                    'picked_up_at' => now(),
+                ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$updatedCount} packages marked as picked up successfully",
+                'updated_count' => $updatedCount,
+                'package_ids' => $packages->pluck('id')->toArray()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error bulk marking packages as picked up: ' . $e->getMessage());
+            return response()->json(['error' => true, 'message' => 'Failed to update package statuses'], 500);
+        }
     }
 
 }
