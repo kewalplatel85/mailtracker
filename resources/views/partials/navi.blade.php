@@ -44,6 +44,21 @@
                             </div>
                         </div>
 
+                        <!-- Company Switcher for Super Admin -->
+                        @if(Auth::user()->isSuperAdmin())
+                        <div class="flex items-center space-x-2 mr-4">
+                            <select id="companySwitcher" class="px-2 py-1 text-xs border border-gray-600 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Select Company Context</option>
+                                @foreach(\App\Models\Company::where('status', 'active')->get() as $company)
+                                    <option value="{{ $company->id }}"
+                                            {{ session('current_company_id') == $company->id ? 'selected' : '' }}>
+                                        {{ $company->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
+
                         <button type="button" class="relative rounded-full bg-gray-800 p-1 text-gray-400 hover:text-white focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800 focus:outline-hidden">
                             <span class="absolute -inset-1.5"></span>
                             <span class="sr-only">View notifications</span>
@@ -160,3 +175,36 @@
         </div>
     </nav>
 </div>
+
+<script>
+// Company switcher functionality for super admins
+@if(Auth::user()->isSuperAdmin())
+document.addEventListener('DOMContentLoaded', function() {
+    const companySwitcher = document.getElementById('companySwitcher');
+
+    if (companySwitcher) {
+        companySwitcher.addEventListener('change', function() {
+            const companyId = this.value;
+
+            if (companyId) {
+                // Create form and submit to switch company
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/companies/${companyId}/switch`;
+                form.style.display = 'none';
+
+                // Add CSRF token
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = '_token';
+                csrfInput.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                form.appendChild(csrfInput);
+
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    }
+});
+@endif
+</script>

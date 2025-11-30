@@ -33,6 +33,7 @@ Route::post('password/reset', [ResetPasswordController::class, 'reset'])->name('
 Route::get('/dashboard',[DashboardController::class,'index'])->name('dashboard');
 Route::get('/get-last-package-id', [PackageController::class, 'getLastPackageID']);
 Route::get('/get-packages-by-mailbox/{mailbox}',[PackageController::class, 'getPackagesByMailbox'])->name('packages.by.mailbox');
+Route::get('/upload', function() { return redirect()->route('dashboard'); }); // Redirect GET requests to dashboard
 Route::post('/upload', [FileUploadController::class, 'upload'])->name('upload');
 Route::post('/saveAndNotify',[DashboardController::class,'savePackage'])->name('saveAndNotify');
 Route::post('/update-csv', [FileUploadController::class, 'updateCsv'])->name('update.csv');
@@ -76,8 +77,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/maintenance', [AdminController::class, 'maintenance'])->name('maintenance');
         Route::post('/create-user', [AdminController::class, 'createUser'])->name('create-user');
         Route::put('/users/{user}/role', [AdminController::class, 'updateUserRole'])->name('update-user-role');
+        Route::put('/users/{user}/assign-role', [AdminController::class, 'assignUserRole'])->name('assign-user-role');
+        Route::put('/users/{user}', [AdminController::class, 'updateUser'])->name('update-user');
         Route::delete('/users/{user}', [AdminController::class, 'deleteUser'])->name('delete-user');
         Route::post('/create-company', [AdminController::class, 'createCompany'])->name('create-company');
+        Route::put('/companies/{company}', [AdminController::class, 'updateCompany'])->name('update-company');
         Route::put('/companies/{company}/status', [AdminController::class, 'updateCompanyStatus'])->name('update-company-status');
         Route::post('/bulk-package-operation', [AdminController::class, 'bulkPackageOperation'])->name('bulk-package-operation');
     });

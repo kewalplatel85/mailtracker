@@ -371,16 +371,31 @@ class AdminController extends BaseController
      */
     public function users()
     {
-        $users = User::with('company')
+        $users = User::with(['company', 'userRoles.role'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function($user) {
+                // Get user's role in their company
+                $roleInCompany = $user->userRoles()
+                    ->where('company_id', $user->company_id)
+                    ->where('is_active', true)
+                    ->with('role')
+                    ->first();
+
+                $roleName = 'No Role';
+                if ($user->is_super_admin) {
+                    $roleName = 'Super Admin';
+                } elseif ($roleInCompany && $roleInCompany->role) {
+                    $roleName = $roleInCompany->role->name;
+                }
+
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
                     'company' => $user->company->name ?? 'No Company',
                     'is_super_admin' => $user->is_super_admin,
+                    'role' => $roleName,
                     'last_login' => $user->last_login_at ? Carbon::parse($user->last_login_at)->diffForHumans() : 'Never',
                     'created_at' => $user->created_at->format('Y-m-d H:i')
                 ];
@@ -474,20 +489,37 @@ class AdminController extends BaseController
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'username' => 'required|string|max:255|unique:users',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'company_id' => 'required|exists:companies,id',
-            'is_super_admin' => 'boolean'
+            'is_super_admin' => 'boolean',
+            'role' => 'required_unless:is_super_admin,1|in:admin,user'
         ]);
 
         try {
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
+                'username' => $request->username,
                 'password' => bcrypt($request->password),
                 'company_id' => $request->company_id,
                 'is_super_admin' => $request->boolean('is_super_admin', false)
             ]);
+
+            // Assign role if not super admin
+            if (!$user->is_super_admin && $request->role) {
+                $role = \App\Models\Role::where('slug', $request->role)
+                    ->where(function($query) use ($request) {
+                        $query->where('company_id', $request->company_id)
+                              ->orWhere('is_system_role', true);
+                    })
+                    ->first();
+
+                if ($role) {
+                    $user->assignRole($role, $request->company_id);
+                }
+            }
 
             return response()->json([
                 'success' => true,
@@ -498,6 +530,7 @@ class AdminController extends BaseController
                     'email' => $user->email,
                     'company' => $user->company->name ?? 'No Company',
                     'is_super_admin' => $user->is_super_admin,
+                    'role' => $request->role ?? 'Super Admin',
                     'created_at' => $user->created_at->format('Y-m-d H:i')
                 ]
             ]);
@@ -566,6 +599,93 @@ class AdminController extends BaseController
     }
 
     /**
+     * Assign regular role to user (not super admin)
+     */
+    public function assignUserRole(Request $request, User $user)
+    {
+        $request->validate([
+            'role' => 'nullable|in:admin,user'
+        ]);
+
+        try {
+            // Remove existing roles for this user in their company
+            \App\Models\UserRole::where('user_id', $user->id)
+                ->where('company_id', $user->company_id)
+                ->delete();
+
+            // Assign new role if provided
+            if ($request->role) {
+                $role = \App\Models\Role::where('slug', $request->role)
+                    ->where(function($query) use ($user) {
+                        $query->where('company_id', $user->company_id)
+                              ->orWhere('is_system_role', true);
+                    })
+                    ->first();
+
+                if ($role) {
+                    $user->assignRole($role, $user->company_id);
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User role updated successfully',
+                'role' => $request->role ? ucfirst($request->role) : 'No Role'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update user role: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update user details
+     */
+    public function updateUser(Request $request, User $user)
+    {
+        $request->validate([
+            'name' => 'string|max:255',
+            'email' => 'string|email|max:255|unique:users,email,' . $user->id,
+            'company_id' => 'exists:companies,id',
+            'password' => 'nullable|string|min:8'
+        ]);
+
+        try {
+            $updateData = [];
+
+            if ($request->has('name')) {
+                $updateData['name'] = $request->name;
+            }
+
+            if ($request->has('email')) {
+                $updateData['email'] = $request->email;
+            }
+
+            if ($request->has('company_id')) {
+                $updateData['company_id'] = $request->company_id;
+            }
+
+            if ($request->has('password') && !empty($request->password)) {
+                $updateData['password'] = bcrypt($request->password);
+            }
+
+            $user->update($updateData);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User updated successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update user: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Create new company
      */
     public function createCompany(Request $request)
@@ -600,6 +720,41 @@ class AdminController extends BaseController
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create company: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update company details
+     */
+    public function updateCompany(Request $request, Company $company)
+    {
+        $request->validate([
+            'name' => 'string|max:255|unique:companies,name,' . $company->id,
+            'description' => 'nullable|string|max:500'
+        ]);
+
+        try {
+            $updateData = [];
+
+            if ($request->has('name')) {
+                $updateData['name'] = $request->name;
+            }
+
+            if ($request->has('description')) {
+                $updateData['description'] = $request->description;
+            }
+
+            $company->update($updateData);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Company updated successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update company: ' . $e->getMessage()
             ], 500);
         }
     }

@@ -50,6 +50,8 @@ class QuickMessage extends Mailable
      */
     public function content(): Content
     {
+        $subject = $this->getSubjectByType();
+
         return new Content(
             view: 'emails.quick-message',
             with: [
@@ -58,7 +60,7 @@ class QuickMessage extends Mailable
                 'message' => $this->message,
                 'messageType' => $this->messageType,
                 'companyName' => $this->companyName,
-                'subject' => $this->getSubjectByType()
+                'subject' => $subject
             ]
         );
     }

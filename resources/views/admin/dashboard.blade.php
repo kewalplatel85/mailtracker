@@ -691,6 +691,10 @@ async function loadUserManagement() {
                                 <input type="text" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
                             </div>
                             <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                                <input type="text" name="username" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
                                 <input type="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
                             </div>
@@ -711,9 +715,20 @@ async function loadUserManagement() {
                                     `).join('')}
                                 </select>
                             </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                <select name="role" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select Role</option>
+                                    <option value="admin">Admin</option>
+                                    <option value="user">User</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-4">
                             <div class="flex items-center">
                                 <input type="checkbox" name="is_super_admin" id="is_super_admin" class="mr-2">
                                 <label for="is_super_admin" class="text-sm font-medium text-gray-700">Super Admin</label>
+                                <span class="ml-2 text-xs text-gray-500">(Overrides role selection)</span>
                             </div>
                         </div>
                         <div class="mt-4 flex gap-2">
@@ -770,7 +785,7 @@ async function loadUserManagement() {
                                 </thead>
                                 <tbody>
                                     ${companiesData.companies.map(company => `
-                                        <tr class="border-b border-gray-100">
+                                        <tr class="border-b border-gray-100" data-company-id="${company.id}">
                                             <td class="py-2 font-medium">${company.name}</td>
                                             <td class="text-center py-2">
                                                 <select onchange="updateCompanyStatus(${company.id}, this.value)" class="px-2 py-1 text-xs rounded border ${company.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
@@ -783,7 +798,7 @@ async function loadUserManagement() {
                                             <td class="text-right py-2">${company.recent_packages}</td>
                                             <td class="text-right py-2 text-xs text-gray-500">${company.created_at}</td>
                                             <td class="text-center py-2">
-                                                <button class="text-blue-600 hover:text-blue-800 text-xs">Edit</button>
+                                                <button onclick="editCompany(${company.id})" class="text-blue-600 hover:text-blue-800 text-xs">Edit</button>
                                             </td>
                                         </tr>
                                     `).join('')}
@@ -804,6 +819,7 @@ async function loadUserManagement() {
                                         <th class="text-left py-2">Name</th>
                                         <th class="text-left py-2">Email</th>
                                         <th class="text-left py-2">Company</th>
+                                        <th class="text-left py-2">Role</th>
                                         <th class="text-center py-2">Admin</th>
                                         <th class="text-right py-2">Last Login</th>
                                         <th class="text-right py-2">Created</th>
@@ -812,16 +828,40 @@ async function loadUserManagement() {
                                 </thead>
                                 <tbody>
                                     ${usersData.users.map(user => `
-                                        <tr class="border-b border-gray-100">
+                                        <tr class="border-b border-gray-100" data-user-id="${user.id}">
                                             <td class="py-2 font-medium">${user.name}</td>
                                             <td class="py-2">${user.email}</td>
-                                            <td class="py-2">${user.company}</td>
+                                            <td class="py-2">
+                                                ${user.is_super_admin ?
+                                                    '<span class="text-sm text-gray-600">No Company</span>' :
+                                                    `<select onchange="updateUserCompany(${user.id}, this.value)" class="text-xs border rounded px-1 py-1 bg-gray-50">
+                                                        ${companiesData.companies.filter(c => c.status === 'active').map(company => `
+                                                            <option value="${company.id}" ${user.company === company.name ? 'selected' : ''}>${company.name}</option>
+                                                        `).join('')}
+                                                    </select>`
+                                                }
+                                            </td>
+                                            <td class="py-2">
+                                                ${user.is_super_admin ?
+                                                    '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Super Admin</span>' :
+                                                    `<select onchange="updateUserRegularRole(${user.id}, this.value)" class="text-xs border rounded px-1 py-1 ${
+                                                        user.role === 'Admin' ? 'bg-blue-50' :
+                                                        user.role === 'User' ? 'bg-green-50' :
+                                                        'bg-gray-50'
+                                                    }">
+                                                        <option value="" ${user.role === 'No Role' ? 'selected' : ''}>No Role</option>
+                                                        <option value="admin" ${user.role === 'Admin' ? 'selected' : ''}>Admin</option>
+                                                        <option value="user" ${user.role === 'User' ? 'selected' : ''}>User</option>
+                                                    </select>`
+                                                }
+                                            </td>
                                             <td class="text-center py-2">
                                                 <input type="checkbox" ${user.is_super_admin ? 'checked' : ''} onchange="updateUserRole(${user.id}, this.checked)" class="rounded">
                                             </td>
                                             <td class="text-right py-2 text-xs text-gray-500">${user.last_login}</td>
                                             <td class="text-right py-2 text-xs text-gray-500">${user.created_at}</td>
                                             <td class="text-center py-2">
+                                                <button onclick="editUser(${user.id})" class="text-blue-600 hover:text-blue-800 text-xs mr-2">Edit</button>
                                                 <button onclick="deleteUser(${user.id})" class="text-red-600 hover:text-red-800 text-xs ml-2">Delete</button>
                                             </td>
                                         </tr>
@@ -1049,31 +1089,163 @@ async function updateUserRole(userId, isSuperAdmin) {
 }
 
 async function deleteUser(userId) {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-        return;
-    }
+    // Find user name for confirmation
+    const userName = document.querySelector(`tr[data-user-id="${userId}"] td:first-child`).textContent;
 
+    showConfirmationToast(
+        'Delete User',
+        `Are you sure you want to delete user "${userName}"? This action cannot be undone.`,
+        async function() {
+            try {
+                const response = await fetch(`{{ url('admin/users') }}/${userId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast('User deleted successfully!', 'success');
+                    loadUserManagement();
+                } else {
+                    showToast('Error: ' + data.message, 'error');
+                }
+            } catch (error) {
+                showToast('Error deleting user: ' + error.message, 'error');
+            }
+        }
+    );
+}
+
+// Function to update regular user roles (not super admin)
+async function updateUserRegularRole(userId, role) {
     try {
-        const response = await fetch(`{{ url('admin/users') }}/${userId}`, {
-            method: 'DELETE',
+        const response = await fetch(`{{ url('admin/users') }}/${userId}/assign-role`, {
+            method: 'PUT',
             headers: {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            }
+            },
+            body: JSON.stringify({ role: role })
         });
 
         const data = await response.json();
 
         if (data.success) {
-            showToast('User deleted successfully!', 'success');
-            loadUserManagement();
+            showToast('User role updated successfully!', 'success');
         } else {
             showToast('Error: ' + data.message, 'error');
+            // Revert dropdown
+            loadUserManagement();
         }
     } catch (error) {
-        showToast('Error deleting user: ' + error.message, 'error');
+        showToast('Error updating user role: ' + error.message, 'error');
+        loadUserManagement();
+    }
+}
+
+// Function to edit user details
+function editUser(userId) {
+    // Get user data from the table row
+    const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
+    if (!userRow) {
+        showToast('User not found', 'error');
+        return;
+    }
+
+    // Extract current user data from the table row
+    const cells = userRow.querySelectorAll('td');
+    const currentName = cells[0].textContent.trim();
+    const currentEmail = cells[1].textContent.trim();
+
+    showConfirmationToast(
+        'Edit User',
+        `<div class="space-y-3">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input type="text" id="edit-name" value="${currentName}" class="w-full px-3 py-2 border border-gray-300 rounded">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" id="edit-email" value="${currentEmail}" class="w-full px-3 py-2 border border-gray-300 rounded">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">New Password (optional)</label>
+                <input type="password" id="edit-password" placeholder="Leave blank to keep current password" class="w-full px-3 py-2 border border-gray-300 rounded">
+            </div>
+        </div>`,
+        async function() {
+            const name = document.getElementById('edit-name').value;
+            const email = document.getElementById('edit-email').value;
+            const password = document.getElementById('edit-password').value;
+
+            if (!name || !email) {
+                showToast('Name and email are required', 'error');
+                return;
+            }
+
+            try {
+                const updateData = { name, email };
+                if (password) updateData.password = password;
+
+                const response = await fetch(`{{ url('admin/users') }}/${userId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast('User updated successfully!', 'success');
+                    loadUserManagement();
+                } else {
+                    showToast('Error: ' + data.message, 'error');
+                }
+            } catch (error) {
+                showToast('Error updating user: ' + error.message, 'error');
+            }
+        }
+    );
+}
+
+// Function to update user company
+async function updateUserCompany(userId, companyId) {
+    try {
+        const response = await fetch(`{{ url('admin/users') }}/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ company_id: companyId })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('User company updated successfully!', 'success');
+        } else {
+            showToast('Error: ' + data.message, 'error');
+            loadUserManagement();
+        }
+    } catch (error) {
+        showToast('Error updating user company: ' + error.message, 'error');
+        loadUserManagement();
     }
 }
 
@@ -1100,6 +1272,70 @@ async function updateCompanyStatus(companyId, status) {
     } catch (error) {
         showToast('Error updating company status: ' + error.message, 'error');
     }
+}
+
+// Function to edit company details
+function editCompany(companyId) {
+    // Get company data from the table row
+    const companyRow = document.querySelector(`tr[data-company-id="${companyId}"]`);
+    if (!companyRow) {
+        showToast('Company not found', 'error');
+        return;
+    }
+
+    // Extract current company data from the table row
+    const cells = companyRow.querySelectorAll('td');
+    const currentName = cells[0].textContent.trim();
+
+    showConfirmationToast(
+        'Edit Company',
+        `<div class="space-y-3">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                <input type="text" id="edit-company-name" value="${currentName}" class="w-full px-3 py-2 border border-gray-300 rounded">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label>
+                <textarea id="edit-company-description" placeholder="Company description" class="w-full px-3 py-2 border border-gray-300 rounded" rows="3"></textarea>
+            </div>
+        </div>`,
+        async function() {
+            const name = document.getElementById('edit-company-name').value;
+            const description = document.getElementById('edit-company-description').value;
+
+            if (!name) {
+                showToast('Company name is required', 'error');
+                return;
+            }
+
+            try {
+                const updateData = { name };
+                if (description) updateData.description = description;
+
+                const response = await fetch(`{{ url('admin/companies') }}/${companyId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast('Company updated successfully!', 'success');
+                    loadCompanyManagement();
+                } else {
+                    showToast('Error: ' + data.message, 'error');
+                }
+            } catch (error) {
+                showToast('Error updating company: ' + error.message, 'error');
+            }
+        }
+    );
 }
 
 // System Alerts
@@ -1445,6 +1681,60 @@ function showToast(message, type = 'info') {
             }, 300);
         }
     }, 5000);
+}
+
+// Confirmation toast function
+function showConfirmationToast(title, message, onConfirm, onCancel = null) {
+    const toastContainer = document.getElementById('toast-container') || createToastContainer();
+
+    const confirmToast = document.createElement('div');
+    confirmToast.className = 'toast animate-fade-in-down bg-white shadow-xl rounded-lg border border-gray-300 p-4 mb-3 max-w-sm';
+    confirmToast.innerHTML = `
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <span class="text-lg">❓</span>
+            </div>
+            <div class="ml-3 flex-1">
+                <p class="text-sm font-semibold text-gray-900 mb-1">${title}</p>
+                <div class="text-xs text-gray-600 mb-3">${message}</div>
+                <div class="flex space-x-2">
+                    <button class="confirm-yes px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 font-medium">
+                        ✅ Yes
+                    </button>
+                    <button class="confirm-no px-3 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 font-medium">
+                        ❌ Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    toastContainer.appendChild(confirmToast);
+
+    // Handle confirmation
+    confirmToast.querySelector('.confirm-yes').addEventListener('click', function() {
+        confirmToast.remove();
+        if (onConfirm) onConfirm();
+    });
+
+    // Handle cancellation
+    confirmToast.querySelector('.confirm-no').addEventListener('click', function() {
+        confirmToast.remove();
+        if (onCancel) onCancel();
+    });
+
+    // Auto-remove after 10 seconds if no action taken
+    setTimeout(() => {
+        if (confirmToast.parentNode) {
+            confirmToast.style.opacity = '0';
+            setTimeout(() => {
+                if (confirmToast.parentNode) {
+                    confirmToast.remove();
+                    if (onCancel) onCancel();
+                }
+            }, 300);
+        }
+    }, 10000);
 }
 
 function createToastContainer() {

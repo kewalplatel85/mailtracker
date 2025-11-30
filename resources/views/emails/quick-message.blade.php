@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $subject }}</title>
+    <title>{{ $subject ?? 'Message from ' . ($companyName ?? 'Mail Center') }}</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -95,9 +95,9 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">{{ $companyName }}</div>
-            <div class="message-type {{ $messageType }}">
-                @switch($messageType)
+            <div class="logo">{{ $companyName ?? 'Mail Center' }}</div>
+            <div class="message-type {{ $messageType ?? 'general' }}">
+                @switch($messageType ?? 'general')
                     @case('package_ready')
                         📦 Package Ready for Pickup
                         @break
@@ -111,21 +111,21 @@
                         🕒 Office Hours Notice
                         @break
                     @default
-                        📧 Message from {{ $companyName }}
+                        📧 Message from {{ $companyName ?? 'Mail Center' }}
                 @endswitch
             </div>
         </div>
 
         <div class="customer-info">
-            <strong>Dear {{ $customerName }},</strong><br>
-            <small>Mailbox #{{ $mailboxNumber }}</small>
+            <strong>Dear {{ $customerName ?? 'Customer' }},</strong><br>
+            <small>Mailbox #{{ $mailboxNumber ?? 'N/A' }}</small>
         </div>
 
         <div class="message-content">
-            {!! nl2br(e($message)) !!}
+            {!! nl2br(e($message ?? 'No message content')) !!}
         </div>
 
-        @if($messageType === 'package_ready')
+        @if(($messageType ?? 'general') === 'package_ready')
             <div class="contact-info">
                 <strong>📍 Pickup Information:</strong><br>
                 • Please bring a valid ID<br>
@@ -135,7 +135,7 @@
             </div>
         @endif
 
-        @if($messageType === 'payment_reminder')
+        @if(($messageType ?? 'general') === 'payment_reminder')
             <div class="contact-info">
                 <strong>💳 Payment Options:</strong><br>
                 • Visit us in person<br>
@@ -146,7 +146,7 @@
         @endif
 
         <div class="footer">
-            <p><strong>{{ $companyName }}</strong></p>
+            <p><strong>{{ $companyName ?? 'Mail Center' }}</strong></p>
             <p>Professional Mailbox & Package Services</p>
             <p>
                 📍 [Your Address] | 📞 [Your Phone] | 🌐 [Your Website]<br>
@@ -154,7 +154,7 @@
             </p>
             <hr style="margin: 20px 0; border: none; border-top: 1px solid #e9ecef;">
             <p style="font-size: 12px; color: #868e96;">
-                This email was sent to you regarding your mailbox #{{ $mailboxNumber }}.<br>
+                This email was sent to you regarding your mailbox #{{ $mailboxNumber ?? 'N/A' }}.<br>
                 If you have any questions, please contact us directly.
             </p>
         </div>

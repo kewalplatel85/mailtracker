@@ -90,11 +90,19 @@ class PackageController extends BaseController
     public function getPackagesByMailbox($mailboxNumber)
     {
         try {
-            // Check if user is authenticated, but don't fail if not (for dashboard integration)
-            $packages = Package::where('mailbox_number', $mailboxNumber)
+            // Get current company context
+            $currentCompanyId = session('current_company_id') ?? (Auth::check() ? Auth::user()->company_id : null);
+
+            $packagesQuery = Package::where('mailbox_number', $mailboxNumber)
                 ->whereIn('status', ['Incoming', 'Ready for Pickup', 'Picked Up'])
-                ->orderBy('created_at', 'desc')
-                ->get();
+                ->orderBy('created_at', 'desc');
+
+            // Filter by company if we have a company context
+            if ($currentCompanyId) {
+                $packagesQuery->where('company_id', $currentCompanyId);
+            }
+
+            $packages = $packagesQuery->get();
 
             $result = [];
             foreach ($packages as $index => $package) {

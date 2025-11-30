@@ -19,15 +19,58 @@ class DashboardController extends Controller
 {
     //
     public function index(){
-        $filePath = 'uploads/latest_file.csv';
+        // CRITICAL: Get current company context
+        $currentCompanyId = session('current_company_id') ?? Auth::user()->company_id;
+
         $data = [];
 
-        // Check if the file exists and load its contents
-        if (Storage::exists($filePath)) {
-            $data = $this->parseFile(Storage::path($filePath));
-        }
+        // Initialize stats with default values
+        $stats = [
+            'total_mailboxes' => 0,
+            'mailboxes_with_packages' => 0,
+            'total_packages' => 0
+        ];
 
-        // Instantiate MessageController and fetch SMS messages
+        if ($currentCompanyId) {
+            // Use company-specific file path
+            $filePath = "uploads/company_{$currentCompanyId}_latest_file.csv";
+
+            // Check if the file exists and load its contents
+            if (Storage::exists($filePath)) {
+                $data = $this->parseFile(Storage::path($filePath));
+
+                // Calculate stats from CSV data
+                if (count($data) > 7) { // Skip header rows
+                    $mailboxData = array_slice($data, 7); // Skip first 7 rows (headers)
+
+                    // Count only rows that have actual mailbox numbers (not empty rows)
+                    $validMailboxes = 0;
+                    foreach ($mailboxData as $row) {
+                        // Check if first column (mailbox number) has actual data
+                        if (isset($row[0]) && !empty(trim($row[0])) && is_numeric(trim($row[0]))) {
+                            $validMailboxes++;
+                        }
+                    }
+                    $stats['total_mailboxes'] = $validMailboxes;
+
+                    // Count mailboxes that actually have packages in the database
+                    $mailboxesWithPackages = \App\Models\Package::where('company_id', $currentCompanyId)
+                        ->whereNotNull('mailbox_number')
+                        ->distinct('mailbox_number')
+                        ->count('mailbox_number');
+
+                    $stats['mailboxes_with_packages'] = $mailboxesWithPackages;
+                }
+            }
+
+            // Get total packages for this company
+            $stats['total_packages'] = \App\Models\Package::where('company_id', $currentCompanyId)->count();
+
+        } else if (Auth::user()->is_super_admin) {
+            // Super admin sees a message to select company context
+            $data = [['Super Admin: Please select a company context to view mailbox data']];
+            // Stats remain at 0 for super admin without company context
+        }        // Instantiate MessageController and fetch SMS messages
         $messagesController = new MessageController();
         $inboxData = $messagesController->index();
 
@@ -36,6 +79,7 @@ class DashboardController extends Controller
 
         return view('dashboard', [
             'data' => $data,
+            'stats' => $stats,
             'receivedMessages' => $receivedMessages,
             'sentMessages' => $sentMessages
         ]);
@@ -65,6 +109,22 @@ class DashboardController extends Controller
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        }
+
+        // CRITICAL: Ensure proper company assignment
+        $currentCompanyId = session('current_company_id') ?? Auth::user()->company_id;
+
+        if (!$currentCompanyId && !Auth::user()->is_super_admin) {
+            return response()->json([
+                'message' => 'Error: No company associated with this user. Contact administrator.'
+            ], 403);
+        }
+
+        if (Auth::user()->is_super_admin && !$currentCompanyId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please select a company from the navigation dropdown before adding packages.'
+            ], 400);
         }
 
         $imagePaths = [];
@@ -104,11 +164,12 @@ class DashboardController extends Controller
             $mailbox = null; // Allow null for new clients
         }
 
-        // Extract customer phone from CSV data if mailbox is provided
+        // Extract customer phone from company-specific CSV data
         $customerPhone = null;
+        $phoneSource = null;
         if ($mailbox) {
-            // Look up customer info from CSV data
-            $filePath = 'uploads/latest_file.csv';
+            // Look up customer info from company-specific CSV data
+            $filePath = "uploads/company_{$currentCompanyId}_latest_file.csv";
             if (Storage::exists($filePath)) {
                 $data = $this->parseFile(Storage::path($filePath));
                 // Search for mailbox in data to get phone number
@@ -116,10 +177,19 @@ class DashboardController extends Controller
                     if (isset($row[0]) && trim($row[0]) == trim($mailbox)) {
                         if (isset($row[4]) && !empty(trim($row[4]))) {
                             $customerPhone = preg_replace('/\D/', '', trim($row[4]));
+                            $phoneSource = 'CSV';
+                            Log::info("Phone number found for mailbox {$mailbox}: {$customerPhone}");
+                        } else {
+                            Log::info("Mailbox {$mailbox} found but no phone number in CSV");
                         }
                         break;
                     }
                 }
+                if (!$customerPhone) {
+                    Log::info("Mailbox {$mailbox} not found in CSV file");
+                }
+            } else {
+                Log::warning("CSV file not found for company {$currentCompanyId}");
             }
         }
 
@@ -135,6 +205,7 @@ class DashboardController extends Controller
                 'mailbox_number' => $mailbox,
                 'tracking_number' => $trackingNumber,
                 'status' => $request->status,
+                'company_id' => $currentCompanyId, // CRITICAL: Explicit company assignment
                 // Workflow fields
                 'auto_ready' => true, // Enable auto-transition by default
                 'days_to_ready' => 0, // Immediate transition
@@ -152,50 +223,63 @@ class DashboardController extends Controller
         $smsResult = ['sent' => false, 'message' => 'No SMS message provided'];
 
         if ($customerPhone && $request->sms_message) {
-            $trackingList = implode(", ", array_filter($trackingNumbers));
-            $smsBody = $request->sms_message;
+            // Validate phone number length
+            if (strlen($customerPhone) < 10) {
+                $smsResult = ['sent' => false, 'message' => 'Invalid phone number format (too short)'];
+                Log::warning("Invalid phone number for mailbox {$mailbox}: {$customerPhone}");
+            } else {
+                $trackingList = implode(", ", array_filter($trackingNumbers));
+                $smsBody = $request->sms_message;
 
-            // Add tracking numbers to SMS if available
-            if (!empty($trackingList)) {
-                $smsBody .= " Tracking Number(s): {$trackingList}.";
-            }
-
-            try {
-                // Clean phone number format
-                $cleanPhone = preg_replace('/\D/', '', $customerPhone);
-                if (strlen($cleanPhone) == 10) {
-                    $cleanPhone = "+1{$cleanPhone}";
-                } elseif (!str_starts_with($cleanPhone, '+')) {
-                    $cleanPhone = "+{$cleanPhone}";
+                // Add tracking numbers to SMS if available
+                if (!empty($trackingList)) {
+                    $smsBody .= " Tracking Number(s): {$trackingList}.";
                 }
 
-                // Send SMS using Twilio
-                $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
-                $twilio->messages->create($cleanPhone, [
-                    'from' => env('TWILIO_PHONE_NUMBER'),
-                    'body' => $smsBody
-                ]);
+                try {
+                    // Clean phone number format
+                    $cleanPhone = preg_replace('/\D/', '', $customerPhone);
+                    if (strlen($cleanPhone) == 10) {
+                        $cleanPhone = "+1{$cleanPhone}";
+                    } elseif (!str_starts_with($cleanPhone, '+')) {
+                        $cleanPhone = "+{$cleanPhone}";
+                    }
 
-                $smsResult = ['sent' => true, 'message' => 'SMS sent successfully'];
-                Log::info("SMS sent to {$cleanPhone}: {$smsBody}");
+                    // Send SMS using Twilio
+                    $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
+                    $message = $twilio->messages->create($cleanPhone, [
+                        'from' => env('TWILIO_PHONE_NUMBER'),
+                        'body' => $smsBody
+                    ]);
 
-            } catch (TwilioException $e) {
-                $smsResult = ['sent' => false, 'message' => 'SMS sending failed: ' . $e->getMessage()];
-                Log::error('Twilio SMS sending failed: ' . $e->getMessage());
-            } catch (\Exception $e) {
-                $smsResult = ['sent' => false, 'message' => 'SMS error: ' . $e->getMessage()];
-                Log::error('SMS sending error: ' . $e->getMessage());
+                    $smsResult = ['sent' => true, 'message' => "SMS sent to {$cleanPhone} (found in {$phoneSource})"];
+                    Log::info("SMS sent successfully to {$cleanPhone}: {$smsBody}");
+
+                } catch (TwilioException $e) {
+                    $smsResult = ['sent' => false, 'message' => 'Twilio error: ' . $e->getMessage()];
+                    Log::error('Twilio SMS sending failed: ' . $e->getMessage());
+                } catch (\Exception $e) {
+                    $smsResult = ['sent' => false, 'message' => 'SMS error: ' . $e->getMessage()];
+                    Log::error('SMS sending error: ' . $e->getMessage());
+                }
             }
         } elseif (!$customerPhone && $request->sms_message) {
-            $smsResult = ['sent' => false, 'message' => 'No phone number found for this mailbox'];
+            $smsResult = ['sent' => false, 'message' => $mailbox ? "No phone number found for mailbox {$mailbox}" : 'No phone number available (no mailbox specified)'];
+            Log::info("SMS not sent - no phone number found for mailbox: {$mailbox}");
         }
 
         return response()->json([
-            'message' => 'Package(s) saved successfully with workflow tracking.',
+            'success' => true,
+            'message' => count($createdPackages) > 1 ?
+                "{$packageCount} packages saved successfully!" :
+                'Package saved successfully!',
             'packages_created' => $packageCount,
             'phone_found' => $customerPhone ? true : false,
+            'phone_source' => $phoneSource ?? null,
+            'customer_phone' => $customerPhone ? "+1" . substr($customerPhone, -10) : null,
             'sms_sent' => $smsResult['sent'],
             'sms_message' => $smsResult['message'],
+            'mailbox_number' => $mailbox,
             'packages' => collect($createdPackages)->map(function($package) {
                 return [
                     'id' => $package->id,

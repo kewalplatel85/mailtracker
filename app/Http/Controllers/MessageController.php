@@ -160,11 +160,30 @@ class MessageController extends Controller
             'mailbox_number' => 'required|string',
             'customer_name' => 'required|string',
             'message' => 'required|string|max:1000',
-            'send_sms' => 'boolean',
-            'send_email' => 'boolean',
+            'send_sms' => 'required|boolean',
+            'send_email' => 'required|boolean',
             'phone_number' => 'nullable|string',
             'email' => 'nullable|email',
         ]);
+
+        // Convert string values to boolean if needed
+        $sendSms = filter_var($request->send_sms, FILTER_VALIDATE_BOOLEAN);
+        $sendEmail = filter_var($request->send_email, FILTER_VALIDATE_BOOLEAN);
+
+        // Additional validation based on delivery methods
+        if ($sendSms && (!$request->phone_number || $request->phone_number === 'N/A')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Phone number is required for SMS delivery'
+            ], 422);
+        }
+
+        if ($sendEmail && (!$request->email || $request->email === 'N/A')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email address is required for email delivery'
+            ], 422);
+        }
 
         $results = [];
         $errors = [];
@@ -174,27 +193,43 @@ class MessageController extends Controller
 
         try {
             // Send SMS if requested and phone number is available
-            if ($request->send_sms && $request->phone_number && $request->phone_number !== 'N/A') {
+            if ($sendSms && $request->phone_number && $request->phone_number !== 'N/A') {
                 try {
                     $cleanPhone = preg_replace('/\D/', '', $request->phone_number);
+
+                    // Validate phone number length
                     if (strlen($cleanPhone) >= 10) {
+                        // Format phone number for Twilio
+                        if (strlen($cleanPhone) == 10) {
+                            $cleanPhone = "+1{$cleanPhone}";
+                        } elseif (!str_starts_with($cleanPhone, '+')) {
+                            $cleanPhone = "+{$cleanPhone}";
+                        } else {
+                            $cleanPhone = "+{$cleanPhone}";
+                        }
+
                         $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
-                        $twilio->messages->create($cleanPhone, [
+                        $message = $twilio->messages->create($cleanPhone, [
                             'from' => env('TWILIO_PHONE_NUMBER'),
                             'body' => $request->message
                         ]);
-                        $results[] = 'SMS sent successfully';
+
+                        $results[] = "SMS sent successfully to {$cleanPhone}";
+                        Log::info("Quick message SMS sent to {$cleanPhone}: {$request->message}");
                     } else {
-                        $errors[] = 'Invalid phone number format';
+                        $errors[] = 'Invalid phone number format (too short)';
                     }
                 } catch (TwilioException $e) {
                     $errors[] = 'SMS sending failed: ' . $e->getMessage();
                     Log::error('Twilio SMS Error: ' . $e->getMessage());
+                } catch (\Exception $e) {
+                    $errors[] = 'SMS error: ' . $e->getMessage();
+                    Log::error('SMS sending error: ' . $e->getMessage());
                 }
             }
 
             // Send Email if requested and email address is available
-            if ($request->send_email && $request->email && $request->email !== 'N/A') {
+            if ($sendEmail && $request->email && $request->email !== 'N/A') {
                 try {
                     $companyName = Auth::user()->company ? Auth::user()->company->name : 'Mail Center';
                     Mail::to($request->email)->send(new QuickMessage(

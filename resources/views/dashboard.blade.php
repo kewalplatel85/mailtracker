@@ -17,7 +17,7 @@
                     </div>
                     <div class="ml-4">
                         <p class="text-sm font-medium text-gray-500">Total Mailboxes</p>
-                        <p class="text-2xl font-semibold text-gray-900">345</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ $stats['total_mailboxes'] }}</p>
                     </div>
                 </div>
             </div>
@@ -31,7 +31,7 @@
                     </div>
                     <div class="ml-4">
                         <p class="text-sm font-medium text-gray-500">With Packages</p>
-                        <p class="text-2xl font-semibold text-gray-900">42</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ $stats['mailboxes_with_packages'] }}</p>
                     </div>
                 </div>
             </div>
@@ -45,7 +45,7 @@
                     </div>
                     <div class="ml-4">
                         <p class="text-sm font-medium text-gray-500">Total Packages</p>
-                        <p class="text-2xl font-semibold text-gray-900">89</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ $stats['total_packages'] }}</p>
                     </div>
                 </div>
             </div>
@@ -310,7 +310,14 @@
                                             $dateClose = isset($row[5]) ? trim($row[5]) : '';
                                             $term = isset($row[6]) ? trim($row[6]) : '';
                                             $dueDate = isset($row[7]) ? trim($row[7]) : '';
-                                            $packageCount = \App\Models\Package::where('mailbox_number', $mailboxNumber)->where('status', 'Ready for Pickup')->count();
+                                            // CRITICAL: Filter by company to prevent cross-company data leakage
+                                            $currentCompanyId = session('current_company_id') ?? auth()->user()->company_id;
+                                            $packageCount = \App\Models\Package::where('mailbox_number', $mailboxNumber)
+                                                ->where('status', 'Ready for Pickup')
+                                                ->when($currentCompanyId, function($query, $companyId) {
+                                                    return $query->where('company_id', $companyId);
+                                                })
+                                                ->count();
                                         @endphp
                                         <div class="mailbox-item group relative aspect-square bg-white border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:shadow-md transition-all cursor-pointer min-w-0"
                                              data-mailbox="{{ $mailboxNumber }}"
@@ -1145,29 +1152,30 @@ $(document).ready(function() {
 
                 // Show additional info if available
                 if (response.packages_created > 1) {
-                    showToast(`Created ${response.packages_created} packages`, 'info');
+                    showToast(`Created ${response.packages_created} packages from ${response.packages_created === 1 ? '1 tracking number' : response.packages_created + ' tracking numbers'}`, 'info');
                 }
 
-                if (response.phone_found) {
-                    showToast('Customer phone number found in records', 'info');
-                } else if (mailboxNumber) {
-                    showToast('No phone number found for this mailbox', 'warning');
+                // Show phone number lookup results
+                if (response.phone_found && response.customer_phone) {
+                    showToast(`📞 Phone found: ${response.customer_phone} ${response.phone_source ? '(from ' + response.phone_source + ')' : ''}`, 'info');
+                } else if (response.mailbox_number) {
+                    showToast(`📞 No phone number found for mailbox ${response.mailbox_number}`, 'warning');
+                } else {
+                    showToast('📞 No mailbox specified - SMS cannot be sent', 'warning');
                 }
 
                 // Show SMS sending result
                 if (response.sms_sent) {
                     showToast('📱 SMS notification sent successfully!', 'success');
                 } else if (response.sms_message && response.sms_message !== 'No SMS message provided') {
-                    showToast(`📱 SMS: ${response.sms_message}`, 'warning');
+                    showToast(`📱 SMS not sent: ${response.sms_message}`, 'warning');
                 }
 
-                // Display tracking numbers with label printing options
-                if (response.packages && response.packages.length > 0) {
-                    displayTrackingNumbers(response.packages);
-                }
-
-                // Reset form but keep tracking display
+                // Reset form and prepare for next entry
                 $('#packageForm')[0].reset();
+
+                // Reset package count to 1
+                $('input[name="package_count"]').val(1);
 
                 // Don't auto-reload to keep tracking numbers visible
                 // setTimeout(() => location.reload(), 2000);
@@ -1190,6 +1198,22 @@ $(document).ready(function() {
     // Initialize
     updatePagination();
     setupTrackingPreview();
+
+    // Add package count manual override capability
+    $('input[name="package_count"]').on('input', function() {
+        const packageCount = parseInt($(this).val()) || 1;
+        const trackingText = $('textarea[name="tracking_number"]').val().trim();
+
+        if (trackingText) {
+            const trackingNumbers = trackingText.split('\\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+
+            if (trackingNumbers.length > packageCount) {
+                showToast(`Package count is less than tracking numbers (${trackingNumbers.length}). Consider updating.`, 'warning');
+            }
+        }
+    });
 
     // Quick Message Modal Event Handlers
     $('#messageTemplate').on('change', updateMessageTemplate);
@@ -1214,16 +1238,42 @@ $(document).ready(function() {
 
         $('#deliveryWarning').addClass('hidden');
 
+        // Get values and validate required fields
+        const mailboxNumber = $('#qmMailboxNumber').text().trim();
+        const customerName = $('#qmCustomerName').text().trim();
+        const phoneNumber = $('#qmPhoneNumber').text().trim();
+        const email = $('#qmEmail').text().trim();
+        const message = $('#messageContent').val().trim();
+
+        // Validate required fields
+        if (!mailboxNumber) {
+            showToast('Mailbox number is required', 'error');
+            return;
+        }
+
+        if (!customerName || customerName === 'N/A') {
+            showToast('Customer name is required', 'error');
+            return;
+        }
+
+        if (!message) {
+            showToast('Message content is required', 'error');
+            return;
+        }
+
         const formData = {
-            mailbox_number: $('#qmMailboxNumber').text(),
-            customer_name: $('#qmCustomerName').text(),
-            phone_number: $('#qmPhoneNumber').text(),
-            email: $('#qmEmail').text(),
-            message: $('#messageContent').val(),
-            send_sms: smsChecked,
-            send_email: emailChecked,
+            mailbox_number: mailboxNumber,
+            customer_name: customerName,
+            phone_number: (phoneNumber && phoneNumber !== 'N/A') ? phoneNumber : null,
+            email: (email && email !== 'N/A') ? email : null,
+            message: message,
+            send_sms: smsChecked ? 1 : 0,
+            send_email: emailChecked ? 1 : 0,
             _token: $('meta[name="csrf-token"]').attr('content')
         };
+
+        // Debug log (remove in production)
+        console.log('Quick message form data:', formData);
 
         // Send the message
         $.ajax({
@@ -1236,7 +1286,18 @@ $(document).ready(function() {
             },
             error: function(xhr) {
                 const error = xhr.responseJSON;
-                showToast(error?.message || 'Error sending message', 'error');
+                console.log('Quick message error:', xhr.responseJSON);
+
+                if (error && error.errors) {
+                    // Show validation errors
+                    Object.keys(error.errors).forEach(key => {
+                        error.errors[key].forEach(msg => {
+                            showToast(`${key}: ${msg}`, 'error');
+                        });
+                    });
+                } else {
+                    showToast(error?.message || 'Error sending message', 'error');
+                }
             }
         });
     });
@@ -1312,6 +1373,15 @@ function setupTrackingPreview() {
                 .filter(line => line.length > 0);
 
             if (trackingNumbers.length > 0) {
+                // Auto-update package count based on number of tracking numbers
+                const packageCountInput = $('input[name="package_count"]');
+                const currentCount = parseInt(packageCountInput.val()) || 1;
+                const trackingCount = trackingNumbers.length;
+
+                // Update package count to match tracking numbers (use higher value)
+                const newCount = Math.max(currentCount, trackingCount);
+                packageCountInput.val(newCount);
+
                 updateTrackingPreview(trackingNumbers);
                 trackingPreview.removeClass('hidden');
             } else {
@@ -1319,6 +1389,8 @@ function setupTrackingPreview() {
             }
         } else {
             trackingPreview.addClass('hidden');
+            // Reset package count to 1 when no tracking numbers
+            $('input[name="package_count"]').val(1);
         }
     }
 
@@ -1362,7 +1434,83 @@ function updateTrackingPreview(trackingNumbers) {
     previewList.html(previewHtml);
 }
 
-// Display tracking numbers with label printing options
+// Print individual tracking label
+function printTrackingLabel(trackingNumber) {
+    if (!trackingNumber || trackingNumber.trim() === '') {
+        showToast('No tracking number to print', 'warning');
+        return;
+    }
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Tracking Label - ${trackingNumber}</title>
+            <style>
+                body {
+                    font-family: 'Courier New', monospace;
+                    margin: 20px;
+                    line-height: 1.4;
+                }
+                .label {
+                    border: 2px solid #000;
+                    padding: 20px;
+                    text-align: center;
+                    max-width: 300px;
+                    margin: 0 auto;
+                }
+                .title {
+                    font-size: 18px;
+                    font-weight: bold;
+                    margin-bottom: 15px;
+                }
+                .tracking {
+                    font-size: 16px;
+                    font-weight: bold;
+                    background: #f0f0f0;
+                    padding: 10px;
+                    border: 1px solid #ccc;
+                    margin: 15px 0;
+                    word-break: break-all;
+                }
+                .info {
+                    font-size: 12px;
+                    margin: 10px 0;
+                }
+                @media print {
+                    body { margin: 0; }
+                    .no-print { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="label">
+                <div class="title">PACKAGE LABEL</div>
+                <div class="info">Tracking Number:</div>
+                <div class="tracking">${trackingNumber}</div>
+                <div class="info">Date: ${new Date().toLocaleDateString()}</div>
+                <div class="info">Status: Incoming</div>
+            </div>
+            <div class="no-print" style="text-align: center; margin-top: 20px;">
+                <button onclick="window.print()" style="padding: 10px 20px; font-size: 14px;">Print Label</button>
+                <button onclick="window.close()" style="padding: 10px 20px; font-size: 14px; margin-left: 10px;">Close</button>
+            </div>
+        </body>
+        </html>
+    `);
+
+    printWindow.document.close();
+
+    // Auto-focus the print window
+    printWindow.focus();
+
+    showToast(`Print label opened for ${trackingNumber}`, 'info');
+}
+
+// Preview section with package tracking display
 function displayTrackingNumbers(packages) {
     const trackingDisplay = $('#trackingDisplay');
     const trackingList = $('#trackingList');
@@ -1934,6 +2082,9 @@ function addPackageToMailbox(mailboxNumber, customerName) {
 
     // Clear any previous tracking numbers
     $('textarea[name="tracking_number"]').val('');
+
+    // Reset package count to 1
+    $('input[name="package_count"]').val(1);
 
     // Hide any preview displays
     $('#trackingPreview').addClass('hidden');
