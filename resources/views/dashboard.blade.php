@@ -361,6 +361,181 @@
     </div>
 </div>
 
+<!-- Quick Message Modal -->
+<div id="quickMessageModal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <!-- Modal Backdrop -->
+    <div class="fixed inset-0" style="background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(6px);" onclick="closeQuickMessageModal()"></div>
+    <!-- Modal Content -->
+    <div class="flex items-center justify-center min-h-screen px-4 relative z-10">
+        <div class="relative rounded-xl max-w-md w-full p-6 shadow-2xl border border-gray-300" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px);">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900">📱 Quick Message</h3>
+                <button onclick="closeQuickMessageModal()" class="text-gray-400 hover:text-gray-600 p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form id="quickMessageForm" class="space-y-4">
+                <!-- Customer Info -->
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <div class="text-sm text-gray-600">Customer:</div>
+                    <div id="qmCustomerName" class="font-medium text-gray-900"></div>
+                    <div class="text-sm text-gray-500">
+                        <span>Mailbox: </span><span id="qmMailboxNumber"></span> |
+                        <span>Phone: </span><span id="qmPhoneNumber"></span> |
+                        <span>Email: </span><span id="qmEmail"></span>
+                    </div>
+                </div>
+
+                <!-- Delivery Method Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">📤 Delivery Method</label>
+                    <div class="space-y-2">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="sendSMS" name="delivery_method" value="sms" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                            <label for="sendSMS" class="ml-2 text-sm text-gray-700 flex items-center">
+                                📱 SMS Message
+                                <span id="smsStatus" class="ml-2 text-xs text-gray-500"></span>
+                            </label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="sendEmail" name="delivery_method" value="email" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <label for="sendEmail" class="ml-2 text-sm text-gray-700 flex items-center">
+                                📧 Email Message
+                                <span id="emailStatus" class="ml-2 text-xs text-gray-500"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div id="deliveryWarning" class="hidden mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700">
+                        ⚠️ Select at least one delivery method
+                    </div>
+                </div>
+
+                <!-- Message Templates -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">💬 Message Template</label>
+                    <select id="messageTemplate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                        <option value="">Select a template...</option>
+                        <option value="package_ready">📦 Package Ready for Pickup</option>
+                        <option value="payment_reminder">💰 Payment Reminder</option>
+                        <option value="account_update">📋 Account Update Required</option>
+                        <option value="office_hours">🕒 Office Hours Notice</option>
+                        <option value="custom">✏️ Custom Message</option>
+                    </select>
+                </div>
+
+                <!-- Message Content -->
+                <div>
+                    <label for="messageContent" class="block text-sm font-medium text-gray-700 mb-2">✉️ Message</label>
+                    <textarea id="messageContent" name="message" rows="4"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              placeholder="Enter your message here..."></textarea>
+                    <div class="flex justify-between mt-1">
+                        <div class="text-xs text-gray-500">
+                            <span id="charCount">0</span>/160 characters
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            <span id="smsCount">1</span> SMS
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="closeQuickMessageModal()"
+                            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium">
+                        📤 Send Message
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Renewal Reminder Modal -->
+<div id="renewalReminderModal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <!-- Modal Backdrop -->
+    <div class="fixed inset-0" style="background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(6px);" onclick="closeRenewalReminderModal()"></div>
+    <!-- Modal Content -->
+    <div class="flex items-center justify-center min-h-screen px-4 relative z-10">
+        <div class="relative rounded-xl max-w-md w-full p-6 shadow-2xl border border-gray-300" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px);">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900">🔔 Renewal Reminder</h3>
+                <button onclick="closeRenewalReminderModal()" class="text-gray-400 hover:text-gray-600 p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form id="renewalReminderForm" class="space-y-4">
+                <!-- Customer Info -->
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <div class="text-sm text-gray-600">Customer:</div>
+                    <div id="rrCustomerName" class="font-medium text-gray-900"></div>
+                    <div class="text-sm text-gray-500">
+                        <span>Mailbox: </span><span id="rrMailboxNumber"></span> |
+                        <span>Due Date: </span><span id="rrDueDate" class="font-medium text-red-600"></span>
+                    </div>
+                </div>
+
+                <!-- Delivery Method Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">📤 Delivery Method</label>
+                    <div class="space-y-2">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="rrSendSMS" name="rr_delivery_method" value="sms" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                            <label for="rrSendSMS" class="ml-2 text-sm text-gray-700">📱 SMS Reminder</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="rrSendEmail" name="rr_delivery_method" value="email" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <label for="rrSendEmail" class="ml-2 text-sm text-gray-700">📧 Email Reminder</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reminder Type -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">⏰ Reminder Type</label>
+                    <select id="reminderType" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                        <option value="gentle">🙂 Gentle Reminder (Friendly)</option>
+                        <option value="standard">📋 Standard Notice</option>
+                        <option value="urgent">⚠️ Urgent - Due Soon</option>
+                        <option value="final">🚨 Final Notice</option>
+                        <option value="custom">✏️ Custom Message</option>
+                    </select>
+                </div>
+
+                <!-- Message Content -->
+                <div>
+                    <label for="renewalMessage" class="block text-sm font-medium text-gray-700 mb-2">✉️ Message</label>
+                    <textarea id="renewalMessage" name="message" rows="4"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              placeholder="Renewal reminder message will appear here..."></textarea>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="closeRenewalReminderModal()"
+                            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="flex-1 px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-medium">
+                        🔔 Send Reminder
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Toast Notification Container -->
 <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
@@ -672,7 +847,7 @@ $(document).ready(function() {
 
                 <!-- Action Buttons -->
                 <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <button onclick="quickMessage('${mailbox}', '${phone}', '${customer}')" class="bg-green-600 text-white py-2.5 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center justify-center">
+                    <button onclick="quickMessage('${mailbox}', '${phone}', '${customer}', '${email}')" class="bg-green-600 text-white py-2.5 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center justify-center">
                         💬 Quick Message
                     </button>
                     <button onclick="addPackageToMailbox('${mailbox}', '${customer}')" class="bg-purple-600 text-white py-2.5 px-4 rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm flex items-center justify-center">
@@ -890,6 +1065,86 @@ $(document).ready(function() {
     // Initialize
     updatePagination();
     setupTrackingPreview();
+
+    // Quick Message Modal Event Handlers
+    $('#messageTemplate').on('change', updateMessageTemplate);
+    $('#messageContent').on('input', updateCharacterCount);
+
+    // Renewal Reminder Modal Event Handlers
+    $('#reminderType').on('change', updateRenewalMessage);
+
+    // Form submissions
+    $('#quickMessageForm').on('submit', function(e) {
+        e.preventDefault();
+
+        // Validate delivery methods
+        const smsChecked = $('#sendSMS').is(':checked') && !$('#sendSMS').is(':disabled');
+        const emailChecked = $('#sendEmail').is(':checked') && !$('#sendEmail').is(':disabled');
+
+        if (!smsChecked && !emailChecked) {
+            $('#deliveryWarning').removeClass('hidden');
+            showToast('Please select at least one delivery method', 'warning');
+            return;
+        }
+
+        $('#deliveryWarning').addClass('hidden');
+
+        const formData = {
+            mailbox_number: $('#qmMailboxNumber').text(),
+            customer_name: $('#qmCustomerName').text(),
+            phone_number: $('#qmPhoneNumber').text(),
+            email: $('#qmEmail').text(),
+            message: $('#messageContent').val(),
+            send_sms: smsChecked,
+            send_email: emailChecked,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        };
+
+        // Send the message
+        $.ajax({
+            url: '/send-quick-message',
+            method: 'POST',
+            data: formData,
+            success: function(response) {
+                showToast(response.message || 'Message sent successfully!', 'success');
+                closeQuickMessageModal();
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON;
+                showToast(error?.message || 'Error sending message', 'error');
+            }
+        });
+    });
+
+    $('#renewalReminderForm').on('submit', function(e) {
+        e.preventDefault();
+
+        const formData = {
+            mailbox_number: $('#rrMailboxNumber').text(),
+            customer_name: $('#rrCustomerName').text(),
+            due_date: $('#rrDueDate').text(),
+            message: $('#renewalMessage').val(),
+            reminder_type: $('#reminderType').val(),
+            send_sms: $('#rrSendSMS').is(':checked'),
+            send_email: $('#rrSendEmail').is(':checked'),
+            _token: $('meta[name="csrf-token"]').attr('content')
+        };
+
+        // Send the reminder
+        $.ajax({
+            url: '/send-renewal-reminder',
+            method: 'POST',
+            data: formData,
+            success: function(response) {
+                showToast(response.message || 'Renewal reminder sent successfully!', 'success');
+                closeRenewalReminderModal();
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON;
+                showToast(error?.message || 'Error sending reminder', 'error');
+            }
+        });
+    });
 });
 
 // Real-time tracking number preview
@@ -1602,14 +1857,144 @@ function addPackageToMailbox(mailboxNumber, customerName) {
     }, 300);
 }
 
-// Quick message function (placeholder)
-function quickMessage(mailboxNumber, phoneNumber, customerName) {
-    showToast('Quick message feature coming soon!', 'info');
+// Quick message function
+function quickMessage(mailboxNumber, phoneNumber, customerName, email = '') {
+    // Populate modal with customer info
+    $('#qmCustomerName').text(customerName || 'N/A');
+    $('#qmMailboxNumber').text(mailboxNumber);
+    $('#qmPhoneNumber').text(phoneNumber || 'N/A');
+    $('#qmEmail').text(email || 'N/A');
+
+    // Update delivery method availability
+    if (!phoneNumber || phoneNumber === 'N/A') {
+        $('#sendSMS').prop('checked', false).prop('disabled', true);
+        $('#smsStatus').text('(No phone number)').addClass('text-red-500');
+    } else {
+        $('#sendSMS').prop('checked', true).prop('disabled', false);
+        $('#smsStatus').text('').removeClass('text-red-500');
+    }
+
+    if (!email || email === 'N/A') {
+        $('#sendEmail').prop('checked', false).prop('disabled', true);
+        $('#emailStatus').text('(No email address)').addClass('text-red-500');
+    } else {
+        $('#sendEmail').prop('checked', true).prop('disabled', false);
+        $('#emailStatus').text('').removeClass('text-red-500');
+    }
+
+    // Clear previous content
+    $('#messageTemplate').val('');
+    $('#messageContent').val('');
+    updateCharacterCount();
+
+    // Show the modal
+    $('#quickMessageModal').removeClass('hidden');
 }
 
-// Renewal reminder function (placeholder)
+// Renewal reminder function
 function sendRenewalReminder(mailboxNumber, phoneNumber, customerName, dueDate) {
-    showToast('Renewal reminder feature coming soon!', 'info');
+    // Populate modal with customer info
+    $('#rrCustomerName').text(customerName || 'N/A');
+    $('#rrMailboxNumber').text(mailboxNumber);
+    $('#rrDueDate').text(dueDate || 'N/A');
+
+    // Update delivery method availability
+    if (!phoneNumber || phoneNumber === 'N/A') {
+        $('#rrSendSMS').prop('checked', false).prop('disabled', true);
+    } else {
+        $('#rrSendSMS').prop('checked', true).prop('disabled', false);
+    }
+
+    // Clear and set default message
+    $('#reminderType').val('gentle');
+    updateRenewalMessage();
+
+    // Show the modal
+    $('#renewalReminderModal').removeClass('hidden');
+}
+
+// Close modals
+function closeQuickMessageModal() {
+    $('#quickMessageModal').addClass('hidden');
+}
+
+function closeRenewalReminderModal() {
+    $('#renewalReminderModal').addClass('hidden');
+}
+
+// Update character count for SMS
+function updateCharacterCount() {
+    const message = $('#messageContent').val();
+    const charCount = message.length;
+    const smsCount = Math.ceil(charCount / 160) || 1;
+
+    $('#charCount').text(charCount);
+    $('#smsCount').text(smsCount);
+
+    // Color coding for length
+    if (charCount > 160) {
+        $('#charCount').addClass('text-orange-600');
+    } else {
+        $('#charCount').removeClass('text-orange-600');
+    }
+}
+
+// Update renewal message based on type
+function updateRenewalMessage() {
+    const type = $('#reminderType').val();
+    const customerName = $('#rrCustomerName').text();
+    const dueDate = $('#rrDueDate').text();
+
+    let message = '';
+
+    switch(type) {
+        case 'gentle':
+            message = `Hi ${customerName}, this is a friendly reminder that your mailbox rental is due on ${dueDate}. Please visit us at your convenience to renew. Thank you!`;
+            break;
+        case 'standard':
+            message = `Dear ${customerName}, your mailbox rental payment is due on ${dueDate}. Please renew your service to avoid interruption. Thank you.`;
+            break;
+        case 'urgent':
+            message = `URGENT: ${customerName}, your mailbox rental is due ${dueDate}. Please renew immediately to avoid service suspension. Contact us today.`;
+            break;
+        case 'final':
+            message = `FINAL NOTICE: ${customerName}, your mailbox rental was due ${dueDate}. Service will be suspended if not renewed within 3 days. Please contact us immediately.`;
+            break;
+        case 'custom':
+            message = '';
+            break;
+    }
+
+    $('#renewalMessage').val(message);
+}
+
+// Message templates for quick message
+function updateMessageTemplate() {
+    const template = $('#messageTemplate').val();
+    const customerName = $('#qmCustomerName').text();
+
+    let message = '';
+
+    switch(template) {
+        case 'package_ready':
+            message = `Hi ${customerName}, you have a package ready for pickup at Mail All Center. Please bring your ID. Thank you!`;
+            break;
+        case 'payment_reminder':
+            message = `Hi ${customerName}, this is a reminder about your outstanding balance. Please visit us to update your account. Thank you.`;
+            break;
+        case 'account_update':
+            message = `Hi ${customerName}, we need to update your account information. Please visit us at your earliest convenience. Thank you.`;
+            break;
+        case 'office_hours':
+            message = `Hi ${customerName}, please note our office hours: Mon-Fri 9AM-6PM, Sat 9AM-3PM. We're closed Sundays. Thank you.`;
+            break;
+        case 'custom':
+            message = '';
+            break;
+    }
+
+    $('#messageContent').val(message);
+    updateCharacterCount();
 }
 </script>
 

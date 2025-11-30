@@ -3,7 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Mail\QuickMessage;
+use App\Mail\RenewalReminder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Twilio\Rest\Client;
 use Twilio\Exceptions\TwilioException;
 
@@ -146,4 +151,222 @@ class MessageController extends Controller
         return redirect()->back()->with('success', 'Text blast sent successfully!');
     }
 
+    /**
+     * Send quick message via SMS and/or Email
+     */
+    public function sendQuickMessage(Request $request)
+    {
+        $request->validate([
+            'mailbox_number' => 'required|string',
+            'customer_name' => 'required|string',
+            'message' => 'required|string|max:1000',
+            'send_sms' => 'boolean',
+            'send_email' => 'boolean',
+            'phone_number' => 'nullable|string',
+            'email' => 'nullable|email',
+        ]);
+
+        $results = [];
+        $errors = [];
+
+        // Determine message type from the message content or template
+        $messageType = $this->detectMessageType($request->message);
+
+        try {
+            // Send SMS if requested and phone number is available
+            if ($request->send_sms && $request->phone_number && $request->phone_number !== 'N/A') {
+                try {
+                    $cleanPhone = preg_replace('/\D/', '', $request->phone_number);
+                    if (strlen($cleanPhone) >= 10) {
+                        $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
+                        $twilio->messages->create($cleanPhone, [
+                            'from' => env('TWILIO_PHONE_NUMBER'),
+                            'body' => $request->message
+                        ]);
+                        $results[] = 'SMS sent successfully';
+                    } else {
+                        $errors[] = 'Invalid phone number format';
+                    }
+                } catch (TwilioException $e) {
+                    $errors[] = 'SMS sending failed: ' . $e->getMessage();
+                    Log::error('Twilio SMS Error: ' . $e->getMessage());
+                }
+            }
+
+            // Send Email if requested and email address is available
+            if ($request->send_email && $request->email && $request->email !== 'N/A') {
+                try {
+                    $companyName = Auth::user()->company ? Auth::user()->company->name : 'Mail Center';
+                    Mail::to($request->email)->send(new QuickMessage(
+                        $request->customer_name,
+                        $request->mailbox_number,
+                        $request->message,
+                        $messageType,
+                        $companyName
+                    ));
+                    $results[] = 'Email sent successfully';
+                } catch (\Exception $e) {
+                    $errors[] = 'Email sending failed: ' . $e->getMessage();
+                    Log::error('Email Error: ' . $e->getMessage());
+                }
+            }
+
+            // Check if at least one method was attempted
+            if (empty($results) && empty($errors)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No delivery method selected or contact information missing'
+                ], 400);
+            }
+
+            // Prepare response
+            if (!empty($errors) && empty($results)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Message sending failed: ' . implode(', ', $errors)
+                ], 500);
+            }
+
+            $message = implode(' and ', $results);
+            if (!empty($errors)) {
+                $message .= ', but with some errors: ' . implode(', ', $errors);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'results' => $results,
+                'errors' => $errors
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Quick Message Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while sending the message'
+            ], 500);
+        }
+    }
+
+    /**
+     * Send renewal reminder via SMS and/or Email
+     */
+    public function sendRenewalReminder(Request $request)
+    {
+        $request->validate([
+            'mailbox_number' => 'required|string',
+            'customer_name' => 'required|string',
+            'due_date' => 'required|string',
+            'message' => 'required|string|max:1000',
+            'reminder_type' => 'required|string|in:gentle,standard,urgent,final,custom',
+            'send_sms' => 'boolean',
+            'send_email' => 'boolean',
+        ]);
+
+        $results = [];
+        $errors = [];
+
+        try {
+            // Get customer contact info (you might want to fetch this from database)
+            $phoneNumber = $request->phone_number ?? null;
+            $email = $request->email ?? null;
+
+            // Send SMS if requested and phone number is available
+            if ($request->send_sms && $phoneNumber && $phoneNumber !== 'N/A') {
+                try {
+                    $cleanPhone = preg_replace('/\D/', '', $phoneNumber);
+                    if (strlen($cleanPhone) >= 10) {
+                        $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
+                        $twilio->messages->create($cleanPhone, [
+                            'from' => env('TWILIO_PHONE_NUMBER'),
+                            'body' => $request->message
+                        ]);
+                        $results[] = 'SMS reminder sent';
+                    } else {
+                        $errors[] = 'Invalid phone number format';
+                    }
+                } catch (TwilioException $e) {
+                    $errors[] = 'SMS reminder failed: ' . $e->getMessage();
+                    Log::error('Renewal SMS Error: ' . $e->getMessage());
+                }
+            }
+
+            // Send Email if requested and email address is available
+            if ($request->send_email && $email && $email !== 'N/A') {
+                try {
+                    $companyName = Auth::user()->company ? Auth::user()->company->name : 'Mail Center';
+                    Mail::to($email)->send(new RenewalReminder(
+                        $request->customer_name,
+                        $request->mailbox_number,
+                        $request->due_date,
+                        $request->message,
+                        $request->reminder_type,
+                        $companyName
+                    ));
+                    $results[] = 'Email reminder sent';
+                } catch (\Exception $e) {
+                    $errors[] = 'Email reminder failed: ' . $e->getMessage();
+                    Log::error('Renewal Email Error: ' . $e->getMessage());
+                }
+            }
+
+            // Check if at least one method was attempted
+            if (empty($results) && empty($errors)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No delivery method selected or contact information missing'
+                ], 400);
+            }
+
+            // Prepare response
+            if (!empty($errors) && empty($results)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Renewal reminder failed: ' . implode(', ', $errors)
+                ], 500);
+            }
+
+            $message = 'Renewal reminder: ' . implode(' and ', $results);
+            if (!empty($errors)) {
+                $message .= ', but with some errors: ' . implode(', ', $errors);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'results' => $results,
+                'errors' => $errors
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Renewal Reminder Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred while sending the renewal reminder'
+            ], 500);
+        }
+    }
+
+    /**
+     * Detect message type based on content
+     */
+    private function detectMessageType($message)
+    {
+        $message = strtolower($message);
+
+        if (strpos($message, 'package') !== false && strpos($message, 'pickup') !== false) {
+            return 'package_ready';
+        }
+        if (strpos($message, 'payment') !== false || strpos($message, 'balance') !== false) {
+            return 'payment_reminder';
+        }
+        if (strpos($message, 'update') !== false && strpos($message, 'account') !== false) {
+            return 'account_update';
+        }
+        if (strpos($message, 'office hours') !== false || strpos($message, 'hours') !== false) {
+            return 'office_hours';
+        }
+
+        return 'general';
+    }
 }

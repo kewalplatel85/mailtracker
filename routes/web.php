@@ -42,6 +42,8 @@ Route::get('/messages', [MessageController::class, 'index'])->name('messages.ind
 Route::post('/send-message', [MessageController::class, 'sendMessage'])->name('messages.send');
 Route::post('/send-reply', [MessageController::class, 'sendReply'])->name('send.reply');
 Route::post('/textblast', [MessageController::class, 'sendTextBlast'])->name('messages.textblast');
+Route::post('/send-quick-message', [MessageController::class, 'sendQuickMessage'])->middleware(['auth'])->name('messages.quick');
+Route::post('/send-renewal-reminder', [MessageController::class, 'sendRenewalReminder'])->middleware(['auth'])->name('messages.renewal');
 
 // PackageLogs
 Route::get('/packagelogs',[PackageController::class, 'index'])->middleware(['auth'])->name('packagelogs');
