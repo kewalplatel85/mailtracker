@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use App\Models\Company;
 use App\Models\Role;
 use App\Models\User;
@@ -134,14 +135,10 @@ class ProductionSafeMultiCompanySeeder extends Seeder
         if ($eldrinUser) {
             $eldrinUser->update([
                 'is_super_admin' => true,
-                'company_id' => null,
+                'company_id' => $mailAllCenter->id, // Assign to Mail All Center but mark as super admin
             ]);
 
-            // Assign super admin role if not already assigned
-            if (!$eldrinUser->userRoles()->where('role_id', $superAdminRole->id)->exists()) {
-                $eldrinUser->assignRole($superAdminRole->id, null);
-            }
-
+            // Don't assign role - super admins use is_super_admin flag instead
             $this->command->info('Updated existing user: khairo (Eldrin) to Super Admin');
         } else {
             $this->command->info('User "khairo" not found - will need to be created manually');
@@ -174,15 +171,12 @@ class ProductionSafeMultiCompanySeeder extends Seeder
                     'email' => 'superadmin@mailtracker.com',
                     'password' => Hash::make('password123'),
                     'is_super_admin' => true,
-                    'company_id' => null,
+                    'company_id' => $mailAllCenter->id, // Assign to Mail All Center but mark as super admin
                     'email_verified_at' => now(),
                 ]
             );
 
-            if (!$defaultSuperAdmin->userRoles()->where('role_id', $superAdminRole->id)->exists()) {
-                $defaultSuperAdmin->assignRole($superAdminRole->id, null);
-            }
-
+            // Don't assign role - super admins use is_super_admin flag instead
             $this->command->info('Created default superadmin user for development');
         }
 
