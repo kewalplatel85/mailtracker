@@ -1151,21 +1151,7 @@ $(document).ready(function() {
             success: function(response) {
                 showToast(response.message || 'Package saved successfully!', 'success');
 
-                // Show additional info if available
-                if (response.packages_created > 1) {
-                    showToast(`Created ${response.packages_created} packages from ${response.packages_created === 1 ? '1 tracking number' : response.packages_created + ' tracking numbers'}`, 'info');
-                }
-
-                // Show phone number lookup results
-                if (response.phone_found && response.customer_phone) {
-                    showToast(`📞 Phone found: ${response.customer_phone} ${response.phone_source ? '(from ' + response.phone_source + ')' : ''}`, 'info');
-                } else if (response.mailbox_number) {
-                    showToast(`📞 No phone number found for mailbox ${response.mailbox_number}`, 'warning');
-                } else {
-                    showToast('📞 No mailbox specified - SMS cannot be sent', 'warning');
-                }
-
-                // Show SMS sending result
+                // Show SMS sending result only
                 if (response.sms_sent) {
                     showToast('📱 SMS notification sent successfully!', 'success');
                 } else if (response.sms_message && response.sms_message !== 'No SMS message provided') {
@@ -1178,8 +1164,28 @@ $(document).ready(function() {
                 // Reset package count to 1
                 $('input[name="package_count"]').val(1);
 
-                // Don't auto-reload to keep tracking numbers visible
-                // setTimeout(() => location.reload(), 2000);
+                // Clear tracking preview
+                $('#trackingPreview').addClass('hidden');
+                $('#previewList').html('');
+
+                // Clear any mailbox highlighting and reset to default view
+                $('.mailbox-item').removeClass('mailbox-highlighted border-green-500 bg-green-50 ring-2 ring-green-200');
+
+                // Reset search and filter to default view
+                if ($('#searchMailbox').length) {
+                    $('#searchMailbox').val('');
+                }
+
+                // Reset mailbox filter to show default grid
+                filteredMailboxes = allMailboxes;
+                currentPage = 1; // Reset to first page
+                updatePagination();
+
+                // Update the package count for the specific mailbox
+                const mailboxNumber = response.mailbox_number || $('input[name="mailbox_number"]').val();
+                if (mailboxNumber) {
+                    updateMailboxPackageCount(mailboxNumber);
+                }
             },
             error: function(xhr) {
                 const error = xhr.responseJSON;
@@ -1623,8 +1629,6 @@ function printTrackingLabel(trackingNumber) {
             showToast('Error generating label. Please try again.', 'error');
         }
     });
-
-    showToast(`Generating label for ${trackingNumber}...`, 'info');
 }
 
 // Print all preview labels (before saving)
