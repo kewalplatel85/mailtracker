@@ -3,10 +3,7 @@
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 class RenewalReminder extends Mailable
@@ -16,63 +13,32 @@ class RenewalReminder extends Mailable
     public $customerName;
     public $mailboxNumber;
     public $dueDate;
-    public $message;
+    public $messageContent;  // Renamed to avoid conflict with Laravel's $message
     public $reminderType;
     public $companyName;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($customerName, $mailboxNumber, $dueDate, $message, $reminderType = 'gentle', $companyName = 'Mail All Center')
+    public function __construct($customerName, $mailboxNumber, $dueDate, $message, $reminderType = 'gentle', $companyName = 'Mail Center')
     {
         $this->customerName = $customerName;
         $this->mailboxNumber = $mailboxNumber;
         $this->dueDate = $dueDate;
-        $this->message = $message;
+        $this->messageContent = $message;  // Store in renamed variable
         $this->reminderType = $reminderType;
         $this->companyName = $companyName;
     }
 
     /**
-     * Get the message envelope.
+     * Build the message.
      */
-    public function envelope(): Envelope
+    public function build()
     {
         $subject = $this->getSubjectByType();
 
-        return new Envelope(
-            subject: $subject,
-            from: config('mail.from.address', 'noreply@mailallcenter.com'),
-            replyTo: config('mail.from.address', 'noreply@mailallcenter.com')
-        );
-    }
-
-    /**
-     * Get the message content definition.
-     */
-    public function content(): Content
-    {
-        return new Content(
-            view: 'emails.renewal-reminder',
-            with: [
-                'customerName' => $this->customerName,
-                'mailboxNumber' => $this->mailboxNumber,
-                'dueDate' => $this->dueDate,
-                'message' => $this->message,
-                'reminderType' => $this->reminderType,
-                'companyName' => $this->companyName,
-                'subject' => $this->getSubjectByType(),
-                'urgencyLevel' => $this->getUrgencyLevel()
-            ]
-        );
-    }
-
-    /**
-     * Get the attachments for the message.
-     */
-    public function attachments(): array
-    {
-        return [];
+        return $this->view('emails.renewal-reminder')
+                    ->subject($subject);
     }
 
     /**

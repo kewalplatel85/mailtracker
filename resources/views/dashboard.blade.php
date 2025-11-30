@@ -534,6 +534,7 @@
                     <div class="text-sm text-gray-500">
                         <span>Mailbox: </span><span id="rrMailboxNumber"></span> |
                         <span>Due Date: </span><span id="rrDueDate" class="font-medium text-red-600"></span>
+                        <span id="rrPhoneNumber" style="display: none;"></span> <!-- Hidden phone storage -->
                     </div>
                 </div>
 
@@ -1311,8 +1312,9 @@ $(document).ready(function() {
             due_date: $('#rrDueDate').text(),
             message: $('#renewalMessage').val(),
             reminder_type: $('#reminderType').val(),
-            send_sms: $('#rrSendSMS').is(':checked'),
-            send_email: $('#rrSendEmail').is(':checked'),
+            phone_number: $('#rrPhoneNumber').text(),  // Include phone number
+            send_sms: $('#rrSendSMS').is(':checked') ? 1 : 0,
+            send_email: $('#rrSendEmail').is(':checked') ? 1 : 0,
             _token: $('meta[name="csrf-token"]').attr('content')
         };
 
@@ -2173,6 +2175,7 @@ function sendRenewalReminder(mailboxNumber, phoneNumber, customerName, dueDate) 
     $('#rrCustomerName').text(customerName || 'N/A');
     $('#rrMailboxNumber').text(mailboxNumber);
     $('#rrDueDate').text(dueDate || 'N/A');
+    $('#rrPhoneNumber').text(phoneNumber || 'N/A');  // Store phone for form submission
 
     // Update delivery method availability
     if (!phoneNumber || phoneNumber === 'N/A') {

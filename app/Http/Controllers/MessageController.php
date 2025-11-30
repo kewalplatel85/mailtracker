@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Twilio\Rest\Client;
 use Twilio\Exceptions\TwilioException;
 
@@ -231,13 +232,12 @@ class MessageController extends Controller
             // Send Email if requested and email address is available
             if ($sendEmail && $request->email && $request->email !== 'N/A') {
                 try {
-                    $companyName = Auth::user()->company ? Auth::user()->company->name : 'Mail Center';
                     Mail::to($request->email)->send(new QuickMessage(
                         $request->customer_name,
                         $request->mailbox_number,
                         $request->message,
-                        $messageType,
-                        $companyName
+                        'general',
+                        'Mail Center'
                     ));
                     $results[] = 'Email sent successfully';
                 } catch (\Exception $e) {
@@ -294,20 +294,45 @@ class MessageController extends Controller
             'due_date' => 'required|string',
             'message' => 'required|string|max:1000',
             'reminder_type' => 'required|string|in:gentle,standard,urgent,final,custom',
-            'send_sms' => 'boolean',
-            'send_email' => 'boolean',
+            'send_sms' => 'required|boolean',
+            'send_email' => 'required|boolean',
         ]);
+
+        // Convert string values to boolean if needed
+        $sendSms = filter_var($request->send_sms, FILTER_VALIDATE_BOOLEAN);
+        $sendEmail = filter_var($request->send_email, FILTER_VALIDATE_BOOLEAN);
 
         $results = [];
         $errors = [];
 
         try {
-            // Get customer contact info (you might want to fetch this from database)
+            // Get customer contact info from CSV (similar to QuickMessage)
             $phoneNumber = $request->phone_number ?? null;
-            $email = $request->email ?? null;
+            $email = null;
+
+            // Look up email from company-specific CSV if mailbox is provided
+            $mailboxNumber = $request->mailbox_number;
+            if ($mailboxNumber) {
+                $currentCompanyId = session('current_company_id') ?? Auth::user()->company_id;
+                if ($currentCompanyId) {
+                    $filePath = "uploads/company_{$currentCompanyId}_latest_file.csv";
+                    if (\Storage::exists($filePath)) {
+                        $data = $this->parseFile(\Storage::path($filePath));
+                        foreach ($data as $row) {
+                            if (isset($row[0]) && trim($row[0]) == trim($mailboxNumber)) {
+                                if (isset($row[8]) && !empty(trim($row[8]))) {
+                                    $email = trim($row[8]); // Email is typically in column 8
+                                    Log::info("Email found for renewal reminder mailbox {$mailboxNumber}: {$email}");
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
 
             // Send SMS if requested and phone number is available
-            if ($request->send_sms && $phoneNumber && $phoneNumber !== 'N/A') {
+            if ($sendSms && $phoneNumber && $phoneNumber !== 'N/A') {
                 try {
                     $cleanPhone = preg_replace('/\D/', '', $phoneNumber);
                     if (strlen($cleanPhone) >= 10) {
@@ -327,7 +352,7 @@ class MessageController extends Controller
             }
 
             // Send Email if requested and email address is available
-            if ($request->send_email && $email && $email !== 'N/A') {
+            if ($sendEmail && $email && $email !== 'N/A') {
                 try {
                     $companyName = Auth::user()->company ? Auth::user()->company->name : 'Mail Center';
                     Mail::to($email)->send(new RenewalReminder(
@@ -380,6 +405,20 @@ class MessageController extends Controller
                 'message' => 'An unexpected error occurred while sending the renewal reminder'
             ], 500);
         }
+    }
+
+    /**
+     * Parse CSV file for customer data lookup
+     */
+    private function parseFile($filePath) {
+        $rows = [];
+        if (($handle = fopen($filePath, 'r')) !== false) {
+            while (($data = fgetcsv($handle, 1000, ',')) !== false) {
+                $rows[] = $data;
+            }
+            fclose($handle);
+        }
+        return $rows;
     }
 
     /**

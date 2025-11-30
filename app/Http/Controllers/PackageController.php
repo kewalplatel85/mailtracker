@@ -26,44 +26,6 @@ class PackageController extends BaseController
         // $this->middleware('permission:packages.bulk_operations')->only(['bulkUpdate', 'bulkDelete', 'bulkSms']);
     }
 
-    public function index()
-    {
-        // Packages are automatically scoped by company via global scope
-        $packageLogs = Package::select(
-            'mailbox_number',
-            'customer_name',
-            'phone_number',
-            'status',
-            'created_at',
-            'tracking_number',
-            'id'
-        )
-        ->where('status', 'Ready for Pickup')
-        ->get()
-        ->groupBy('mailbox_number')
-        ->map(function ($group) {
-            return (object) [
-                'mailbox_number' => $group->first()->mailbox_number,
-                'customer_name' => $group->first()->customer_name,
-                'phone_number' => $group->first()->phone_number,
-                'status' => $group->first()->status,
-                'date_received' => \Carbon\Carbon::parse($group->first()->created_at)->format('d-m-Y'),
-                'package_count' => $group->count(),
-                'tracking_numbers' => $group->pluck('tracking_number')->toArray(),
-                'id' => $group->pluck('id')->toArray(),
-            ];
-        });
-
-        $messagesController = new MessageController();
-        $inboxData = $messagesController->index();
-
-        return view('packagelogs', [
-            'packages' => $packageLogs,
-            'receivedMessages' => $inboxData['receivedMessages'],
-            'sentMessages' => $inboxData['sentMessages'],
-        ]);
-    }
-
     public function getPackages(Request $request)
     {
         $status = $request->query('status', 'Incoming');

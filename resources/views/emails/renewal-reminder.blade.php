@@ -152,7 +152,7 @@
         </div>
 
         <div class="message-content">
-            {!! nl2br(e($message)) !!}
+            {!! nl2br(e($messageContent ?? 'No message content')) !!}
         </div>
 
         <div class="renewal-info">

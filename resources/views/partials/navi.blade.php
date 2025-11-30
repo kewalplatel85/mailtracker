@@ -14,7 +14,6 @@
                     <div class="hidden md:block">
                         <div class="ml-10 flex items-baseline space-x-4">
                             <a href="{{route('dashboard')}}" data-route="{{url(route('dashboard'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-white" aria-current="page">Dashboard</a>
-                            <a href="{{route('packagelogs')}}" data-route="{{url(route('packagelogs'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Package Logs</a>
                             <a href="{{route('labels.index')}}" data-route="{{url(route('labels.index'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Storage Labels</a>
                             @can('users.view')
                             <a href="{{ route('admin.users.index') }}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Users</a>
@@ -127,7 +126,6 @@
                 </div>
                 @endif
                 <a href="{{route('dashboard')}}" data-route="{{url(route('dashboard'))}}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-white" aria-current="page">Dashboard</a>
-                <a href="{{route('packagelogs')}}" data-route="{{url(route('packagelogs'))}}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Package Logs</a>
                 <a href="{{route('labels.index')}}" data-route="{{url(route('labels.index'))}}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Storage Labels</a>
                 @can('users.view')
                 <a href="{{ route('admin.users.index') }}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Users</a>
