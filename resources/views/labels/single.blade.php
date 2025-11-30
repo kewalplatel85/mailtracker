@@ -133,9 +133,16 @@
             <a href="{{ route('labels.index') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                 ← Back to All Labels
             </a>
-            <button type="button" onclick="window.print()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
-                Print Storage Label
-            </button>
+            <div class="flex space-x-2">
+                @if(isset($package->is_preview) && $package->is_preview)
+                    <span class="inline-flex items-center px-3 py-2 border border-orange-300 text-sm font-medium rounded-md text-orange-700 bg-orange-50">
+                        Preview Label
+                    </span>
+                @endif
+                <button type="button" onclick="window.print()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
+                    Print Storage Label
+                </button>
+            </div>
         </div>
     </div>
 
@@ -145,9 +152,17 @@
             <div class="label-item">
                 <div class="label-number">{{ $package->mailbox_number ?: '' }}</div>
                 <div class="label-customer">{{ $package->customer_name }}</div>
-                <div class="label-phone">{{ $package->phone_number }}</div>
+                @if(isset($package->phone_number))
+                    <div class="label-phone">{{ $package->phone_number }}</div>
+                @elseif(isset($package->tracking_number))
+                    <div class="label-phone">{{ $package->tracking_number }}</div>
+                @endif
                 <div class="label-expiry">
-                    Expires: {{ $package->created_at->addDays(30)->format('n/j/Y') }}
+                    @if(isset($package->is_preview) && $package->is_preview)
+                        Preview Label - {{ now()->format('n/j/Y') }}
+                    @else
+                        Expires: {{ is_string($package->created_at) ? \Carbon\Carbon::parse($package->created_at)->addDays(30)->format('n/j/Y') : $package->created_at->addDays(30)->format('n/j/Y') }}
+                    @endif
                 </div>
             </div>
         </div>

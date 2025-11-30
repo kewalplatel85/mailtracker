@@ -6,17 +6,58 @@
                     <div class="shrink-0">
                         <img class="size-8" src="https://tailwindui.com/plus-assets/img/logos/mark.svg?color=indigo&shade=500" alt="Your Company">
                     </div>
+                    @if(isset($currentCompany))
+                    <div class="ml-3 hidden md:block">
+                        <div class="text-sm font-medium text-gray-300">{{ $currentCompany->name }}</div>
+                    </div>
+                    @endif
                     <div class="hidden md:block">
                         <div class="ml-10 flex items-baseline space-x-4">
                             <a href="{{route('dashboard')}}" data-route="{{url(route('dashboard'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-white" aria-current="page">Dashboard</a>
-                            <a href="{{route('packagelogs')}}" data-route="{{url(route('packagelogs'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Package Logs</a>
                             <a href="{{route('labels.index')}}" data-route="{{url(route('labels.index'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Storage Labels</a>
+                            @can('users.view')
+                            <a href="{{ route('admin.users.index') }}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Users</a>
+                            @endcan
                             {{-- <a href="#" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Custom SMS</a> --}}
                         </div>
                     </div>
                 </div>
                 <div class="hidden md:block">
                     <div class="ml-4 flex items-center md:ml-6">
+                        <!-- User Info Section -->
+                        <div class="flex items-center space-x-3 mr-4">
+                            <div class="text-right">
+                                <div class="text-sm font-medium text-white">{{ Auth::user()->name ?? 'User' }}</div>
+                                <div class="text-xs text-gray-300">
+                                    @if(Auth::user()->company)
+                                        {{ Auth::user()->company->name }}
+                                    @endif
+                                    @if(Auth::user()->isCompanyAdmin())
+                                        <span class="ml-1 text-blue-300">• Admin</span>
+                                    @elseif(Auth::user()->isSuperAdmin())
+                                        <span class="ml-1 text-purple-300">• Super Admin</span>
+                                    @else
+                                        <span class="ml-1 text-green-300">• User</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Company Switcher for Super Admin -->
+                        @if(Auth::user()->isSuperAdmin())
+                        <div class="flex items-center space-x-2 mr-4">
+                            <select id="companySwitcher" class="px-2 py-1 text-xs border border-gray-600 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Select Company Context</option>
+                                @foreach(\App\Models\Company::where('status', 'active')->get() as $company)
+                                    <option value="{{ $company->id }}"
+                                            {{ session('current_company_id') == $company->id ? 'selected' : '' }}>
+                                        {{ $company->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
+
                         <button type="button" class="relative rounded-full bg-gray-800 p-1 text-gray-400 hover:text-white focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800 focus:outline-hidden">
                             <span class="absolute -inset-1.5"></span>
                             <span class="sr-only">View notifications</span>
@@ -31,7 +72,15 @@
                                 <button type="button" class="relative flex max-w-xs items-center rounded-full bg-gray-800 text-sm focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800 focus:outline-hidden" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
                                     <span class="absolute -inset-1.5"></span>
                                     <span class="sr-only">Open user menu</span>
-                                    <img class="size-8 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="">
+                                    @if(Auth::user()->profile_picture ?? false)
+                                        <img class="size-8 rounded-full" src="{{ Auth::user()->profile_picture }}" alt="{{ Auth::user()->name }}">
+                                    @else
+                                        <div class="size-8 rounded-full bg-indigo-600 flex items-center justify-center">
+                                            <span class="text-sm font-medium text-white">
+                                                {{ strtoupper(substr(Auth::user()->name ?? 'U', 0, 1)) }}{{ strtoupper(substr(explode(' ', Auth::user()->name ?? 'User')[1] ?? '', 0, 1)) }}
+                                            </span>
+                                        </div>
+                                    @endif
                                 </button>
                             </div>
 
@@ -71,19 +120,37 @@
         <!-- Mobile menu -->
         <div class="md:hidden hidden" id="mobile-menu">
             <div class="space-y-1 px-2 pt-2 pb-3 sm:px-3">
+                @if(isset($currentCompany))
+                <div class="block px-3 py-2 text-base font-medium text-gray-300 border-b border-gray-700 mb-2">
+                    {{ $currentCompany->name }}
+                </div>
+                @endif
                 <a href="{{route('dashboard')}}" data-route="{{url(route('dashboard'))}}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-white" aria-current="page">Dashboard</a>
-                <a href="{{route('packagelogs')}}" data-route="{{url(route('packagelogs'))}}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Package Logs</a>
                 <a href="{{route('labels.index')}}" data-route="{{url(route('labels.index'))}}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Storage Labels</a>
+                @can('users.view')
+                <a href="{{ route('admin.users.index') }}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Users</a>
+                @endcan
                 {{-- <a href="#" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Custom SMS</a> --}}
             </div>
             <div class="border-t border-gray-700 pt-4 pb-3">
                 <div class="flex items-center px-5">
                     <div class="shrink-0">
-                        <img class="size-10 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="">
+                        @if(Auth::user()->profile_picture ?? false)
+                            <img class="size-10 rounded-full" src="{{ Auth::user()->profile_picture }}" alt="{{ Auth::user()->name }}">
+                        @else
+                            <div class="size-10 rounded-full bg-indigo-600 flex items-center justify-center">
+                                <span class="text-base font-medium text-white">
+                                    {{ strtoupper(substr(Auth::user()->name ?? 'U', 0, 1)) }}{{ strtoupper(substr(explode(' ', Auth::user()->name ?? 'User')[1] ?? '', 0, 1)) }}
+                                </span>
+                            </div>
+                        @endif
                     </div>
                     <div class="ml-3">
-                        <div class="text-base/5 font-medium text-white">Tom Cook</div>
-                        <div class="text-sm font-medium text-gray-400">tom@example.com</div>
+                        <div class="text-base/5 font-medium text-white">{{ Auth::user()->name ?? 'User' }}</div>
+                        <div class="text-sm font-medium text-gray-400">{{ Auth::user()->email ?? 'user@example.com' }}</div>
+                        @if(isset($currentCompany))
+                        <div class="text-xs font-medium text-gray-500">{{ $currentCompany->name }}</div>
+                        @endif
                     </div>
                     <button type="button" class="relative ml-auto shrink-0 rounded-full bg-gray-800 p-1 text-gray-400 hover:text-white focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800 focus:outline-hidden">
                         <span class="absolute -inset-1.5"></span>
@@ -106,3 +173,36 @@
         </div>
     </nav>
 </div>
+
+<script>
+// Company switcher functionality for super admins
+@if(Auth::user()->isSuperAdmin())
+document.addEventListener('DOMContentLoaded', function() {
+    const companySwitcher = document.getElementById('companySwitcher');
+
+    if (companySwitcher) {
+        companySwitcher.addEventListener('change', function() {
+            const companyId = this.value;
+
+            if (companyId) {
+                // Create form and submit to switch company
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/companies/${companyId}/switch`;
+                form.style.display = 'none';
+
+                // Add CSRF token
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = '_token';
+                csrfInput.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                form.appendChild(csrfInput);
+
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    }
+});
+@endif
+</script>

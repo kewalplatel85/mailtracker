@@ -17,7 +17,7 @@
                     </div>
                     <div class="ml-4">
                         <p class="text-sm font-medium text-gray-500">Total Mailboxes</p>
-                        <p class="text-2xl font-semibold text-gray-900">345</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ $stats['total_mailboxes'] }}</p>
                     </div>
                 </div>
             </div>
@@ -31,7 +31,7 @@
                     </div>
                     <div class="ml-4">
                         <p class="text-sm font-medium text-gray-500">With Packages</p>
-                        <p class="text-2xl font-semibold text-gray-900">42</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ $stats['mailboxes_with_packages'] }}</p>
                     </div>
                 </div>
             </div>
@@ -45,7 +45,7 @@
                     </div>
                     <div class="ml-4">
                         <p class="text-sm font-medium text-gray-500">Total Packages</p>
-                        <p class="text-2xl font-semibold text-gray-900">89</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ $stats['total_packages'] }}</p>
                     </div>
                 </div>
             </div>
@@ -117,6 +117,7 @@
                                 <select name="status" required
                                         class="w-full px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <option value="Incoming">Incoming</option>
+                                    <option value="Ready for Pickup">Ready for Pickup</option>
                                     <option value="Picked Up">Picked Up</option>
                                 </select>
                             </div>
@@ -124,8 +125,21 @@
                             <!-- Tracking Number -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Tracking Number</label>
-                                <textarea name="tracking_number" rows="2" placeholder="Enter tracking numbers (one per line)"
+                                <textarea name="tracking_number" id="trackingInput" rows="2" placeholder="Enter tracking numbers (one per line)"
                                           class="w-full px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                                <p class="text-xs text-gray-500 mt-1">Enter one tracking number per line</p>
+                            </div>
+
+                            <!-- Real-time Tracking Preview -->
+                            <div id="trackingPreview" class="hidden">
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="block text-sm font-medium text-gray-700">Package Preview</label>
+                                    <div class="flex items-center space-x-2">
+                                        <button type="button" onclick="printAllPreviewLabels()" class="text-xs px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700">Print All Labels</button>
+                                        <button type="button" id="clearPreview" class="text-xs text-red-600 hover:text-red-800">Clear All</button>
+                                    </div>
+                                </div>
+                                <div id="previewList" class="space-y-2 max-h-32 overflow-y-auto"></div>
                             </div>
 
                             <!-- SMS Message -->
@@ -165,10 +179,20 @@
                                 💾 Save Package & Send SMS
                             </button>
 
-                            <!-- Tracking Numbers Display -->
-                            <div id="trackingDisplay" class="hidden mt-4 p-4 bg-gray-50 rounded-md">
-                                <h4 class="font-medium text-gray-900 mb-2">Tracking Numbers</h4>
-                                <div id="trackingList" class="space-y-1"></div>
+                            <!-- Tracking Numbers Display (After Submission) -->
+                            <div id="trackingDisplay" class="hidden mt-4 p-4 bg-green-50 border border-green-200 rounded-md">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="font-medium text-green-800">✅ Packages Saved Successfully!</h4>
+                                    <div class="space-x-2">
+                                        <button type="button" id="printAllLabels" class="hidden px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700">
+                                            🖨️ Print All Labels
+                                        </button>
+                                        <button type="button" id="clearTracking" class="px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600">
+                                            🗑️ Clear
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="trackingList" class="space-y-2"></div>
                             </div>
                         </form>
                     </div>
@@ -196,7 +220,52 @@
                                 </div>
                             </div>
 
-                            <!-- View Toggle -->
+                            <!-- Expiration Filter -->
+                            <div class="flex items-center space-x-2">
+                                <select id="expirationFilter" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                    <option value="">All Expirations</option>
+                                    <option value="no-due-date">No Due Date</option>
+                                    <option value="expired">Expired</option>
+                                    <option value="expiring-soon">Expiring This Month</option>
+                                    <option value="expiring-next">Expiring Next Month</option>
+                                    <optgroup label="Recent Months">
+                                        @php
+                                            $currentYear = date('Y');
+                                            $currentMonth = date('n'); // 1-12
+                                            $months = [
+                                                'January', 'February', 'March', 'April', 'May', 'June',
+                                                'July', 'August', 'September', 'October', 'November', 'December'
+                                            ];
+
+                                            // Show previous 2 months, current month, and next 3 months
+                                            for ($i = -2; $i <= 3; $i++) {
+                                                $targetMonth = $currentMonth + $i;
+                                                $targetYear = $currentYear;
+
+                                                if ($targetMonth <= 0) {
+                                                    $targetMonth += 12;
+                                                    $targetYear--;
+                                                } elseif ($targetMonth > 12) {
+                                                    $targetMonth -= 12;
+                                                    $targetYear++;
+                                                }
+
+                                                $monthName = $months[$targetMonth - 1];
+                                                $monthValue = sprintf('%04d-%02d', $targetYear, $targetMonth);
+                                                echo "<option value=\"{$monthValue}\">{$monthName} {$targetYear}</option>";
+                                            }
+                                        @endphp
+                                    </optgroup>
+                                    <optgroup label="By Year">
+                                        <option value="{{ $currentYear - 1 }}">{{ $currentYear - 1 }}</option>
+                                        <option value="{{ $currentYear }}">{{ $currentYear }}</option>
+                                        <option value="{{ $currentYear + 1 }}">{{ $currentYear + 1 }}</option>
+                                    </optgroup>
+                                </select>
+                                <button id="clearFilters" class="px-3 py-2 bg-gray-500 text-white text-sm rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                                    Clear
+                                </button>
+                            </div>                            <!-- View Toggle -->
                             <div class="flex bg-gray-200 rounded-md">
                                 <button class="view-toggle active px-3 py-2 text-sm font-medium rounded-l-md bg-blue-600 text-white" data-view="grid">
                                     Grid
@@ -241,7 +310,14 @@
                                             $dateClose = isset($row[5]) ? trim($row[5]) : '';
                                             $term = isset($row[6]) ? trim($row[6]) : '';
                                             $dueDate = isset($row[7]) ? trim($row[7]) : '';
-                                            $packageCount = \App\Models\Package::where('mailbox_number', $mailboxNumber)->where('status', 'Incoming')->count();
+                                            // CRITICAL: Filter by company to prevent cross-company data leakage
+                                            $currentCompanyId = session('current_company_id') ?? auth()->user()->company_id;
+                                            $packageCount = \App\Models\Package::where('mailbox_number', $mailboxNumber)
+                                                ->where('status', 'Ready for Pickup')
+                                                ->when($currentCompanyId, function($query, $companyId) {
+                                                    return $query->where('company_id', $companyId);
+                                                })
+                                                ->count();
                                         @endphp
                                         <div class="mailbox-item group relative aspect-square bg-white border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:shadow-md transition-all cursor-pointer min-w-0"
                                              data-mailbox="{{ $mailboxNumber }}"
@@ -337,6 +413,182 @@
     </div>
 </div>
 
+<!-- Quick Message Modal -->
+<div id="quickMessageModal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <!-- Modal Backdrop -->
+    <div class="fixed inset-0" style="background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(6px);" onclick="closeQuickMessageModal()"></div>
+    <!-- Modal Content -->
+    <div class="flex items-center justify-center min-h-screen px-4 relative z-10">
+        <div class="relative rounded-xl max-w-md w-full p-6 shadow-2xl border border-gray-300" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px);">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900">📱 Quick Message</h3>
+                <button onclick="closeQuickMessageModal()" class="text-gray-400 hover:text-gray-600 p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form id="quickMessageForm" class="space-y-4">
+                <!-- Customer Info -->
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <div class="text-sm text-gray-600">Customer:</div>
+                    <div id="qmCustomerName" class="font-medium text-gray-900"></div>
+                    <div class="text-sm text-gray-500">
+                        <span>Mailbox: </span><span id="qmMailboxNumber"></span> |
+                        <span>Phone: </span><span id="qmPhoneNumber"></span> |
+                        <span>Email: </span><span id="qmEmail"></span>
+                    </div>
+                </div>
+
+                <!-- Delivery Method Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">📤 Delivery Method</label>
+                    <div class="space-y-2">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="sendSMS" name="delivery_method" value="sms" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                            <label for="sendSMS" class="ml-2 text-sm text-gray-700 flex items-center">
+                                📱 SMS Message
+                                <span id="smsStatus" class="ml-2 text-xs text-gray-500"></span>
+                            </label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="sendEmail" name="delivery_method" value="email" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <label for="sendEmail" class="ml-2 text-sm text-gray-700 flex items-center">
+                                📧 Email Message
+                                <span id="emailStatus" class="ml-2 text-xs text-gray-500"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div id="deliveryWarning" class="hidden mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700">
+                        ⚠️ Select at least one delivery method
+                    </div>
+                </div>
+
+                <!-- Message Templates -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">💬 Message Template</label>
+                    <select id="messageTemplate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                        <option value="">Select a template...</option>
+                        <option value="package_ready">📦 Package Ready for Pickup</option>
+                        <option value="payment_reminder">💰 Payment Reminder</option>
+                        <option value="account_update">📋 Account Update Required</option>
+                        <option value="office_hours">🕒 Office Hours Notice</option>
+                        <option value="custom">✏️ Custom Message</option>
+                    </select>
+                </div>
+
+                <!-- Message Content -->
+                <div>
+                    <label for="messageContent" class="block text-sm font-medium text-gray-700 mb-2">✉️ Message</label>
+                    <textarea id="messageContent" name="message" rows="4"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              placeholder="Enter your message here..."></textarea>
+                    <div class="flex justify-between mt-1">
+                        <div class="text-xs text-gray-500">
+                            <span id="charCount">0</span>/160 characters
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            <span id="smsCount">1</span> SMS
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="closeQuickMessageModal()"
+                            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium">
+                        📤 Send Message
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Renewal Reminder Modal -->
+<div id="renewalReminderModal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <!-- Modal Backdrop -->
+    <div class="fixed inset-0" style="background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(6px);" onclick="closeRenewalReminderModal()"></div>
+    <!-- Modal Content -->
+    <div class="flex items-center justify-center min-h-screen px-4 relative z-10">
+        <div class="relative rounded-xl max-w-md w-full p-6 shadow-2xl border border-gray-300" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px);">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900">🔔 Renewal Reminder</h3>
+                <button onclick="closeRenewalReminderModal()" class="text-gray-400 hover:text-gray-600 p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form id="renewalReminderForm" class="space-y-4">
+                <!-- Customer Info -->
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <div class="text-sm text-gray-600">Customer:</div>
+                    <div id="rrCustomerName" class="font-medium text-gray-900"></div>
+                    <div class="text-sm text-gray-500">
+                        <span>Mailbox: </span><span id="rrMailboxNumber"></span> |
+                        <span>Due Date: </span><span id="rrDueDate" class="font-medium text-red-600"></span>
+                        <span id="rrPhoneNumber" style="display: none;"></span> <!-- Hidden phone storage -->
+                    </div>
+                </div>
+
+                <!-- Delivery Method Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">📤 Delivery Method</label>
+                    <div class="space-y-2">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="rrSendSMS" name="rr_delivery_method" value="sms" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                            <label for="rrSendSMS" class="ml-2 text-sm text-gray-700">📱 SMS Reminder</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="rrSendEmail" name="rr_delivery_method" value="email" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <label for="rrSendEmail" class="ml-2 text-sm text-gray-700">📧 Email Reminder</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reminder Type -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">⏰ Reminder Type</label>
+                    <select id="reminderType" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                        <option value="gentle">🙂 Gentle Reminder (Friendly)</option>
+                        <option value="standard">📋 Standard Notice</option>
+                        <option value="urgent">⚠️ Urgent - Due Soon</option>
+                        <option value="final">🚨 Final Notice</option>
+                        <option value="custom">✏️ Custom Message</option>
+                    </select>
+                </div>
+
+                <!-- Message Content -->
+                <div>
+                    <label for="renewalMessage" class="block text-sm font-medium text-gray-700 mb-2">✉️ Message</label>
+                    <textarea id="renewalMessage" name="message" rows="4"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              placeholder="Renewal reminder message will appear here..."></textarea>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="closeRenewalReminderModal()"
+                            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="flex-1 px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-medium">
+                        🔔 Send Reminder
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Toast Notification Container -->
 <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
@@ -379,39 +631,112 @@ function showToast(message, type = 'success') {
     }, 5000);
 }
 
+// Global variables for mailbox filtering
+let allMailboxes = [];
+let filteredMailboxes = [];
+let currentPage = 1;
+let itemsPerPage = 40;
+
+// Global filter functions
+function filterToMailbox(mailboxNumber) {
+    filteredMailboxes = allMailboxes.filter(item => {
+        return $(item).data('mailbox').toString() === mailboxNumber;
+    });
+    currentPage = 1;
+    updatePagination();
+}
+
+function resetMailboxFilter() {
+    // Clear search and expiration filters
+    $('#searchMailbox').val('');
+    $('#expirationFilter').val('');
+
+    // Reset to all mailboxes
+    filteredMailboxes = allMailboxes;
+    currentPage = 1;
+    updatePagination();
+}
+
+function updatePagination() {
+    const totalPages = Math.ceil(filteredMailboxes.length / itemsPerPage);
+    const start = (currentPage - 1) * itemsPerPage + 1;
+    const end = Math.min(currentPage * itemsPerPage, filteredMailboxes.length);
+
+    $('#currentStart').text(start);
+    $('#currentEnd').text(end);
+    $('#totalMailboxes').text(filteredMailboxes.length);
+    $('#pageInfo').text(`Page ${currentPage} of ${totalPages}`);
+
+    $('#prevPage').prop('disabled', currentPage === 1);
+    $('#nextPage').prop('disabled', currentPage === totalPages);
+
+    showPage();
+}
+
+function showPage() {
+    $('.mailbox-item').hide();
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+
+    filteredMailboxes.slice(start, end).forEach(item => {
+        $(item).show();
+    });
+}
+
+// Confirmation toast function
+function showConfirmationToast(title, message, onConfirm, onCancel = null) {
+    const confirmToast = $(`
+        <div class="toast animate-fade-in-down bg-white shadow-xl rounded-lg border border-gray-300 p-4 mb-3 max-w-sm">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <span class="text-lg">❓</span>
+                </div>
+                <div class="ml-3 flex-1">
+                    <p class="text-sm font-semibold text-gray-900 mb-1">${title}</p>
+                    <p class="text-xs text-gray-600 mb-3">${message}</p>
+                    <div class="flex space-x-2">
+                        <button class="confirm-yes px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 font-medium">
+                            ✅ Yes
+                        </button>
+                        <button class="confirm-no px-3 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 font-medium">
+                            ❌ Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+
+    $('#toast-container').append(confirmToast);
+
+    // Handle confirmation
+    confirmToast.find('.confirm-yes').on('click', function() {
+        confirmToast.remove();
+        if (onConfirm) onConfirm();
+    });
+
+    // Handle cancellation
+    confirmToast.find('.confirm-no').on('click', function() {
+        confirmToast.remove();
+        if (onCancel) onCancel();
+    });
+
+    // Auto-remove after 10 seconds if no action taken
+    setTimeout(() => {
+        if (confirmToast.length) {
+            confirmToast.fadeOut(300, () => confirmToast.remove());
+            if (onCancel) onCancel();
+        }
+    }, 10000);
+}
+
 $(document).ready(function() {
-    let currentPage = 1;
-    let itemsPerPage = 40;
-    let allMailboxes = $('.mailbox-item').toArray();
-    let filteredMailboxes = allMailboxes;
+    // Initialize global variables
+    allMailboxes = $('.mailbox-item').toArray();
+    filteredMailboxes = allMailboxes;
 
     // Initialize pagination
-    function updatePagination() {
-        const totalPages = Math.ceil(filteredMailboxes.length / itemsPerPage);
-        const start = (currentPage - 1) * itemsPerPage + 1;
-        const end = Math.min(currentPage * itemsPerPage, filteredMailboxes.length);
-
-        $('#currentStart').text(start);
-        $('#currentEnd').text(end);
-        $('#totalMailboxes').text(filteredMailboxes.length);
-        $('#pageInfo').text(`Page ${currentPage} of ${totalPages}`);
-
-        $('#prevPage').prop('disabled', currentPage === 1);
-        $('#nextPage').prop('disabled', currentPage === totalPages);
-
-        showPage();
-    }
-
-    // Show current page
-    function showPage() {
-        $('.mailbox-item').hide();
-        const start = (currentPage - 1) * itemsPerPage;
-        const end = start + itemsPerPage;
-
-        filteredMailboxes.slice(start, end).forEach(item => {
-            $(item).show();
-        });
-    }
+    updatePagination();
 
     // Pagination controls
     $('#prevPage').click(() => {
@@ -431,17 +756,96 @@ $(document).ready(function() {
 
     // Search functionality
     $('#searchMailbox').on('input', function() {
-        const query = $(this).val().toLowerCase();
+        applyFilters();
+    });
+
+    // Expiration filter functionality
+    $('#expirationFilter').on('change', function() {
+        applyFilters();
+    });
+
+    // Clear filters functionality
+    $('#clearFilters').on('click', function() {
+        $('#searchMailbox').val('');
+        $('#expirationFilter').val('');
+        applyFilters();
+    });
+
+    // Combined filter function
+    function applyFilters() {
+        const searchQuery = $('#searchMailbox').val().toLowerCase();
+        const expirationFilter = $('#expirationFilter').val();
+
         filteredMailboxes = allMailboxes.filter(item => {
             const mailbox = $(item).data('mailbox').toString().toLowerCase();
             const customer = $(item).data('customer').toString().toLowerCase();
-            return mailbox.includes(query) || customer.includes(query);
+            const dueDate = $(item).data('due-date');
+
+            // Search filter
+            let matchesSearch = true;
+            if (searchQuery) {
+                matchesSearch = mailbox.includes(searchQuery) || customer.includes(searchQuery);
+            }
+
+            // Expiration filter
+            let matchesExpiration = true;
+            if (expirationFilter) {
+                const hasNoDueDate = !dueDate || dueDate === 'N/A' || dueDate === '' || dueDate === 'null';
+
+                if (expirationFilter === 'no-due-date') {
+                    // Show only mailboxes with no due date
+                    matchesExpiration = hasNoDueDate;
+                } else {
+                    // For other filters, exclude mailboxes with no due date
+                    if (hasNoDueDate) {
+                        matchesExpiration = false;
+                    } else {
+                        const expDate = new Date(dueDate);
+                        const today = new Date();
+                        const currentMonth = today.getMonth();
+                        const currentYear = today.getFullYear();
+
+                        // Skip invalid dates
+                        if (isNaN(expDate.getTime())) {
+                            matchesExpiration = false;
+                        } else {
+                            switch (expirationFilter) {
+                                case 'expired':
+                                    matchesExpiration = expDate < today;
+                                    break;
+                                case 'expiring-soon':
+                                    const endOfMonth = new Date(currentYear, currentMonth + 1, 0);
+                                    matchesExpiration = expDate >= today && expDate <= endOfMonth;
+                                    break;
+                                case 'expiring-next':
+                                    const nextMonthStart = new Date(currentYear, currentMonth + 1, 1);
+                                    const nextMonthEnd = new Date(currentYear, currentMonth + 2, 0);
+                                    matchesExpiration = expDate >= nextMonthStart && expDate <= nextMonthEnd;
+                                    break;
+                                default:
+                                    if (expirationFilter.includes('-')) {
+                                        // Month filter (YYYY-MM)
+                                        const [filterYear, filterMonth] = expirationFilter.split('-').map(Number);
+                                        matchesExpiration = expDate.getFullYear() === filterYear &&
+                                                           expDate.getMonth() === (filterMonth - 1);
+                                    } else {
+                                        // Year filter
+                                        const filterYear = parseInt(expirationFilter);
+                                        matchesExpiration = expDate.getFullYear() === filterYear;
+                                    }
+                                    break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return matchesSearch && matchesExpiration;
         });
+
         currentPage = 1;
         updatePagination();
-    });
-
-    // View toggle
+    }    // View toggle
     $('.view-toggle').click(function() {
         $('.view-toggle').removeClass('active bg-blue-600 text-white').addClass('text-gray-700');
         $(this).addClass('active bg-blue-600 text-white').removeClass('text-gray-700');
@@ -566,6 +970,19 @@ $(document).ready(function() {
                         📦 View Package Details
                     </button>
                 </div>` : ''}
+
+                <!-- Action Buttons -->
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <button onclick="quickMessage('${mailbox}', '${phone}', '${customer}', '${email}')" class="bg-green-600 text-white py-2.5 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center justify-center">
+                        💬 Quick Message
+                    </button>
+                    <button onclick="addPackageToMailbox('${mailbox}', '${customer}')" class="bg-purple-600 text-white py-2.5 px-4 rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm flex items-center justify-center">
+                        📦 Add Package
+                    </button>
+                    <button onclick="sendRenewalReminder('${mailbox}', '${phone}', '${customer}', '${dueDate}')" class="bg-orange-600 text-white py-2.5 px-4 rounded-lg hover:bg-orange-700 transition-colors font-medium text-sm flex items-center justify-center">
+                        🔔 Renewal Reminder
+                    </button>
+                </div>
             </div>
         `);
 
@@ -614,9 +1031,16 @@ $(document).ready(function() {
     });
 
     // Auto-fill customer name when mailbox number is entered
+    let searchTimeout;
     $('input[name="mailbox_number"]').on('input', function() {
         const mailboxNumber = $(this).val().trim();
         const customerNameField = $('input[name="customer_name"]');
+
+        // Clear previous timeout
+        clearTimeout(searchTimeout);
+
+        // Clear previous highlights
+        $('.mailbox-item').removeClass('mailbox-highlighted border-green-500 bg-green-50 ring-2 ring-green-200');
 
         if (mailboxNumber) {
             // Find matching mailbox in the grid
@@ -635,13 +1059,42 @@ $(document).ready(function() {
                         customerNameField.removeClass('bg-green-50 border-green-300');
                     }, 1500);
                 }
+
+                // Highlight and scroll to matching mailbox
+                matchingMailbox.addClass('mailbox-highlighted border-green-500 bg-green-50 ring-2 ring-green-200');
+
+                // Filter to show only the matching mailbox
+                filterToMailbox(mailboxNumber);
+
+                // Scroll the highlighted mailbox into view
+                setTimeout(() => {
+                    matchingMailbox[0].scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center',
+                        inline: 'center'
+                    });
+                }, 200);
+
+                // Delayed notification to prevent spam while typing
+                searchTimeout = setTimeout(() => {
+                    showToast(`Found mailbox ${mailboxNumber} - ${customerName}`, 'success');
+                }, 2000);
             } else {
                 // Clear customer name if mailbox not found
                 customerNameField.val('');
+                // Reset filter to show all mailboxes
+                resetMailboxFilter();
+
+                // Delayed notification to prevent spam while typing
+                searchTimeout = setTimeout(() => {
+                    showToast(`Mailbox ${mailboxNumber} not found`, 'warning');
+                }, 1500);
             }
         } else {
             // Clear customer name if mailbox number is empty
             customerNameField.val('');
+            // Reset filter to show all mailboxes
+            resetMailboxFilter();
         }
     });
 
@@ -673,7 +1126,7 @@ $(document).ready(function() {
         formData.append('mailbox_number', mailboxNumber);
         formData.append('customer_name', customerName);
         formData.append('package_count', packageCount);
-        formData.append('status', status);
+        formData.append('status', 'Ready for Pickup'); // Always save as Ready for Pickup
         formData.append('tracking_number', trackingNumber);
         formData.append('sms_message', smsMessage);
 
@@ -698,21 +1151,41 @@ $(document).ready(function() {
             success: function(response) {
                 showToast(response.message || 'Package saved successfully!', 'success');
 
-                // Show additional info if available
-                if (response.packages_created > 1) {
-                    showToast(`Created ${response.packages_created} packages`, 'info');
+                // Show SMS sending result only
+                if (response.sms_sent) {
+                    showToast('📱 SMS notification sent successfully!', 'success');
+                } else if (response.sms_message && response.sms_message !== 'No SMS message provided') {
+                    showToast(`📱 SMS not sent: ${response.sms_message}`, 'warning');
                 }
 
-                if (response.phone_found) {
-                    showToast('Customer phone number found in records', 'info');
-                } else if (mailboxNumber) {
-                    showToast('No phone number found for this mailbox', 'warning');
-                }
-
-                // Reset form
+                // Reset form and prepare for next entry
                 $('#packageForm')[0].reset();
-                // Optionally refresh page or update UI
-                setTimeout(() => location.reload(), 2000);
+
+                // Reset package count to 1
+                $('input[name="package_count"]').val(1);
+
+                // Clear tracking preview
+                $('#trackingPreview').addClass('hidden');
+                $('#previewList').html('');
+
+                // Clear any mailbox highlighting and reset to default view
+                $('.mailbox-item').removeClass('mailbox-highlighted border-green-500 bg-green-50 ring-2 ring-green-200');
+
+                // Reset search and filter to default view
+                if ($('#searchMailbox').length) {
+                    $('#searchMailbox').val('');
+                }
+
+                // Reset mailbox filter to show default grid
+                filteredMailboxes = allMailboxes;
+                currentPage = 1; // Reset to first page
+                updatePagination();
+
+                // Update the package count for the specific mailbox
+                const mailboxNumber = response.mailbox_number || $('input[name="mailbox_number"]').val();
+                if (mailboxNumber) {
+                    updateMailboxPackageCount(mailboxNumber);
+                }
             },
             error: function(xhr) {
                 const error = xhr.responseJSON;
@@ -731,6 +1204,575 @@ $(document).ready(function() {
 
     // Initialize
     updatePagination();
+    setupTrackingPreview();
+
+    // Add package count manual override capability
+    $('input[name="package_count"]').on('input', function() {
+        const packageCount = parseInt($(this).val()) || 1;
+        const trackingText = $('textarea[name="tracking_number"]').val().trim();
+
+        if (trackingText) {
+            const trackingNumbers = trackingText.split('\\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+
+            if (trackingNumbers.length > packageCount) {
+                showToast(`Package count is less than tracking numbers (${trackingNumbers.length}). Consider updating.`, 'warning');
+            }
+        }
+    });
+
+    // Quick Message Modal Event Handlers
+    $('#messageTemplate').on('change', updateMessageTemplate);
+    $('#messageContent').on('input', updateCharacterCount);
+
+    // Renewal Reminder Modal Event Handlers
+    $('#reminderType').on('change', updateRenewalMessage);
+
+    // Form submissions
+    $('#quickMessageForm').on('submit', function(e) {
+        e.preventDefault();
+
+        // Validate delivery methods
+        const smsChecked = $('#sendSMS').is(':checked') && !$('#sendSMS').is(':disabled');
+        const emailChecked = $('#sendEmail').is(':checked') && !$('#sendEmail').is(':disabled');
+
+        if (!smsChecked && !emailChecked) {
+            $('#deliveryWarning').removeClass('hidden');
+            showToast('Please select at least one delivery method', 'warning');
+            return;
+        }
+
+        $('#deliveryWarning').addClass('hidden');
+
+        // Get values and validate required fields
+        const mailboxNumber = $('#qmMailboxNumber').text().trim();
+        const customerName = $('#qmCustomerName').text().trim();
+        const phoneNumber = $('#qmPhoneNumber').text().trim();
+        const email = $('#qmEmail').text().trim();
+        const message = $('#messageContent').val().trim();
+
+        // Validate required fields
+        if (!mailboxNumber) {
+            showToast('Mailbox number is required', 'error');
+            return;
+        }
+
+        if (!customerName || customerName === 'N/A') {
+            showToast('Customer name is required', 'error');
+            return;
+        }
+
+        if (!message) {
+            showToast('Message content is required', 'error');
+            return;
+        }
+
+        const formData = {
+            mailbox_number: mailboxNumber,
+            customer_name: customerName,
+            phone_number: (phoneNumber && phoneNumber !== 'N/A') ? phoneNumber : null,
+            email: (email && email !== 'N/A') ? email : null,
+            message: message,
+            send_sms: smsChecked ? 1 : 0,
+            send_email: emailChecked ? 1 : 0,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        };
+
+        // Debug log (remove in production)
+        console.log('Quick message form data:', formData);
+
+        // Send the message
+        $.ajax({
+            url: '/send-quick-message',
+            method: 'POST',
+            data: formData,
+            success: function(response) {
+                showToast(response.message || 'Message sent successfully!', 'success');
+                closeQuickMessageModal();
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON;
+                console.log('Quick message error:', xhr.responseJSON);
+
+                if (error && error.errors) {
+                    // Show validation errors
+                    Object.keys(error.errors).forEach(key => {
+                        error.errors[key].forEach(msg => {
+                            showToast(`${key}: ${msg}`, 'error');
+                        });
+                    });
+                } else {
+                    showToast(error?.message || 'Error sending message', 'error');
+                }
+            }
+        });
+    });
+
+    $('#renewalReminderForm').on('submit', function(e) {
+        e.preventDefault();
+
+        const formData = {
+            mailbox_number: $('#rrMailboxNumber').text(),
+            customer_name: $('#rrCustomerName').text(),
+            due_date: $('#rrDueDate').text(),
+            message: $('#renewalMessage').val(),
+            reminder_type: $('#reminderType').val(),
+            phone_number: $('#rrPhoneNumber').text(),  // Include phone number
+            send_sms: $('#rrSendSMS').is(':checked') ? 1 : 0,
+            send_email: $('#rrSendEmail').is(':checked') ? 1 : 0,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        };
+
+        // Send the reminder
+        $.ajax({
+            url: '/send-renewal-reminder',
+            method: 'POST',
+            data: formData,
+            success: function(response) {
+                showToast(response.message || 'Renewal reminder sent successfully!', 'success');
+                closeRenewalReminderModal();
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON;
+                showToast(error?.message || 'Error sending reminder', 'error');
+            }
+        });
+    });
+});
+
+// Real-time tracking number preview
+function setupTrackingPreview() {
+    const trackingInput = $('#trackingInput');
+    const trackingPreview = $('#trackingPreview');
+    const previewList = $('#previewList');
+    const clearPreviewBtn = $('#clearPreview');
+
+    // Handle input events with proper scanning support
+    trackingInput.on('input paste', function(e) {
+        // For paste events, allow time for content to be inserted
+        if (e.type === 'paste') {
+            setTimeout(() => {
+                processTrackingInput();
+            }, 10);
+        } else {
+            processTrackingInput();
+        }
+    });
+
+    // Handle Enter key for new tracking numbers
+    trackingInput.on('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            const currentValue = $(this).val();
+            if (currentValue.trim() && !currentValue.endsWith('\n')) {
+                $(this).val(currentValue + '\n');
+                processTrackingInput();
+            }
+        }
+    });
+
+    function processTrackingInput() {
+        const trackingText = trackingInput.val().trim();
+
+        if (trackingText) {
+            const trackingNumbers = trackingText.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+
+            if (trackingNumbers.length > 0) {
+                // Auto-update package count based on number of tracking numbers
+                const packageCountInput = $('input[name="package_count"]');
+                const currentCount = parseInt(packageCountInput.val()) || 1;
+                const trackingCount = trackingNumbers.length;
+
+                // Update package count to match tracking numbers (use higher value)
+                const newCount = Math.max(currentCount, trackingCount);
+                packageCountInput.val(newCount);
+
+                updateTrackingPreview(trackingNumbers);
+                trackingPreview.removeClass('hidden');
+            } else {
+                trackingPreview.addClass('hidden');
+            }
+        } else {
+            trackingPreview.addClass('hidden');
+            // Reset package count to 1 when no tracking numbers
+            $('input[name="package_count"]').val(1);
+        }
+    }
+
+    clearPreviewBtn.on('click', function() {
+        trackingInput.val('');
+        trackingPreview.addClass('hidden');
+        previewList.html('');
+    });
+}
+
+// Update tracking preview display
+function updateTrackingPreview(trackingNumbers) {
+    const previewList = $('#previewList');
+    const mailboxNumber = $('input[name="mailbox_number"]').val().trim();
+    const customerName = $('input[name="customer_name"]').val().trim();
+
+    let previewHtml = '';
+    trackingNumbers.forEach((tracking, index) => {
+        if (tracking) {
+            previewHtml += `
+                <div class="p-2 bg-white rounded border">
+                    <div class="flex items-center space-x-2 mb-1">
+                        <span class="text-sm font-medium text-gray-900">Package #${index + 1}</span>
+                        <span class="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded font-mono break-all">${tracking}</span>
+                    </div>
+                    <div class="text-xs text-gray-500 mb-2">
+                        ${customerName ? customerName : 'Customer'} ${mailboxNumber ? `(${mailboxNumber})` : ''}
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs text-orange-600 font-medium">Incoming</span>
+                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); printTrackingLabel('${tracking}'); return false;" class="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 flex items-center space-x-1">
+                            <span>🏷️</span>
+                            <span>Print Label</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    });
+
+    previewList.html(previewHtml);
+}
+
+// Print individual tracking label
+function printTrackingLabel(trackingNumber) {
+    if (!trackingNumber || trackingNumber.trim() === '') {
+        showToast('No tracking number to print', 'warning');
+        return;
+    }
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Tracking Label - ${trackingNumber}</title>
+            <style>
+                body {
+                    font-family: 'Courier New', monospace;
+                    margin: 20px;
+                    line-height: 1.4;
+                }
+                .label {
+                    border: 2px solid #000;
+                    padding: 20px;
+                    text-align: center;
+                    max-width: 300px;
+                    margin: 0 auto;
+                }
+                .title {
+                    font-size: 18px;
+                    font-weight: bold;
+                    margin-bottom: 15px;
+                }
+                .tracking {
+                    font-size: 16px;
+                    font-weight: bold;
+                    background: #f0f0f0;
+                    padding: 10px;
+                    border: 1px solid #ccc;
+                    margin: 15px 0;
+                    word-break: break-all;
+                }
+                .info {
+                    font-size: 12px;
+                    margin: 10px 0;
+                }
+                @media print {
+                    body { margin: 0; }
+                    .no-print { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="label">
+                <div class="title">PACKAGE LABEL</div>
+                <div class="info">Tracking Number:</div>
+                <div class="tracking">${trackingNumber}</div>
+                <div class="info">Date: ${new Date().toLocaleDateString()}</div>
+                <div class="info">Status: Incoming</div>
+            </div>
+            <div class="no-print" style="text-align: center; margin-top: 20px;">
+                <button onclick="window.print()" style="padding: 10px 20px; font-size: 14px;">Print Label</button>
+                <button onclick="window.close()" style="padding: 10px 20px; font-size: 14px; margin-left: 10px;">Close</button>
+            </div>
+        </body>
+        </html>
+    `);
+
+    printWindow.document.close();
+
+    // Auto-focus the print window
+    printWindow.focus();
+
+    showToast(`Print label opened for ${trackingNumber}`, 'info');
+}
+
+// Preview section with package tracking display
+function displayTrackingNumbers(packages) {
+    const trackingDisplay = $('#trackingDisplay');
+    const trackingList = $('#trackingList');
+    const printAllBtn = $('#printAllLabels');
+    const trackingPreview = $('#trackingPreview');
+
+    // Hide preview and show saved packages
+    trackingPreview.addClass('hidden');
+    trackingDisplay.removeClass('hidden');
+    printAllBtn.removeClass('hidden');
+
+    let trackingHtml = '';
+    packages.forEach((pkg, index) => {
+        trackingHtml += `
+            <div class="flex items-center justify-between p-3 bg-white rounded border border-green-200">
+                <div class="flex-1">
+                    <div class="flex items-center space-x-3">
+                        <span class="font-medium text-gray-900">Package #${index + 1}</span>
+                        <span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded font-mono">${pkg.tracking_number}</span>
+                        <span class="text-sm text-gray-600">${pkg.customer_name} (${pkg.mailbox_number})</span>
+                    </div>
+                    <div class="flex items-center space-x-2 mt-1">
+                        <span class="text-xs text-gray-500">Status: ${pkg.status || 'Incoming'}</span>
+                        <span class="text-xs text-green-600">✓ Saved</span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="printSingleLabel(${pkg.id})" class="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 flex items-center space-x-1">
+                        <span>🏷️</span>
+                        <span>Print Label</span>
+                    </button>
+                    <button onclick="viewPackageDetails(${pkg.id})" class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 flex items-center space-x-1">
+                        <span>👁️</span>
+                        <span>View</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    trackingList.html(trackingHtml);
+
+    // Scroll to tracking display
+    setTimeout(() => {
+        trackingDisplay[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+}
+
+// Print single package label
+function printSingleLabel(packageId) {
+    const printWindow = window.open(`/labels/single/${packageId}`, '_blank', 'width=800,height=600');
+    printWindow.focus();
+
+    // Auto-print when window loads
+    printWindow.onload = function() {
+        printWindow.print();
+    };
+
+    showToast('Opening label for printing...', 'info');
+}
+
+// Print label for tracking number from preview (before saving)
+function printTrackingLabel(trackingNumber) {
+    const mailboxNumber = $('input[name="mailbox_number"]').val() || '';
+    const customerName = $('input[name="customer_name"]').val() || '';
+    const phoneNumber = $('input[name="phone_number"]').val() || '';
+
+    if (!customerName.trim()) {
+        showToast('Please enter customer name before printing label', 'warning');
+        return;
+    }
+
+    // Create a temporary package object for label printing
+    const tempPackage = {
+        tracking_number: trackingNumber,
+        customer_name: customerName.trim(),
+        mailbox_number: mailboxNumber.trim() || 'N/A',
+        phone_number: phoneNumber.trim() || '',
+        status: 'incoming',
+        created_at: new Date().toISOString()
+    };
+
+    // Use AJAX to get label content and print directly
+    $.ajax({
+        url: '/labels/preview',
+        method: 'POST',
+        data: tempPackage,
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+            // Create a hidden popup window for printing
+            const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+            printWindow.document.write(response);
+            printWindow.document.close();
+
+            // Wait for content to load then print
+            printWindow.onload = function() {
+                printWindow.print();
+                // Close the window after printing
+                setTimeout(function() {
+                    printWindow.close();
+                }, 1000);
+            };
+        },
+        error: function(xhr, status, error) {
+            console.error('Error generating label:', error);
+            showToast('Error generating label. Please try again.', 'error');
+        }
+    });
+}
+
+// Print all preview labels (before saving)
+function printAllPreviewLabels() {
+    const trackingInput = $('textarea[name="tracking_number"]').val();
+    if (!trackingInput || !trackingInput.trim()) {
+        showToast('No tracking numbers to print', 'warning');
+        return;
+    }
+
+    const customerName = $('input[name="customer_name"]').val();
+    if (!customerName || !customerName.trim()) {
+        showToast('Please enter customer name before printing labels', 'warning');
+        return;
+    }
+
+    const trackingNumbers = trackingInput.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .filter((value, index, self) => self.indexOf(value) === index); // Remove duplicates
+
+    if (trackingNumbers.length === 0) {
+        showToast('No valid tracking numbers found', 'warning');
+        return;
+    }
+
+    const mailboxNumber = $('input[name="mailbox_number"]').val() || '';
+    const phoneNumber = $('input[name="phone_number"]').val() || '';
+
+    // Create package data for multiple labels
+    const packagesData = {
+        packages: trackingNumbers.map(tracking => ({
+            tracking_number: tracking,
+            customer_name: customerName.trim(),
+            mailbox_number: mailboxNumber.trim() || 'N/A',
+            phone_number: phoneNumber.trim() || '',
+            status: 'incoming',
+            created_at: new Date().toISOString()
+        }))
+    };
+
+    // Use AJAX to get multiple labels content and print directly
+
+    $.ajax({
+        url: '/labels/preview-multiple',
+        method: 'POST',
+        data: packagesData,
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+            // Create a new window for printing with proper settings
+            const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+
+            if (!printWindow) {
+                showToast('Please allow popups for this site to print labels', 'error');
+                return;
+            }
+
+            printWindow.document.write(response);
+            printWindow.document.close();
+
+            // Wait for content to load then manually trigger print
+            setTimeout(function() {
+                printWindow.focus();
+                printWindow.print();
+            }, 1500);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error response:', xhr.responseText);
+            console.error('Status:', status);
+            console.error('Error:', error);
+
+            try {
+                const errorData = JSON.parse(xhr.responseText);
+                showToast('Error: ' + (errorData.error || 'Unknown error'), 'error');
+                console.error('Parsed error:', errorData);
+            } catch (e) {
+                showToast('Error generating labels. Please try again.', 'error');
+            }
+        }
+    });
+
+    showToast(`Generating ${trackingNumbers.length} labels for printing...`, 'success');
+}
+
+// Print all labels
+function printAllLabels() {
+    const trackingItems = $('#trackingList .flex');
+    const packageIds = [];
+
+    trackingItems.each(function() {
+        const printBtn = $(this).find('button[onclick*="printSingleLabel"]');
+        const onclick = printBtn.attr('onclick');
+        if (onclick) {
+            const match = onclick.match(/printSingleLabel\((\d+)\)/);
+            if (match) {
+                packageIds.push(match[1]);
+            }
+        }
+    });
+
+    if (packageIds.length === 0) {
+        showToast('No packages available for printing', 'warning');
+        return;
+    }
+
+    // Print each label in sequence with delay to prevent blocking
+    packageIds.forEach((id, index) => {
+        setTimeout(() => {
+            printSingleLabel(id);
+        }, index * 1000); // 1 second delay between each print
+    });
+
+    showToast(`Printing ${packageIds.length} labels...`, 'success');
+}
+
+// View package details
+function viewPackageDetails(packageId) {
+    // You can implement this to show more package details
+    showToast('Package details feature coming soon!', 'info');
+}
+
+// Clear tracking display
+function clearTrackingDisplay() {
+    $('#trackingDisplay').addClass('hidden');
+    $('#trackingPreview').addClass('hidden');
+    $('#trackingList').html('');
+    $('#previewList').html('');
+    $('#printAllLabels').addClass('hidden');
+    $('#trackingInput').val('');
+}
+
+// Event handlers
+$(document).ready(function() {
+    // Clear tracking button
+    $('#clearTracking').click(function() {
+        clearTrackingDisplay();
+    });
+
+    // Print all labels button
+    $('#printAllLabels').click(function() {
+        printAllLabels();
+    });
 });
 
 // Load package details function
@@ -746,10 +1788,13 @@ function togglePackageDetails(mailboxNumber) {
 
         // Fetch real package data from API
         fetch(`/get-packages-by-mailbox/${mailboxNumber}`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
             .then(packages => {
-                console.log('Packages received:', packages);
-
                 // Check if it's an error response
                 if (packages.error) {
                     throw new Error(packages.message);
@@ -762,25 +1807,95 @@ function togglePackageDetails(mailboxNumber) {
 
                 let packagesHtml = '';
                 packages.forEach((pkg, index) => {
-                    const statusColor = pkg.status === 'Incoming' ? 'green' :
-                                      pkg.status === 'Ready to Pickup' ? 'yellow' :
-                                      pkg.status === 'Picked up' ? 'blue' : 'gray';
+                    const statusColor = pkg.status === 'Incoming' ? 'blue' :
+                                      pkg.status === 'Ready for Pickup' ? 'yellow' :
+                                      pkg.status === 'Picked Up' ? 'green' : 'gray';
+
+                    // Build workflow timeline
+                    let workflowHtml = '<div class="text-xs text-gray-500 mt-2">';
+                    if (pkg.received_at) {
+                        workflowHtml += `<div>📥 Received: ${pkg.received_at}</div>`;
+                    }
+                    if (pkg.ready_at) {
+                        workflowHtml += `<div>✅ Ready: ${pkg.ready_at}</div>`;
+                    }
+                    if (pkg.picked_up_at) {
+                        workflowHtml += `<div>📦 Picked up: ${pkg.picked_up_at}</div>`;
+                    }
+                    if (pkg.age_days > 0) {
+                        workflowHtml += `<div class="font-medium ${pkg.age_days > 7 ? 'text-red-600' : 'text-blue-600'}">Age: ${pkg.age_days} days</div>`;
+                    }
+                    workflowHtml += '</div>';
+
+                    // Build action buttons based on status
+                    let actionButtonsHtml = '';
+                    if (pkg.status === 'Ready for Pickup') {
+                        actionButtonsHtml = `
+                            <div class="mt-2">
+                                <button onclick="markAsPickedUp(${pkg.id}, '${pkg.tracking_number}')"
+                                        class="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 flex items-center space-x-1">
+                                    <span>✅</span>
+                                    <span>Mark as Picked Up</span>
+                                </button>
+                            </div>
+                        `;
+                    }
 
                     packagesHtml += `
-                        <div class="bg-gray-50 p-4 rounded-lg border-l-4 border-${statusColor}-500 mb-3">
+                        <div class="bg-gray-50 p-4 rounded-lg border-l-4 border-${statusColor}-500 mb-3" data-package-id="${pkg.id}" data-package-status="${pkg.status}">
                             <div class="flex justify-between items-start mb-2">
-                                <div>
-                                    <p class="font-medium text-gray-900">Package #${index + 1}</p>
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-2">
+                                        ${pkg.status === 'Ready for Pickup' ? `<input type="checkbox" class="package-checkbox rounded" data-package-id="${pkg.id}" data-tracking="${pkg.tracking_number}">` : ''}
+                                        <span class="font-medium text-gray-900">Package #${index + 1}</span>
+                                    </div>
                                     <p class="text-sm text-gray-600">Tracking: ${pkg.tracking_number}</p>
-                                    <p class="text-sm text-gray-500">Arrived: ${pkg.created_at}</p>
+                                    ${workflowHtml}
                                 </div>
-                                <span class="bg-${statusColor}-100 text-${statusColor}-800 text-xs font-medium px-2 py-1 rounded-full">${pkg.status}</span>
+                                <div class="text-right">
+                                    <span class="bg-${statusColor}-100 text-${statusColor}-800 text-xs font-medium px-2 py-1 rounded-full">${pkg.status}</span>
+                                    ${actionButtonsHtml}
+                                </div>
                             </div>
                         </div>
                     `;
                 });
 
-                $('#packageList').html(packagesHtml);
+                // Add bulk action controls if there are Ready for Pickup packages
+                const readyPackages = packages.filter(pkg => pkg.status === 'Ready for Pickup');
+                let finalHtml = '';
+
+                if (readyPackages.length > 0) {
+                    const bulkControlsHtml = `
+                        <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center space-x-2">
+                                    <input type="checkbox" id="selectAllPackages" class="rounded">
+                                    <label for="selectAllPackages" class="text-sm font-medium text-gray-700">Select All (${readyPackages.length} packages)</label>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button id="bulkMarkPickedUp" class="px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50" disabled>
+                                        ✅ Mark Selected as Picked Up
+                                    </button>
+                                    <button id="bulkMarkAllPickedUp" class="px-3 py-2 bg-orange-600 text-white text-sm rounded hover:bg-orange-700">
+                                        📦 Mark ALL as Picked Up
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="bulkActionStatus" class="text-sm text-gray-600"></div>
+                        </div>
+                    `;
+                    finalHtml = bulkControlsHtml + packagesHtml;
+                } else {
+                    finalHtml = packagesHtml;
+                }
+
+                $('#packageList').html(finalHtml);
+
+                if (readyPackages.length > 0) {
+                    // Setup bulk action handlers
+                    setupBulkActions(mailboxNumber, readyPackages);
+                }
             })
             .catch(error => {
                 console.error('Error fetching packages:', error);
@@ -792,207 +1907,378 @@ function togglePackageDetails(mailboxNumber) {
         packageDetails.addClass('hidden');
     }
 }
+
+// Individual package mark as picked up function
+function markAsPickedUp(packageId, trackingNumber) {
+    showConfirmationToast(
+        `Mark package ${trackingNumber} as picked up?`,
+        'Are you sure you want to mark this package as picked up?',
+        () => {
+            // Confirmed - proceed with the action
+            $.ajax({
+                url: '/packages/mark-picked-up',
+                method: 'POST',
+                data: {
+                    package_id: packageId,
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    showToast(`Package ${trackingNumber} marked as picked up!`, 'success');
+                    // Refresh the package details
+                    const mailboxNumber = $('#modalTitle').text().match(/Mailbox (\d+)/)[1];
+                    if (mailboxNumber) {
+                        setTimeout(() => {
+                            togglePackageDetails(mailboxNumber);
+                            togglePackageDetails(mailboxNumber); // Call twice to refresh
+                        }, 500);
+                    }
+                    // Update mailbox count in grid
+                    updateMailboxPackageCount(mailboxNumber);
+                },
+                error: function(xhr) {
+                    const error = xhr.responseJSON;
+                    showToast(error?.message || 'Error marking package as picked up', 'error');
+                }
+            });
+        }
+    );
+}
+
+// Setup bulk actions
+function setupBulkActions(mailboxNumber, packages) {
+    // Select all checkbox
+    $('#selectAllPackages').off('change').on('change', function() {
+        const isChecked = $(this).is(':checked');
+        $('.package-checkbox').prop('checked', isChecked);
+        updateBulkButtonState();
+    });
+
+    // Individual checkboxes
+    $(document).off('change', '.package-checkbox').on('change', '.package-checkbox', function() {
+        updateBulkButtonState();
+        // Update select all state
+        const totalCheckboxes = $('.package-checkbox').length;
+        const checkedCheckboxes = $('.package-checkbox:checked').length;
+        $('#selectAllPackages').prop('checked', totalCheckboxes === checkedCheckboxes);
+    });
+
+    // Bulk mark selected as picked up
+    $('#bulkMarkPickedUp').off('click').on('click', function() {
+        const selectedPackages = $('.package-checkbox:checked');
+        if (selectedPackages.length === 0) {
+            showToast('Please select packages to mark as picked up', 'warning');
+            return;
+        }
+
+        const packageIds = [];
+        const trackingNumbers = [];
+        selectedPackages.each(function() {
+            packageIds.push($(this).data('package-id'));
+            trackingNumbers.push($(this).data('tracking'));
+        });
+
+        showConfirmationToast(
+            `Mark ${packageIds.length} selected packages as picked up?`,
+            'This action will mark all selected packages as picked up.',
+            () => {
+                bulkMarkAsPickedUp(packageIds, trackingNumbers, mailboxNumber);
+            }
+        );
+    });
+
+    // Bulk mark ALL as picked up
+    $('#bulkMarkAllPickedUp').off('click').on('click', function() {
+        const allReadyPackages = packages.filter(pkg => pkg.status === 'Ready for Pickup');
+        if (allReadyPackages.length === 0) {
+            showToast('No packages available to mark as picked up', 'warning');
+            return;
+        }
+
+        showConfirmationToast(
+            `Mark ALL ${allReadyPackages.length} packages as picked up?`,
+            'This action will mark ALL packages in this mailbox as picked up.',
+            () => {
+                const packageIds = allReadyPackages.map(pkg => pkg.id);
+                const trackingNumbers = allReadyPackages.map(pkg => pkg.tracking_number);
+                bulkMarkAsPickedUp(packageIds, trackingNumbers, mailboxNumber);
+            }
+        );
+    });
+}
+
+// Update bulk button state
+function updateBulkButtonState() {
+    const selectedCount = $('.package-checkbox:checked').length;
+    const bulkButton = $('#bulkMarkPickedUp');
+
+    if (selectedCount > 0) {
+        bulkButton.prop('disabled', false).text(`✅ Mark Selected (${selectedCount}) as Picked Up`);
+        $('#bulkActionStatus').text(`${selectedCount} packages selected`);
+    } else {
+        bulkButton.prop('disabled', true).text('✅ Mark Selected as Picked Up');
+        $('#bulkActionStatus').text('');
+    }
+}
+
+// Bulk mark as picked up function
+function bulkMarkAsPickedUp(packageIds, trackingNumbers, mailboxNumber) {
+    $.ajax({
+        url: '/packages/bulk-mark-picked-up',
+        method: 'POST',
+        data: {
+            package_ids: packageIds,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+            showToast(`${packageIds.length} packages marked as picked up!`, 'success');
+            // Refresh the package details
+            setTimeout(() => {
+                togglePackageDetails(mailboxNumber);
+                togglePackageDetails(mailboxNumber); // Call twice to refresh
+            }, 500);
+            // Update mailbox count in grid
+            updateMailboxPackageCount(mailboxNumber);
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON;
+            showToast(error?.message || 'Error marking packages as picked up', 'error');
+        }
+    });
+}
+
+// Update mailbox package count in the grid
+function updateMailboxPackageCount(mailboxNumber) {
+    $.ajax({
+        url: `/get-packages-by-mailbox/${mailboxNumber}`,
+        method: 'GET',
+        success: function(packages) {
+            const readyPackages = packages.filter(pkg => pkg.status === 'Ready for Pickup');
+            const mailboxElement = $(`.mailbox-item[data-mailbox="${mailboxNumber}"]`);
+            const packageCountBadge = mailboxElement.find('.absolute.-top-1.-right-1');
+
+            if (readyPackages.length > 0) {
+                if (packageCountBadge.length > 0) {
+                    packageCountBadge.text(readyPackages.length);
+                } else {
+                    mailboxElement.prepend(`<div class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center z-10 shadow-md">${readyPackages.length}</div>`);
+                }
+                mailboxElement.find('.h-full').addClass('bg-blue-50 border-blue-500');
+            } else {
+                packageCountBadge.remove();
+                mailboxElement.find('.h-full').removeClass('bg-blue-50 border-blue-500');
+            }
+
+            // Update data attribute
+            mailboxElement.attr('data-packages', readyPackages.length);
+        },
+        error: function() {
+            // Silently handle error
+        }
+    });
+}
+
+// Add package to mailbox function
+function addPackageToMailbox(mailboxNumber, customerName) {
+    // Close the modal
+    $('#mailboxModal').addClass('hidden');
+
+    // Fill the form fields
+    $('input[name="mailbox_number"]').val(mailboxNumber);
+    $('input[name="customer_name"]').val(customerName || '');
+
+    // Clear any previous tracking numbers
+    $('textarea[name="tracking_number"]').val('');
+
+    // Reset package count to 1
+    $('input[name="package_count"]').val(1);
+
+    // Hide any preview displays
+    $('#trackingPreview').addClass('hidden');
+    $('#trackingDisplay').addClass('hidden');
+
+    // Clear previous highlights
+    $('.mailbox-item').removeClass('mailbox-highlighted border-green-500 bg-green-50 ring-2 ring-green-200');
+
+    // Find and highlight the matching mailbox
+    const matchingMailbox = $('.mailbox-item').filter(function() {
+        return $(this).data('mailbox').toString() === mailboxNumber.toString();
+    });
+
+    if (matchingMailbox.length > 0) {
+        // Highlight the mailbox
+        matchingMailbox.addClass('mailbox-highlighted border-green-500 bg-green-50 ring-2 ring-green-200');
+
+        // Filter to show only the matching mailbox
+        filterToMailbox(mailboxNumber.toString());
+
+        // Scroll the highlighted mailbox into view
+        setTimeout(() => {
+            matchingMailbox[0].scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+                inline: 'center'
+            });
+        }, 200);
+    }
+
+    // Focus on tracking number field
+    setTimeout(() => {
+        $('textarea[name="tracking_number"]').focus();
+
+        // Scroll to the package entry form
+        const packageForm = $('#packageForm');
+        if (packageForm.length) {
+            packageForm[0].scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+
+        // Show success feedback
+        showToast(`Ready to add package for ${customerName} (Mailbox ${mailboxNumber})`, 'info');
+    }, 300);
+}
+
+// Quick message function
+function quickMessage(mailboxNumber, phoneNumber, customerName, email = '') {
+    // Populate modal with customer info
+    $('#qmCustomerName').text(customerName || 'N/A');
+    $('#qmMailboxNumber').text(mailboxNumber);
+    $('#qmPhoneNumber').text(phoneNumber || 'N/A');
+    $('#qmEmail').text(email || 'N/A');
+
+    // Update delivery method availability
+    if (!phoneNumber || phoneNumber === 'N/A') {
+        $('#sendSMS').prop('checked', false).prop('disabled', true);
+        $('#smsStatus').text('(No phone number)').addClass('text-red-500');
+    } else {
+        $('#sendSMS').prop('checked', true).prop('disabled', false);
+        $('#smsStatus').text('').removeClass('text-red-500');
+    }
+
+    if (!email || email === 'N/A') {
+        $('#sendEmail').prop('checked', false).prop('disabled', true);
+        $('#emailStatus').text('(No email address)').addClass('text-red-500');
+    } else {
+        $('#sendEmail').prop('checked', true).prop('disabled', false);
+        $('#emailStatus').text('').removeClass('text-red-500');
+    }
+
+    // Clear previous content
+    $('#messageTemplate').val('');
+    $('#messageContent').val('');
+    updateCharacterCount();
+
+    // Show the modal
+    $('#quickMessageModal').removeClass('hidden');
+}
+
+// Renewal reminder function
+function sendRenewalReminder(mailboxNumber, phoneNumber, customerName, dueDate) {
+    // Populate modal with customer info
+    $('#rrCustomerName').text(customerName || 'N/A');
+    $('#rrMailboxNumber').text(mailboxNumber);
+    $('#rrDueDate').text(dueDate || 'N/A');
+    $('#rrPhoneNumber').text(phoneNumber || 'N/A');  // Store phone for form submission
+
+    // Update delivery method availability
+    if (!phoneNumber || phoneNumber === 'N/A') {
+        $('#rrSendSMS').prop('checked', false).prop('disabled', true);
+    } else {
+        $('#rrSendSMS').prop('checked', true).prop('disabled', false);
+    }
+
+    // Clear and set default message
+    $('#reminderType').val('gentle');
+    updateRenewalMessage();
+
+    // Show the modal
+    $('#renewalReminderModal').removeClass('hidden');
+}
+
+// Close modals
+function closeQuickMessageModal() {
+    $('#quickMessageModal').addClass('hidden');
+}
+
+function closeRenewalReminderModal() {
+    $('#renewalReminderModal').addClass('hidden');
+}
+
+// Update character count for SMS
+function updateCharacterCount() {
+    const message = $('#messageContent').val();
+    const charCount = message.length;
+    const smsCount = Math.ceil(charCount / 160) || 1;
+
+    $('#charCount').text(charCount);
+    $('#smsCount').text(smsCount);
+
+    // Color coding for length
+    if (charCount > 160) {
+        $('#charCount').addClass('text-orange-600');
+    } else {
+        $('#charCount').removeClass('text-orange-600');
+    }
+}
+
+// Update renewal message based on type
+function updateRenewalMessage() {
+    const type = $('#reminderType').val();
+    const customerName = $('#rrCustomerName').text();
+    const dueDate = $('#rrDueDate').text();
+
+    let message = '';
+
+    switch(type) {
+        case 'gentle':
+            message = `Hi ${customerName}, this is a friendly reminder that your mailbox rental is due on ${dueDate}. Please visit us at your convenience to renew. Thank you!`;
+            break;
+        case 'standard':
+            message = `Dear ${customerName}, your mailbox rental payment is due on ${dueDate}. Please renew your service to avoid interruption. Thank you.`;
+            break;
+        case 'urgent':
+            message = `URGENT: ${customerName}, your mailbox rental is due ${dueDate}. Please renew immediately to avoid service suspension. Contact us today.`;
+            break;
+        case 'final':
+            message = `FINAL NOTICE: ${customerName}, your mailbox rental was due ${dueDate}. Service will be suspended if not renewed within 3 days. Please contact us immediately.`;
+            break;
+        case 'custom':
+            message = '';
+            break;
+    }
+
+    $('#renewalMessage').val(message);
+}
+
+// Message templates for quick message
+function updateMessageTemplate() {
+    const template = $('#messageTemplate').val();
+    const customerName = $('#qmCustomerName').text();
+
+    let message = '';
+
+    switch(template) {
+        case 'package_ready':
+            message = `Hi ${customerName}, you have a package ready for pickup at Mail All Center. Please bring your ID. Thank you!`;
+            break;
+        case 'payment_reminder':
+            message = `Hi ${customerName}, this is a reminder about your outstanding balance. Please visit us to update your account. Thank you.`;
+            break;
+        case 'account_update':
+            message = `Hi ${customerName}, we need to update your account information. Please visit us at your earliest convenience. Thank you.`;
+            break;
+        case 'office_hours':
+            message = `Hi ${customerName}, please note our office hours: Mon-Fri 9AM-6PM, Sat 9AM-3PM. We're closed Sundays. Thank you.`;
+            break;
+        case 'custom':
+            message = '';
+            break;
+    }
+
+    $('#messageContent').val(message);
+    updateCharacterCount();
+}
 </script>
 
 @endsection
-                            </div>
-
-                            <div class="relative w-full">
-                                <!-- Hidden Native Select -->
-                                <select id="packageStat" name="packageStat" class="hidden">
-                                    <option selected data-route="Incoming">Incoming</option>
-                                    <option data-route="Outgoing">Outgoing</option>
-                                </select>
-
-                                <!-- Custom Dropdown Trigger -->
-                                <button id="custom-dropdown-btn" data-stat="Incoming" class="package_stat w-full rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6">
-                                    Incoming
-                                </button>
-
-                                <!-- Dropdown Arrow -->
-                                <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 size-5 text-gray-500 sm:size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                                    <path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
-                                </svg>
-
-                                <!-- Custom Dropdown -->
-                                <ul id="custom-dropdown" class="scanStat absolute z-10 mt-2 hidden w-full rounded-md bg-white shadow-lg transition-all duration-300 ease-in-out">
-                                    <li class="dropdown-item cursor-pointer px-4 py-2 hover:bg-indigo-600 hover:text-white">Incoming</li>
-                                    <li class="dropdown-item cursor-pointer px-4 py-2 hover:bg-indigo-600 hover:text-white">Outgoing</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="px-4 py-5 sm:p-6 place-items-center space-y-2">
-                        <form id="packageForm" class="w-full md:1/2 place-items-center">
-                            @csrf
-                            <div class="rounded-md flex justify-between divide-x divide-gray-300 bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
-                                <div>
-                                    <label for="mailbox" class="block text-xs font-medium text-gray-900">Mailbox #</label>
-                                    <input type="text" name="mailbox" id="mailbox" data-mc="0" data-mb="0" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8" placeholder="0000" oninput="this.value=this.value.replace(/\D/g,'')">
-                                    <small id="mailbox-error" style="color: red;"></small>
-                                </div>
-                                <div class="flex-auto px-2">
-                                    <label for="mailbox" class="block text-xs font-medium text-gray-900">Customer</label>
-                                    <input type="text" name="customer" id="customer" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8" placeholder="Customer Name">
-                                    <small id="customer-error" style="color: red;"></small>
-                                </div>
-                            </div>
-                            <div class="contact-div rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600" style="display: none">
-                                <label for="cnumber" class="block text-xs font-medium text-gray-900">Contact Number</label>
-                                <input type="text" name="cnumber" id="cnumber" min="1" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8" placeholder="000-0000-0000" oninput="this.value=this.value.replace(/\D/g,'')">
-                            </div>
-                            <div class="rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
-                                <label for="pcounter" class="block text-xs font-medium text-gray-900">Number of Packages</label>
-                                <input type="text" name="pcounter" id="pcounter" min="1" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8" placeholder="0" oninput="this.value=this.value.replace(/\D/g,'')" value="0">
-                            </div>
-                            <div class="rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
-                                <label for="track-number" class="block text-xs font-medium text-gray-900">Tracking number #</label>
-                                <input type="text" name="track_number" id="track_number" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8" placeholder="000000000000">
-                            </div>
-                            <div class="rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 mb-3 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
-                                <label for="sms" class="block text-xs font-medium text-gray-900">Custom SMS #</label>
-                                <textarea rows="2" name="sms" id="sms" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8"
-                                    placeholder="Hi, This is Mail All Center, Mountain View. You have a package ready for pickup. Please collect it at your earliest convenience. Thanks!">{{old('description')}}</textarea>
-                            </div>
-                            <div class="lbl-div rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 mb-3 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600" style="display: none">
-                                <label for="custom-lbl" class="block text-xs font-medium text-gray-900">Custom Package Label #</label>
-                                <textarea rows="2" name="lbl" id="lbl" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8"
-                                    placeholder="Rent a Mailbox for $15/ month, Avoid Porch Pirates, We accept all packages">{{old('description')}}</textarea>
-                            </div>
-
-                            <div class="rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 mb-3 outline-1 outline-gray-300">
-                                <label class="block text-xs font-medium text-gray-900">Attach or Capture Image</label>
-
-                                <!-- File input for uploads -->
-                                <input type="file" accept="image/*" name="package_images[]" id="package_image" class="mb-2" multiple>
-
-                                <!-- Video stream + canvas -->
-                                <video id="cameraStream" autoplay playsinline class="w-full mb-2 hidden rounded shadow"></video>
-                                <canvas id="snapshot" class="hidden"></canvas>
-
-                                <!-- Control buttons -->
-                                <div class="flex gap-2 mb-2">
-                                    <button type="button" id="startCamera" class="bg-blue-500 text-white px-3 py-1 rounded">📷 Start Camera</button>
-                                    <button type="button" id="captureImage" class="bg-green-500 text-white px-3 py-1 rounded hidden">📸 Capture</button>
-                                    <button type="button" id="cancelCamera" class="bg-red-500 text-white px-3 py-1 rounded hidden">✖ Cancel</button>
-                                </div>
-
-                                <!-- Preview area -->
-                                <div id="imagePreview" class="flex gap-2 mt-2 flex-wrap"></div>
-                            </div>
-
-                            <button type="submit" class="block px-3 pt-2.5 w-full md:w-1/2 pb-1 bg-blue-600 text-white rounded-md py-2.5 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-blue-600">Save and Send SMS</button>
-                            <div class="p-1 bg-gray-900 rounded-md shadow-lg w-full md:w-1/2">
-                                <table class="min-w-full rounded-md divide-y text-white" id="tracking_table">
-                                    <thead>
-                                        <tr>
-                                            <th>Tracking Number</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="trn_count divide-y divide-gray-600" data-total="0">
-
-                                    </tbody>
-                                </table>
-                            </div>
-                        </form>
-                            <div id="loadingScreen" class="fixed inset-0 z-50 bg-black bg-opacity-50 hidden flex items-center justify-center">
-                                <div class="flex flex-col items-center">
-                                <div class="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
-                                <p class="text-white text-lg font-medium">Processing, please wait...</p>
-                                </div>
-                            </div>
-                    </div>
-
-                    <div class="place-items-center space-y-2 md:block">
-                          <div class="bg-gray-900 w-full rounded-md">
-                            <div class="mx-auto max-w-7xl">
-                              <div class="bg-gray-900 py-6 rounded-md">
-                                <div class="px-4 sm:px-6 lg:px-8">
-                                  <div class="sm:flex sm:items-center">
-                                    <div class="sm:flex-auto">
-                                      <h1 class="text-base font-semibold text-white">Mail All Center</h1>
-                                      <p class="my-2 text-sm text-gray-300">Clients Information</p>
-                                    </div>
-                                  </div>
-                                  <div class="mt-2 flow-root">
-                                    <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-                                      <div class="inline-block min-w-full align-middle sm:px-6 lg:px-8 max-h-screen overflow-y-auto">
-                                        @if(!empty($data))
-                                            <table class="min-w-full divide-y divide-gray-700" id="clientTable">
-                                                <thead class="sticky top-0">
-                                                    <tr>
-                                                    @foreach($data[6] as $header => $value)
-                                                        <th scope="col" class="pr-3 pl-4 text-left text-sm font-semibold bg-gray-900 text-white sm:pl-0">{{ ucfirst($value) }}</th>
-                                                    @endforeach
-                                                        <th scope="col" class="pr-3 pl-4 text-left text-sm font-semibold bg-gray-900 text-white sm:pl-0">Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="divide-y divide-gray-800">
-                                                    @foreach(array_slice($data,7) as $row)
-                                                        <tr>
-                                                        @foreach($row as $index => $cell)
-                                                            <td class="mailbox py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-white sm:pl-0">
-                                                                @php $disabled = $row[0] ? 'disabled' : '';
-                                                                  switch ($index) {
-                                                                    case 4:
-                                                                        $inputType = 'tel'; // contact number
-                                                                        break;
-                                                                    case 5:
-                                                                    case 7:
-                                                                        $inputType = 'date'; // specific date fields
-                                                                        break;
-                                                                    case 8:
-                                                                        $inputType = 'email'; // email
-                                                                        break;
-                                                                    default:
-                                                                        $inputType = 'text'; // all others
-                                                                 }
-                                                                 if ($inputType === 'date') {
-                                                                        $timestamp = strtotime($cell);
-                                                                        $inputValue = ($timestamp && trim($cell) !== '') ? date('Y-m-d', $timestamp) : '';
-                                                                    } else {
-                                                                        $inputValue = $cell;
-                                                                }
-                                                                @endphp
-                                                                <input type="{{ $inputType }}" value="{{ $inputValue }}" class="edit-info w-full border-0 rounded-sm z-50" {{ $disabled }} data-index="{{ $index }}" data-raw="{{ $cell }}">
-                                                            </td>
-                                                        @endforeach
-                                                            <td class="mailbox py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-white sm:pl-0 flex space-x-2">
-                                                                <a href="#" class="edit-{{ $row[0] }}">
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 hover:text-blue-500 cursor-pointer">
-                                                                        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                                                    </svg>
-                                                                </a>
-                                                                <a href="#" class="save-edit" hidden>
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 hover:text-blue-500 cursor-pointer text-green-500">
-                                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                                                    </svg>
-                                                                </a>
-                                                                <a href="#" class="cancel-edit" hidden>
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 hover:text-blue-500 cursor-pointer text-red-500" >
-                                                                        <path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                                                      </svg>
-                                                                </a>
-                                                            </td>
-                                                        </tr>
-                                                    @endforeach
-                                            <!-- More people... -->
-                                                </tbody>
-                                            </table>
-                                        @endif
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                    </div>
-                </form>
-                </div>
-            </div>
-            {{-- @include('sms.inbox') --}}
-            @include('sms.inbox', ['receivedMessages' => $receivedMessages, 'sentMessages' => $sentMessages])
-        </main>
-    @endsection

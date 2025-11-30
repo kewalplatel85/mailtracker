@@ -150,7 +150,7 @@ class CompanyController extends BaseController
             abort(403, 'Only super admins can switch companies.');
         }
 
-        session(['selected_company_id' => $company->id]);
+        session(['current_company_id' => $company->id]);
 
         return redirect()->back()
             ->with('success', "Switched to {$company->name} context.");

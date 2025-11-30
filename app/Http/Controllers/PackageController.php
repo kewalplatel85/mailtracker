@@ -16,50 +16,14 @@ class PackageController extends BaseController
 {
     public function __construct()
     {
-        $this->middleware('auth');
-        $this->middleware('permission:packages.view')->only(['index', 'show']);
-        $this->middleware('permission:packages.create')->only(['create', 'store']);
-        $this->middleware('permission:packages.edit')->only(['edit', 'update']);
-        $this->middleware('permission:packages.delete')->only(['destroy']);
-        $this->middleware('permission:packages.bulk_operations')->only(['bulkUpdate', 'bulkDelete', 'bulkSms']);
-    }
-
-    public function index()
-    {
-        // Packages are automatically scoped by company via global scope
-        $packageLogs = Package::select(
-            'mailbox_number',
-            'customer_name',
-            'phone_number',
-            'status',
-            'created_at',
-            'tracking_number',
-            'id'
-        )
-        ->where('status', 'Incoming')
-        ->get()
-        ->groupBy('mailbox_number')
-        ->map(function ($group) {
-            return (object) [
-                'mailbox_number' => $group->first()->mailbox_number,
-                'customer_name' => $group->first()->customer_name,
-                'phone_number' => $group->first()->phone_number,
-                'status' => $group->first()->status,
-                'date_received' => \Carbon\Carbon::parse($group->first()->created_at)->format('d-m-Y'),
-                'package_count' => $group->count(),
-                'tracking_numbers' => $group->pluck('tracking_number')->toArray(),
-                'id' => $group->pluck('id')->toArray(),
-            ];
-        });
-
-        $messagesController = new MessageController();
-        $inboxData = $messagesController->index();
-
-        return view('packagelogs', [
-            'packages' => $packageLogs,
-            'receivedMessages' => $inboxData['receivedMessages'],
-            'sentMessages' => $inboxData['sentMessages'],
-        ]);
+        // Apply auth middleware to all methods except getPackagesByMailbox (for dashboard integration)
+        $this->middleware('auth')->except(['getPackagesByMailbox']);
+        // Remove restrictive permissions for basic package viewing
+        // $this->middleware('permission:packages.view')->only(['index', 'show']);
+        // $this->middleware('permission:packages.create')->only(['create', 'store']);
+        // $this->middleware('permission:packages.edit')->only(['edit', 'update']);
+        // $this->middleware('permission:packages.delete')->only(['destroy']);
+        // $this->middleware('permission:packages.bulk_operations')->only(['bulkUpdate', 'bulkDelete', 'bulkSms']);
     }
 
     public function getPackages(Request $request)
@@ -88,10 +52,19 @@ class PackageController extends BaseController
     public function getPackagesByMailbox($mailboxNumber)
     {
         try {
-            $packages = Package::where('mailbox_number', $mailboxNumber)
-                ->whereIn('status', ['Incoming', 'Ready to Pickup', 'Picked up'])
-                ->orderBy('created_at', 'desc')
-                ->get();
+            // Get current company context
+            $currentCompanyId = session('current_company_id') ?? (Auth::check() ? Auth::user()->company_id : null);
+
+            $packagesQuery = Package::where('mailbox_number', $mailboxNumber)
+                ->whereIn('status', ['Incoming', 'Ready for Pickup', 'Picked Up'])
+                ->orderBy('created_at', 'desc');
+
+            // Filter by company if we have a company context
+            if ($currentCompanyId) {
+                $packagesQuery->where('company_id', $currentCompanyId);
+            }
+
+            $packages = $packagesQuery->get();
 
             $result = [];
             foreach ($packages as $index => $package) {
@@ -102,14 +75,20 @@ class PackageController extends BaseController
                     'created_at' => $package->created_at ? $package->created_at->format('M d, Y') : 'Unknown',
                     'customer_name' => $package->customer_name ?? 'N/A',
                     'phone_number' => $package->phone_number ?? 'N/A',
+                    // Add workflow information
+                    'received_at' => $package->received_at ? $package->received_at->format('M d, Y H:i') : null,
+                    'ready_at' => $package->ready_at ? $package->ready_at->format('M d, Y H:i') : null,
+                    'picked_up_at' => $package->picked_up_at ? $package->picked_up_at->format('M d, Y H:i') : null,
+                    'age_days' => method_exists($package, 'getAgeInDays') ? $package->getAgeInDays() : 0,
                 ];
             }
 
             return response()->json($result);
         } catch (\Exception $e) {
+            Log::error('Error fetching packages by mailbox: ' . $e->getMessage());
             return response()->json([
                 'error' => true,
-                'message' => $e->getMessage()
+                'message' => 'Failed to fetch packages: ' . $e->getMessage()
             ], 500);
         }
     }    public function checkTrackingNumberExist(Request $request)
@@ -280,6 +259,93 @@ class PackageController extends BaseController
     {
         $lastPackage = Package::latest('id')->first();
         return response()->json(['last_id' => $lastPackage ? $lastPackage->id : 0]);
+    }
+
+    public function markAsPickedUp(Request $request)
+    {
+        $request->validate([
+            'package_id' => 'required|integer|exists:packages,id',
+        ]);
+
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json(['error' => true, 'message' => 'Authentication required'], 401);
+            }
+
+            $package = Package::findOrFail($request->package_id);
+
+            // Check if package belongs to current user's company
+            if ($package->company_id !== $user->company_id) {
+                return response()->json(['error' => true, 'message' => 'Unauthorized access to package'], 403);
+            }
+
+            if ($package->status !== 'Ready for Pickup') {
+                return response()->json(['error' => true, 'message' => 'Package is not ready for pickup'], 400);
+            }
+
+            $package->update([
+                'status' => 'Picked Up',
+                'picked_up_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Package marked as picked up successfully',
+                'package_id' => $package->id,
+                'tracking_number' => $package->tracking_number
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error marking package as picked up: ' . $e->getMessage());
+            return response()->json(['error' => true, 'message' => 'Failed to update package status'], 500);
+        }
+    }
+
+    public function bulkMarkAsPickedUp(Request $request)
+    {
+        $request->validate([
+            'package_ids' => 'required|array',
+            'package_ids.*' => 'integer|exists:packages,id',
+        ]);
+
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json(['error' => true, 'message' => 'Authentication required'], 401);
+            }
+
+            $packageIds = $request->package_ids;
+            $userCompanyId = $user->company_id;
+
+            // Get packages that belong to the user's company and are ready for pickup
+            $packages = Package::whereIn('id', $packageIds)
+                ->where('company_id', $userCompanyId)
+                ->where('status', 'Ready for Pickup')
+                ->get();
+
+            if ($packages->isEmpty()) {
+                return response()->json(['error' => true, 'message' => 'No valid packages found for pickup'], 400);
+            }
+
+            // Update all packages
+            $updatedCount = Package::whereIn('id', $packages->pluck('id'))
+                ->update([
+                    'status' => 'Picked Up',
+                    'picked_up_at' => now(),
+                ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$updatedCount} packages marked as picked up successfully",
+                'updated_count' => $updatedCount,
+                'package_ids' => $packages->pluck('id')->toArray()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error bulk marking packages as picked up: ' . $e->getMessage());
+            return response()->json(['error' => true, 'message' => 'Failed to update package statuses'], 500);
+        }
     }
 
 }

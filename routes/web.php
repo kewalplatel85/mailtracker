@@ -32,28 +32,31 @@ Route::post('password/reset', [ResetPasswordController::class, 'reset'])->name('
 // dashboard
 Route::get('/dashboard',[DashboardController::class,'index'])->name('dashboard');
 Route::get('/get-last-package-id', [PackageController::class, 'getLastPackageID']);
+Route::get('/get-packages-by-mailbox/{mailbox}',[PackageController::class, 'getPackagesByMailbox'])->name('packages.by.mailbox');
+Route::get('/upload', function() { return redirect()->route('dashboard'); }); // Redirect GET requests to dashboard
 Route::post('/upload', [FileUploadController::class, 'upload'])->name('upload');
 Route::post('/saveAndNotify',[DashboardController::class,'savePackage'])->name('saveAndNotify');
 Route::post('/update-csv', [FileUploadController::class, 'updateCsv'])->name('update.csv');
+Route::post('/check-tracking',[PackageController::class, 'checkTrackingNumberExist'])->name('check.tracking.number');
+Route::post('/outgoing-packge',[PackageController::class,'outgoingPackage'])->middleware(['auth'])->name('outgoing.package');
+Route::post('/delete-package', [PackageController::class, 'deletePackage'])->name('delete.package');
+Route::post('/updatePackageStatus', [PackageController::class, 'updateStatus'])->name('package.updateStatus');
+Route::post('/packages/mark-picked-up', [PackageController::class, 'markAsPickedUp'])->middleware(['auth'])->name('packages.mark-picked-up');
+Route::post('/packages/bulk-mark-picked-up', [PackageController::class, 'bulkMarkAsPickedUp'])->middleware(['auth'])->name('packages.bulk-mark-picked-up');
 
 // messages
 Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
 Route::post('/send-message', [MessageController::class, 'sendMessage'])->name('messages.send');
 Route::post('/send-reply', [MessageController::class, 'sendReply'])->name('send.reply');
 Route::post('/textblast', [MessageController::class, 'sendTextBlast'])->name('messages.textblast');
-
-// PackageLogs
-Route::get('/packagelogs',[PackageController::class, 'index'])->middleware(['auth'])->name('packagelogs');
-Route::get('/get-packages',[PackageController::class, 'getPackages'])->middleware(['auth'])->name('packages');
-Route::get('/get-packages-by-mailbox/{mailbox}',[PackageController::class, 'getPackagesByMailbox'])->name('packages.by.mailbox');
-Route::post('/check-tracking',[PackageController::class, 'checkTrackingNumberExist'])->name('check.tracking.number');
-Route::post('/outgoing-packge',[PackageController::class,'outgoingPackage'])->middleware(['auth'])->name('outgoing.package');
-Route::post('/delete-package', [PackageController::class, 'deletePackage'])->name('delete.package');
-Route::post('/updatePackageStatus', [PackageController::class, 'updateStatus'])->name('package.updateStatus');
+Route::post('/send-quick-message', [MessageController::class, 'sendQuickMessage'])->middleware(['auth'])->name('messages.quick');
+Route::post('/send-renewal-reminder', [MessageController::class, 'sendRenewalReminder'])->middleware(['auth'])->name('messages.renewal');
 
 // Storage label printing routes
 Route::get('/labels', [LabelController::class, 'index'])->middleware(['auth'])->name('labels.index');
 Route::get('/labels/single/{id}', [LabelController::class, 'generateSingle'])->middleware(['auth'])->name('labels.single');
+Route::post('/labels/preview', [LabelController::class, 'generatePreview'])->middleware(['auth'])->name('labels.preview');
+Route::post('/labels/preview-multiple', [LabelController::class, 'generatePreviewMultiple'])->middleware(['auth'])->name('labels.preview-multiple');
 
 // Company management routes (requires authentication)
 Route::middleware(['auth'])->group(function () {
@@ -63,6 +66,20 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
         Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
         Route::get('/health-check', [AdminController::class, 'healthCheck'])->name('health-check');
+        Route::get('/users', [AdminController::class, 'users'])->name('users');
+        Route::get('/companies', [AdminController::class, 'companies'])->name('companies');
+        Route::get('/package-analytics', [AdminController::class, 'packageAnalytics'])->name('package-analytics');
+        Route::get('/system-alerts', [AdminController::class, 'getSystemAlerts'])->name('system-alerts');
+        Route::post('/maintenance', [AdminController::class, 'maintenance'])->name('maintenance');
+        Route::post('/create-user', [AdminController::class, 'createUser'])->name('create-user');
+        Route::put('/users/{user}/role', [AdminController::class, 'updateUserRole'])->name('update-user-role');
+        Route::put('/users/{user}/assign-role', [AdminController::class, 'assignUserRole'])->name('assign-user-role');
+        Route::put('/users/{user}', [AdminController::class, 'updateUser'])->name('update-user');
+        Route::delete('/users/{user}', [AdminController::class, 'deleteUser'])->name('delete-user');
+        Route::post('/create-company', [AdminController::class, 'createCompany'])->name('create-company');
+        Route::put('/companies/{company}', [AdminController::class, 'updateCompany'])->name('update-company');
+        Route::put('/companies/{company}/status', [AdminController::class, 'updateCompanyStatus'])->name('update-company-status');
+        Route::post('/bulk-package-operation', [AdminController::class, 'bulkPackageOperation'])->name('bulk-package-operation');
     });
 
     // Company routes
