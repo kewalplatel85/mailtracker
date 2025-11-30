@@ -316,8 +316,8 @@ class MessageController extends Controller
                 $currentCompanyId = session('current_company_id') ?? Auth::user()->company_id;
                 if ($currentCompanyId) {
                     $filePath = "uploads/company_{$currentCompanyId}_latest_file.csv";
-                    if (\Storage::exists($filePath)) {
-                        $data = $this->parseFile(\Storage::path($filePath));
+                    if (Storage::exists($filePath)) {
+                        $data = $this->parseFile(Storage::path($filePath));
                         foreach ($data as $row) {
                             if (isset($row[0]) && trim($row[0]) == trim($mailboxNumber)) {
                                 if (isset($row[8]) && !empty(trim($row[8]))) {

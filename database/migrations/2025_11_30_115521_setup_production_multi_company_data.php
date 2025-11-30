@@ -139,38 +139,62 @@ return new class extends Migration
                 'updated_at' => now()
             ]);
 
-        // Step 8: Assign all existing packages to Mail All Center and update their status
+        // Step 8: First, make sure all schema changes are committed
+        // Force schema to be refreshed before data updates
+        Schema::getConnection()->getSchemaBuilder()->getColumnListing('packages');
+
+        // Step 8a: Assign all existing packages to Mail All Center (without timestamp columns first)
         $affectedPackages = DB::table('packages')
             ->whereNull('company_id')
             ->update([
                 'company_id' => $mailAllCenterId,
-                'status' => 'Ready for Pickup', // Set existing packages to Ready for Pickup
-                'received_at' => DB::raw('created_at'), // Set received_at to creation date
-                'ready_at' => DB::raw('created_at'), // Set ready_at to creation date since they're old
+                'status' => 'Ready for Pickup',
                 'updated_at' => now()
             ]);
 
-        // Step 9: Update ALL existing packages to Ready for Pickup status (regardless of company_id)
-        DB::table('packages')
-            ->where('created_at', '<', now()->subDays(1)) // Packages older than 1 day
-            ->update([
-                'status' => 'Ready for Pickup',
-                'received_at' => DB::raw('COALESCE(received_at, created_at)'), // Set received_at if null
-                'ready_at' => DB::raw('COALESCE(ready_at, created_at)'), // Set ready_at if null
-                'updated_at' => now()
-            ]);
+        // Step 8b: Now update timestamp columns separately (after confirming columns exist)
+        if (Schema::hasColumn('packages', 'received_at')) {
+            DB::table('packages')
+                ->whereNull('received_at')
+                ->update([
+                    'received_at' => DB::raw('created_at'),
+                    'updated_at' => now()
+                ]);
+        }
+
+        if (Schema::hasColumn('packages', 'ready_at')) {
+            DB::table('packages')
+                ->whereNull('ready_at')
+                ->update([
+                    'ready_at' => DB::raw('created_at'),
+                    'updated_at' => now()
+                ]);
+        }
+
+        // Step 9: Update ALL existing packages to Ready for Pickup status (with safe column checks)
+        if (Schema::hasColumn('packages', 'received_at') && Schema::hasColumn('packages', 'ready_at')) {
+            DB::table('packages')
+                ->where('created_at', '<', now()->subDays(1)) // Packages older than 1 day
+                ->update([
+                    'status' => 'Ready for Pickup',
+                    'received_at' => DB::raw('COALESCE(received_at, created_at)'), // Set received_at if null
+                    'ready_at' => DB::raw('COALESCE(ready_at, created_at)'), // Set ready_at if null
+                    'updated_at' => now()
+                ]);
+        } else {
+            // Fallback if columns don't exist yet
+            DB::table('packages')
+                ->where('created_at', '<', now()->subDays(1))
+                ->update([
+                    'status' => 'Ready for Pickup',
+                    'updated_at' => now()
+                ]);
+        }
 
         $totalPackages = DB::table('packages')->count();
         $readyPackages = DB::table('packages')->where('status', 'Ready for Pickup')->count();
 
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-
-        echo "Multi-company setup completed:\n";
-        echo "- Mail All Center company created (ID: {$mailAllCenterId})\n";
-        echo "- Updated existing users\n";
-        echo "- Assigned {$affectedPackages} packages to Mail All Center\n";
-        echo "- Updated all existing packages to 'Ready for Pickup' status\n";
-        echo "- Total packages: {$totalPackages}, Ready for pickup: {$readyPackages}\n";
     }
 
     /**
