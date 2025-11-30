@@ -403,6 +403,64 @@ function showToast(message, type = 'success') {
     }, 5000);
 }
 
+// Global variables for mailbox filtering
+let allMailboxes = [];
+let filteredMailboxes = [];
+let currentPage = 1;
+let itemsPerPage = 40;
+
+// Global filter functions
+function filterToMailbox(mailboxNumber) {
+    filteredMailboxes = allMailboxes.filter(item => {
+        return $(item).data('mailbox').toString() === mailboxNumber;
+    });
+    currentPage = 1;
+    updatePagination();
+}
+
+function resetMailboxFilter() {
+    const searchQuery = $('#searchMailbox').val().toLowerCase();
+    if (searchQuery) {
+        // Keep search filter if active
+        filteredMailboxes = allMailboxes.filter(item => {
+            const mailbox = $(item).data('mailbox').toString().toLowerCase();
+            const customer = $(item).data('customer').toString().toLowerCase();
+            return mailbox.includes(searchQuery) || customer.includes(searchQuery);
+        });
+    } else {
+        // Show all mailboxes
+        filteredMailboxes = allMailboxes;
+    }
+    currentPage = 1;
+    updatePagination();
+}
+
+function updatePagination() {
+    const totalPages = Math.ceil(filteredMailboxes.length / itemsPerPage);
+    const start = (currentPage - 1) * itemsPerPage + 1;
+    const end = Math.min(currentPage * itemsPerPage, filteredMailboxes.length);
+
+    $('#currentStart').text(start);
+    $('#currentEnd').text(end);
+    $('#totalMailboxes').text(filteredMailboxes.length);
+    $('#pageInfo').text(`Page ${currentPage} of ${totalPages}`);
+
+    $('#prevPage').prop('disabled', currentPage === 1);
+    $('#nextPage').prop('disabled', currentPage === totalPages);
+
+    showPage();
+}
+
+function showPage() {
+    $('.mailbox-item').hide();
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+
+    filteredMailboxes.slice(start, end).forEach(item => {
+        $(item).show();
+    });
+}
+
 // Confirmation toast function
 function showConfirmationToast(title, message, onConfirm, onCancel = null) {
     const confirmToast = $(`
@@ -451,38 +509,12 @@ function showConfirmationToast(title, message, onConfirm, onCancel = null) {
 }
 
 $(document).ready(function() {
-    let currentPage = 1;
-    let itemsPerPage = 40;
-    let allMailboxes = $('.mailbox-item').toArray();
-    let filteredMailboxes = allMailboxes;
+    // Initialize global variables
+    allMailboxes = $('.mailbox-item').toArray();
+    filteredMailboxes = allMailboxes;
 
     // Initialize pagination
-    function updatePagination() {
-        const totalPages = Math.ceil(filteredMailboxes.length / itemsPerPage);
-        const start = (currentPage - 1) * itemsPerPage + 1;
-        const end = Math.min(currentPage * itemsPerPage, filteredMailboxes.length);
-
-        $('#currentStart').text(start);
-        $('#currentEnd').text(end);
-        $('#totalMailboxes').text(filteredMailboxes.length);
-        $('#pageInfo').text(`Page ${currentPage} of ${totalPages}`);
-
-        $('#prevPage').prop('disabled', currentPage === 1);
-        $('#nextPage').prop('disabled', currentPage === totalPages);
-
-        showPage();
-    }
-
-    // Show current page
-    function showPage() {
-        $('.mailbox-item').hide();
-        const start = (currentPage - 1) * itemsPerPage;
-        const end = start + itemsPerPage;
-
-        filteredMailboxes.slice(start, end).forEach(item => {
-            $(item).show();
-        });
-    }
+    updatePagination();
 
     // Pagination controls
     $('#prevPage').click(() => {
@@ -764,33 +796,6 @@ $(document).ready(function() {
             resetMailboxFilter();
         }
     });
-
-    // Function to filter mailboxes
-    function filterToMailbox(mailboxNumber) {
-        filteredMailboxes = allMailboxes.filter(item => {
-            return $(item).data('mailbox').toString() === mailboxNumber;
-        });
-        currentPage = 1;
-        updatePagination();
-    }
-
-    // Function to reset mailbox filter
-    function resetMailboxFilter() {
-        const searchQuery = $('#searchMailbox').val().toLowerCase();
-        if (searchQuery) {
-            // Keep search filter if active
-            filteredMailboxes = allMailboxes.filter(item => {
-                const mailbox = $(item).data('mailbox').toString().toLowerCase();
-                const customer = $(item).data('customer').toString().toLowerCase();
-                return mailbox.includes(searchQuery) || customer.includes(searchQuery);
-            });
-        } else {
-            // Show all mailboxes
-            filteredMailboxes = allMailboxes;
-        }
-        currentPage = 1;
-        updatePagination();
-    }
 
     // Form submission
     $('#packageForm').submit(function(e) {
@@ -1536,6 +1541,75 @@ function updateMailboxPackageCount(mailboxNumber) {
             // Silently handle error
         }
     });
+}
+
+// Add package to mailbox function
+function addPackageToMailbox(mailboxNumber, customerName) {
+    // Close the modal
+    $('#mailboxModal').addClass('hidden');
+
+    // Fill the form fields
+    $('input[name="mailbox_number"]').val(mailboxNumber);
+    $('input[name="customer_name"]').val(customerName || '');
+
+    // Clear any previous tracking numbers
+    $('textarea[name="tracking_number"]').val('');
+
+    // Hide any preview displays
+    $('#trackingPreview').addClass('hidden');
+    $('#trackingDisplay').addClass('hidden');
+
+    // Clear previous highlights
+    $('.mailbox-item').removeClass('mailbox-highlighted border-green-500 bg-green-50 ring-2 ring-green-200');
+
+    // Find and highlight the matching mailbox
+    const matchingMailbox = $('.mailbox-item').filter(function() {
+        return $(this).data('mailbox').toString() === mailboxNumber.toString();
+    });
+
+    if (matchingMailbox.length > 0) {
+        // Highlight the mailbox
+        matchingMailbox.addClass('mailbox-highlighted border-green-500 bg-green-50 ring-2 ring-green-200');
+
+        // Filter to show only the matching mailbox
+        filterToMailbox(mailboxNumber.toString());
+
+        // Scroll the highlighted mailbox into view
+        setTimeout(() => {
+            matchingMailbox[0].scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+                inline: 'center'
+            });
+        }, 200);
+    }
+
+    // Focus on tracking number field
+    setTimeout(() => {
+        $('textarea[name="tracking_number"]').focus();
+
+        // Scroll to the package entry form
+        const packageForm = $('#packageForm');
+        if (packageForm.length) {
+            packageForm[0].scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+
+        // Show success feedback
+        showToast(`Ready to add package for ${customerName} (Mailbox ${mailboxNumber})`, 'info');
+    }, 300);
+}
+
+// Quick message function (placeholder)
+function quickMessage(mailboxNumber, phoneNumber, customerName) {
+    showToast('Quick message feature coming soon!', 'info');
+}
+
+// Renewal reminder function (placeholder)
+function sendRenewalReminder(mailboxNumber, phoneNumber, customerName, dueDate) {
+    showToast('Renewal reminder feature coming soon!', 'info');
 }
 </script>
 
