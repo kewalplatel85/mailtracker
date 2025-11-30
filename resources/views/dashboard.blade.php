@@ -125,8 +125,21 @@
                             <!-- Tracking Number -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Tracking Number</label>
-                                <textarea name="tracking_number" rows="2" placeholder="Enter tracking numbers (one per line)"
+                                <textarea name="tracking_number" id="trackingInput" rows="2" placeholder="Enter tracking numbers (one per line)"
                                           class="w-full px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                                <p class="text-xs text-gray-500 mt-1">Enter one tracking number per line</p>
+                            </div>
+
+                            <!-- Real-time Tracking Preview -->
+                            <div id="trackingPreview" class="hidden">
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="block text-sm font-medium text-gray-700">Package Preview</label>
+                                    <div class="flex items-center space-x-2">
+                                        <button type="button" onclick="printAllPreviewLabels()" class="text-xs px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700">Print All Labels</button>
+                                        <button type="button" id="clearPreview" class="text-xs text-red-600 hover:text-red-800">Clear All</button>
+                                    </div>
+                                </div>
+                                <div id="previewList" class="space-y-2 max-h-32 overflow-y-auto"></div>
                             </div>
 
                             <!-- SMS Message -->
@@ -166,10 +179,20 @@
                                 💾 Save Package & Send SMS
                             </button>
 
-                            <!-- Tracking Numbers Display -->
-                            <div id="trackingDisplay" class="hidden mt-4 p-4 bg-gray-50 rounded-md">
-                                <h4 class="font-medium text-gray-900 mb-2">Tracking Numbers</h4>
-                                <div id="trackingList" class="space-y-1"></div>
+                            <!-- Tracking Numbers Display (After Submission) -->
+                            <div id="trackingDisplay" class="hidden mt-4 p-4 bg-green-50 border border-green-200 rounded-md">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="font-medium text-green-800">✅ Packages Saved Successfully!</h4>
+                                    <div class="space-x-2">
+                                        <button type="button" id="printAllLabels" class="hidden px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700">
+                                            🖨️ Print All Labels
+                                        </button>
+                                        <button type="button" id="clearTracking" class="px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600">
+                                            🗑️ Clear
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="trackingList" class="space-y-2"></div>
                             </div>
                         </form>
                     </div>
@@ -567,6 +590,19 @@ $(document).ready(function() {
                         📦 View Package Details
                     </button>
                 </div>` : ''}
+
+                <!-- Action Buttons -->
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <button onclick="quickMessage('${mailbox}', '${phone}', '${customer}')" class="bg-green-600 text-white py-2.5 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center justify-center">
+                        💬 Quick Message
+                    </button>
+                    <button onclick="addPackageToMailbox('${mailbox}', '${customer}')" class="bg-purple-600 text-white py-2.5 px-4 rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm flex items-center justify-center">
+                        📦 Add Package
+                    </button>
+                    <button onclick="sendRenewalReminder('${mailbox}', '${phone}', '${customer}', '${dueDate}')" class="bg-orange-600 text-white py-2.5 px-4 rounded-lg hover:bg-orange-700 transition-colors font-medium text-sm flex items-center justify-center">
+                        🔔 Renewal Reminder
+                    </button>
+                </div>
             </div>
         `);
 
@@ -615,9 +651,16 @@ $(document).ready(function() {
     });
 
     // Auto-fill customer name when mailbox number is entered
+    let searchTimeout;
     $('input[name="mailbox_number"]').on('input', function() {
         const mailboxNumber = $(this).val().trim();
         const customerNameField = $('input[name="customer_name"]');
+
+        // Clear previous timeout
+        clearTimeout(searchTimeout);
+
+        // Clear previous highlights
+        $('.mailbox-item').removeClass('mailbox-highlighted border-green-500 bg-green-50 ring-2 ring-green-200');
 
         if (mailboxNumber) {
             // Find matching mailbox in the grid
@@ -636,15 +679,71 @@ $(document).ready(function() {
                         customerNameField.removeClass('bg-green-50 border-green-300');
                     }, 1500);
                 }
+
+                // Highlight and scroll to matching mailbox
+                matchingMailbox.addClass('mailbox-highlighted border-green-500 bg-green-50 ring-2 ring-green-200');
+
+                // Filter to show only the matching mailbox
+                filterToMailbox(mailboxNumber);
+
+                // Scroll the highlighted mailbox into view
+                setTimeout(() => {
+                    matchingMailbox[0].scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center',
+                        inline: 'center'
+                    });
+                }, 200);
+
+                // Delayed notification to prevent spam while typing
+                searchTimeout = setTimeout(() => {
+                    showToast(`Found mailbox ${mailboxNumber} - ${customerName}`, 'success');
+                }, 2000);
             } else {
                 // Clear customer name if mailbox not found
                 customerNameField.val('');
+                // Reset filter to show all mailboxes
+                resetMailboxFilter();
+
+                // Delayed notification to prevent spam while typing
+                searchTimeout = setTimeout(() => {
+                    showToast(`Mailbox ${mailboxNumber} not found`, 'warning');
+                }, 1500);
             }
         } else {
             // Clear customer name if mailbox number is empty
             customerNameField.val('');
+            // Reset filter to show all mailboxes
+            resetMailboxFilter();
         }
     });
+
+    // Function to filter mailboxes
+    function filterToMailbox(mailboxNumber) {
+        filteredMailboxes = allMailboxes.filter(item => {
+            return $(item).data('mailbox').toString() === mailboxNumber;
+        });
+        currentPage = 1;
+        updatePagination();
+    }
+
+    // Function to reset mailbox filter
+    function resetMailboxFilter() {
+        const searchQuery = $('#searchMailbox').val().toLowerCase();
+        if (searchQuery) {
+            // Keep search filter if active
+            filteredMailboxes = allMailboxes.filter(item => {
+                const mailbox = $(item).data('mailbox').toString().toLowerCase();
+                const customer = $(item).data('customer').toString().toLowerCase();
+                return mailbox.includes(searchQuery) || customer.includes(searchQuery);
+            });
+        } else {
+            // Show all mailboxes
+            filteredMailboxes = allMailboxes;
+        }
+        currentPage = 1;
+        updatePagination();
+    }
 
     // Form submission
     $('#packageForm').submit(function(e) {
@@ -674,7 +773,7 @@ $(document).ready(function() {
         formData.append('mailbox_number', mailboxNumber);
         formData.append('customer_name', customerName);
         formData.append('package_count', packageCount);
-        formData.append('status', status);
+        formData.append('status', 'Ready for Pickup'); // Always save as Ready for Pickup
         formData.append('tracking_number', trackingNumber);
         formData.append('sms_message', smsMessage);
 
@@ -710,10 +809,16 @@ $(document).ready(function() {
                     showToast('No phone number found for this mailbox', 'warning');
                 }
 
-                // Reset form
+                // Display tracking numbers with label printing options
+                if (response.packages && response.packages.length > 0) {
+                    displayTrackingNumbers(response.packages);
+                }
+
+                // Reset form but keep tracking display
                 $('#packageForm')[0].reset();
-                // Optionally refresh page or update UI
-                setTimeout(() => location.reload(), 2000);
+
+                // Don't auto-reload to keep tracking numbers visible
+                // setTimeout(() => location.reload(), 2000);
             },
             error: function(xhr) {
                 const error = xhr.responseJSON;
@@ -732,6 +837,356 @@ $(document).ready(function() {
 
     // Initialize
     updatePagination();
+    setupTrackingPreview();
+});
+
+// Real-time tracking number preview
+function setupTrackingPreview() {
+    const trackingInput = $('#trackingInput');
+    const trackingPreview = $('#trackingPreview');
+    const previewList = $('#previewList');
+    const clearPreviewBtn = $('#clearPreview');
+
+    // Handle input events with proper scanning support
+    trackingInput.on('input paste', function(e) {
+        // For paste events, allow time for content to be inserted
+        if (e.type === 'paste') {
+            setTimeout(() => {
+                processTrackingInput();
+            }, 10);
+        } else {
+            processTrackingInput();
+        }
+    });
+
+    // Handle Enter key for new tracking numbers
+    trackingInput.on('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            const currentValue = $(this).val();
+            if (currentValue.trim() && !currentValue.endsWith('\n')) {
+                $(this).val(currentValue + '\n');
+                processTrackingInput();
+            }
+        }
+    });
+
+    function processTrackingInput() {
+        const trackingText = trackingInput.val().trim();
+
+        if (trackingText) {
+            const trackingNumbers = trackingText.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+
+            if (trackingNumbers.length > 0) {
+                updateTrackingPreview(trackingNumbers);
+                trackingPreview.removeClass('hidden');
+            } else {
+                trackingPreview.addClass('hidden');
+            }
+        } else {
+            trackingPreview.addClass('hidden');
+        }
+    }
+
+    clearPreviewBtn.on('click', function() {
+        trackingInput.val('');
+        trackingPreview.addClass('hidden');
+        previewList.html('');
+    });
+}
+
+// Update tracking preview display
+function updateTrackingPreview(trackingNumbers) {
+    const previewList = $('#previewList');
+    const mailboxNumber = $('input[name="mailbox_number"]').val().trim();
+    const customerName = $('input[name="customer_name"]').val().trim();
+
+    let previewHtml = '';
+    trackingNumbers.forEach((tracking, index) => {
+        if (tracking) {
+            previewHtml += `
+                <div class="p-2 bg-white rounded border">
+                    <div class="flex items-center space-x-2 mb-1">
+                        <span class="text-sm font-medium text-gray-900">Package #${index + 1}</span>
+                        <span class="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded font-mono break-all">${tracking}</span>
+                    </div>
+                    <div class="text-xs text-gray-500 mb-2">
+                        ${customerName ? customerName : 'Customer'} ${mailboxNumber ? `(${mailboxNumber})` : ''}
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs text-orange-600 font-medium">Incoming</span>
+                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); printTrackingLabel('${tracking}'); return false;" class="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 flex items-center space-x-1">
+                            <span>🏷️</span>
+                            <span>Print Label</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    });
+
+    previewList.html(previewHtml);
+}
+
+// Display tracking numbers with label printing options
+function displayTrackingNumbers(packages) {
+    const trackingDisplay = $('#trackingDisplay');
+    const trackingList = $('#trackingList');
+    const printAllBtn = $('#printAllLabels');
+    const trackingPreview = $('#trackingPreview');
+
+    // Hide preview and show saved packages
+    trackingPreview.addClass('hidden');
+    trackingDisplay.removeClass('hidden');
+    printAllBtn.removeClass('hidden');
+
+    let trackingHtml = '';
+    packages.forEach((pkg, index) => {
+        trackingHtml += `
+            <div class="flex items-center justify-between p-3 bg-white rounded border border-green-200">
+                <div class="flex-1">
+                    <div class="flex items-center space-x-3">
+                        <span class="font-medium text-gray-900">Package #${index + 1}</span>
+                        <span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded font-mono">${pkg.tracking_number}</span>
+                        <span class="text-sm text-gray-600">${pkg.customer_name} (${pkg.mailbox_number})</span>
+                    </div>
+                    <div class="flex items-center space-x-2 mt-1">
+                        <span class="text-xs text-gray-500">Status: ${pkg.status || 'Incoming'}</span>
+                        <span class="text-xs text-green-600">✓ Saved</span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="printSingleLabel(${pkg.id})" class="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 flex items-center space-x-1">
+                        <span>🏷️</span>
+                        <span>Print Label</span>
+                    </button>
+                    <button onclick="viewPackageDetails(${pkg.id})" class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 flex items-center space-x-1">
+                        <span>👁️</span>
+                        <span>View</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    trackingList.html(trackingHtml);
+
+    // Scroll to tracking display
+    setTimeout(() => {
+        trackingDisplay[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+}
+
+// Print single package label
+function printSingleLabel(packageId) {
+    const printWindow = window.open(`/labels/single/${packageId}`, '_blank', 'width=800,height=600');
+    printWindow.focus();
+
+    // Auto-print when window loads
+    printWindow.onload = function() {
+        printWindow.print();
+    };
+
+    showToast('Opening label for printing...', 'info');
+}
+
+// Print label for tracking number from preview (before saving)
+function printTrackingLabel(trackingNumber) {
+    const mailboxNumber = $('input[name="mailbox_number"]').val() || '';
+    const customerName = $('input[name="customer_name"]').val() || '';
+    const phoneNumber = $('input[name="phone_number"]').val() || '';
+
+    if (!customerName.trim()) {
+        showToast('Please enter customer name before printing label', 'warning');
+        return;
+    }
+
+    // Create a temporary package object for label printing
+    const tempPackage = {
+        tracking_number: trackingNumber,
+        customer_name: customerName.trim(),
+        mailbox_number: mailboxNumber.trim() || 'N/A',
+        phone_number: phoneNumber.trim() || '',
+        status: 'incoming',
+        created_at: new Date().toISOString()
+    };
+
+    // Use AJAX to get label content and print directly
+    $.ajax({
+        url: '/labels/preview',
+        method: 'POST',
+        data: tempPackage,
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+            // Create a hidden popup window for printing
+            const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+            printWindow.document.write(response);
+            printWindow.document.close();
+
+            // Wait for content to load then print
+            printWindow.onload = function() {
+                printWindow.print();
+                // Close the window after printing
+                setTimeout(function() {
+                    printWindow.close();
+                }, 1000);
+            };
+        },
+        error: function(xhr, status, error) {
+            console.error('Error generating label:', error);
+            showToast('Error generating label. Please try again.', 'error');
+        }
+    });
+
+    showToast(`Generating label for ${trackingNumber}...`, 'info');
+}
+
+// Print all preview labels (before saving)
+function printAllPreviewLabels() {
+    const trackingInput = $('textarea[name="tracking_number"]').val();
+    if (!trackingInput || !trackingInput.trim()) {
+        showToast('No tracking numbers to print', 'warning');
+        return;
+    }
+
+    const customerName = $('input[name="customer_name"]').val();
+    if (!customerName || !customerName.trim()) {
+        showToast('Please enter customer name before printing labels', 'warning');
+        return;
+    }
+
+    const trackingNumbers = trackingInput.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .filter((value, index, self) => self.indexOf(value) === index); // Remove duplicates
+
+    if (trackingNumbers.length === 0) {
+        showToast('No valid tracking numbers found', 'warning');
+        return;
+    }
+
+    const mailboxNumber = $('input[name="mailbox_number"]').val() || '';
+    const phoneNumber = $('input[name="phone_number"]').val() || '';
+
+    // Create package data for multiple labels
+    const packagesData = {
+        packages: trackingNumbers.map(tracking => ({
+            tracking_number: tracking,
+            customer_name: customerName.trim(),
+            mailbox_number: mailboxNumber.trim() || 'N/A',
+            phone_number: phoneNumber.trim() || '',
+            status: 'incoming',
+            created_at: new Date().toISOString()
+        }))
+    };
+
+    // Use AJAX to get multiple labels content and print directly
+
+    $.ajax({
+        url: '/labels/preview-multiple',
+        method: 'POST',
+        data: packagesData,
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+            // Create a new window for printing with proper settings
+            const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+
+            if (!printWindow) {
+                showToast('Please allow popups for this site to print labels', 'error');
+                return;
+            }
+
+            printWindow.document.write(response);
+            printWindow.document.close();
+
+            // Wait for content to load then manually trigger print
+            setTimeout(function() {
+                printWindow.focus();
+                printWindow.print();
+            }, 1500);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error response:', xhr.responseText);
+            console.error('Status:', status);
+            console.error('Error:', error);
+
+            try {
+                const errorData = JSON.parse(xhr.responseText);
+                showToast('Error: ' + (errorData.error || 'Unknown error'), 'error');
+                console.error('Parsed error:', errorData);
+            } catch (e) {
+                showToast('Error generating labels. Please try again.', 'error');
+            }
+        }
+    });
+
+    showToast(`Generating ${trackingNumbers.length} labels for printing...`, 'success');
+}
+
+// Print all labels
+function printAllLabels() {
+    const trackingItems = $('#trackingList .flex');
+    const packageIds = [];
+
+    trackingItems.each(function() {
+        const printBtn = $(this).find('button[onclick*="printSingleLabel"]');
+        const onclick = printBtn.attr('onclick');
+        if (onclick) {
+            const match = onclick.match(/printSingleLabel\((\d+)\)/);
+            if (match) {
+                packageIds.push(match[1]);
+            }
+        }
+    });
+
+    if (packageIds.length === 0) {
+        showToast('No packages available for printing', 'warning');
+        return;
+    }
+
+    // Print each label in sequence with delay to prevent blocking
+    packageIds.forEach((id, index) => {
+        setTimeout(() => {
+            printSingleLabel(id);
+        }, index * 1000); // 1 second delay between each print
+    });
+
+    showToast(`Printing ${packageIds.length} labels...`, 'success');
+}
+
+// View package details
+function viewPackageDetails(packageId) {
+    // You can implement this to show more package details
+    showToast('Package details feature coming soon!', 'info');
+}
+
+// Clear tracking display
+function clearTrackingDisplay() {
+    $('#trackingDisplay').addClass('hidden');
+    $('#trackingPreview').addClass('hidden');
+    $('#trackingList').html('');
+    $('#previewList').html('');
+    $('#printAllLabels').addClass('hidden');
+    $('#trackingInput').val('');
+}
+
+// Event handlers
+$(document).ready(function() {
+    // Clear tracking button
+    $('#clearTracking').click(function() {
+        clearTrackingDisplay();
+    });
+
+    // Print all labels button
+    $('#printAllLabels').click(function() {
+        printAllLabels();
+    });
 });
 
 // Load package details function
@@ -754,8 +1209,6 @@ function togglePackageDetails(mailboxNumber) {
                 return response.json();
             })
             .then(packages => {
-                console.log('Packages received:', packages);
-
                 // Check if it's an error response
                 if (packages.error) {
                     throw new Error(packages.message);
@@ -821,204 +1274,3 @@ function togglePackageDetails(mailboxNumber) {
 </script>
 
 @endsection
-                            </div>
-
-                            <div class="relative w-full">
-                                <!-- Hidden Native Select -->
-                                <select id="packageStat" name="packageStat" class="hidden">
-                                    <option selected data-route="Incoming">Incoming</option>
-                                    <option data-route="Outgoing">Outgoing</option>
-                                </select>
-
-                                <!-- Custom Dropdown Trigger -->
-                                <button id="custom-dropdown-btn" data-stat="Incoming" class="package_stat w-full rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6">
-                                    Incoming
-                                </button>
-
-                                <!-- Dropdown Arrow -->
-                                <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 size-5 text-gray-500 sm:size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                                    <path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
-                                </svg>
-
-                                <!-- Custom Dropdown -->
-                                <ul id="custom-dropdown" class="scanStat absolute z-10 mt-2 hidden w-full rounded-md bg-white shadow-lg transition-all duration-300 ease-in-out">
-                                    <li class="dropdown-item cursor-pointer px-4 py-2 hover:bg-indigo-600 hover:text-white">Incoming</li>
-                                    <li class="dropdown-item cursor-pointer px-4 py-2 hover:bg-indigo-600 hover:text-white">Outgoing</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="px-4 py-5 sm:p-6 place-items-center space-y-2">
-                        <form id="packageForm" class="w-full md:1/2 place-items-center">
-                            @csrf
-                            <div class="rounded-md flex justify-between divide-x divide-gray-300 bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
-                                <div>
-                                    <label for="mailbox" class="block text-xs font-medium text-gray-900">Mailbox #</label>
-                                    <input type="text" name="mailbox" id="mailbox" data-mc="0" data-mb="0" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8" placeholder="0000" oninput="this.value=this.value.replace(/\D/g,'')">
-                                    <small id="mailbox-error" style="color: red;"></small>
-                                </div>
-                                <div class="flex-auto px-2">
-                                    <label for="mailbox" class="block text-xs font-medium text-gray-900">Customer</label>
-                                    <input type="text" name="customer" id="customer" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8" placeholder="Customer Name">
-                                    <small id="customer-error" style="color: red;"></small>
-                                </div>
-                            </div>
-                            <div class="contact-div rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600" style="display: none">
-                                <label for="cnumber" class="block text-xs font-medium text-gray-900">Contact Number</label>
-                                <input type="text" name="cnumber" id="cnumber" min="1" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8" placeholder="000-0000-0000" oninput="this.value=this.value.replace(/\D/g,'')">
-                            </div>
-                            <div class="rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
-                                <label for="pcounter" class="block text-xs font-medium text-gray-900">Number of Packages</label>
-                                <input type="text" name="pcounter" id="pcounter" min="1" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8" placeholder="0" oninput="this.value=this.value.replace(/\D/g,'')" value="0">
-                            </div>
-                            <div class="rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
-                                <label for="track-number" class="block text-xs font-medium text-gray-900">Tracking number #</label>
-                                <input type="text" name="track_number" id="track_number" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8" placeholder="000000000000">
-                            </div>
-                            <div class="rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 mb-3 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
-                                <label for="sms" class="block text-xs font-medium text-gray-900">Custom SMS #</label>
-                                <textarea rows="2" name="sms" id="sms" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8"
-                                    placeholder="Hi, This is Mail All Center, Mountain View. You have a package ready for pickup. Please collect it at your earliest convenience. Thanks!">{{old('description')}}</textarea>
-                            </div>
-                            <div class="lbl-div rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 mb-3 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600" style="display: none">
-                                <label for="custom-lbl" class="block text-xs font-medium text-gray-900">Custom Package Label #</label>
-                                <textarea rows="2" name="lbl" id="lbl" class="block w-full text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-lg/8"
-                                    placeholder="Rent a Mailbox for $15/ month, Avoid Porch Pirates, We accept all packages">{{old('description')}}</textarea>
-                            </div>
-
-                            <div class="rounded-md bg-white px-3 pt-2.5 w-full md:w-1/2 pb-1 mb-3 outline-1 outline-gray-300">
-                                <label class="block text-xs font-medium text-gray-900">Attach or Capture Image</label>
-
-                                <!-- File input for uploads -->
-                                <input type="file" accept="image/*" name="package_images[]" id="package_image" class="mb-2" multiple>
-
-                                <!-- Video stream + canvas -->
-                                <video id="cameraStream" autoplay playsinline class="w-full mb-2 hidden rounded shadow"></video>
-                                <canvas id="snapshot" class="hidden"></canvas>
-
-                                <!-- Control buttons -->
-                                <div class="flex gap-2 mb-2">
-                                    <button type="button" id="startCamera" class="bg-blue-500 text-white px-3 py-1 rounded">📷 Start Camera</button>
-                                    <button type="button" id="captureImage" class="bg-green-500 text-white px-3 py-1 rounded hidden">📸 Capture</button>
-                                    <button type="button" id="cancelCamera" class="bg-red-500 text-white px-3 py-1 rounded hidden">✖ Cancel</button>
-                                </div>
-
-                                <!-- Preview area -->
-                                <div id="imagePreview" class="flex gap-2 mt-2 flex-wrap"></div>
-                            </div>
-
-                            <button type="submit" class="block px-3 pt-2.5 w-full md:w-1/2 pb-1 bg-blue-600 text-white rounded-md py-2.5 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-blue-600">Save and Send SMS</button>
-                            <div class="p-1 bg-gray-900 rounded-md shadow-lg w-full md:w-1/2">
-                                <table class="min-w-full rounded-md divide-y text-white" id="tracking_table">
-                                    <thead>
-                                        <tr>
-                                            <th>Tracking Number</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="trn_count divide-y divide-gray-600" data-total="0">
-
-                                    </tbody>
-                                </table>
-                            </div>
-                        </form>
-                            <div id="loadingScreen" class="fixed inset-0 z-50 bg-black bg-opacity-50 hidden flex items-center justify-center">
-                                <div class="flex flex-col items-center">
-                                <div class="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
-                                <p class="text-white text-lg font-medium">Processing, please wait...</p>
-                                </div>
-                            </div>
-                    </div>
-
-                    <div class="place-items-center space-y-2 md:block">
-                          <div class="bg-gray-900 w-full rounded-md">
-                            <div class="mx-auto max-w-7xl">
-                              <div class="bg-gray-900 py-6 rounded-md">
-                                <div class="px-4 sm:px-6 lg:px-8">
-                                  <div class="sm:flex sm:items-center">
-                                    <div class="sm:flex-auto">
-                                      <h1 class="text-base font-semibold text-white">Mail All Center</h1>
-                                      <p class="my-2 text-sm text-gray-300">Clients Information</p>
-                                    </div>
-                                  </div>
-                                  <div class="mt-2 flow-root">
-                                    <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-                                      <div class="inline-block min-w-full align-middle sm:px-6 lg:px-8 max-h-screen overflow-y-auto">
-                                        @if(!empty($data))
-                                            <table class="min-w-full divide-y divide-gray-700" id="clientTable">
-                                                <thead class="sticky top-0">
-                                                    <tr>
-                                                    @foreach($data[6] as $header => $value)
-                                                        <th scope="col" class="pr-3 pl-4 text-left text-sm font-semibold bg-gray-900 text-white sm:pl-0">{{ ucfirst($value) }}</th>
-                                                    @endforeach
-                                                        <th scope="col" class="pr-3 pl-4 text-left text-sm font-semibold bg-gray-900 text-white sm:pl-0">Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="divide-y divide-gray-800">
-                                                    @foreach(array_slice($data,7) as $row)
-                                                        <tr>
-                                                        @foreach($row as $index => $cell)
-                                                            <td class="mailbox py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-white sm:pl-0">
-                                                                @php $disabled = $row[0] ? 'disabled' : '';
-                                                                  switch ($index) {
-                                                                    case 4:
-                                                                        $inputType = 'tel'; // contact number
-                                                                        break;
-                                                                    case 5:
-                                                                    case 7:
-                                                                        $inputType = 'date'; // specific date fields
-                                                                        break;
-                                                                    case 8:
-                                                                        $inputType = 'email'; // email
-                                                                        break;
-                                                                    default:
-                                                                        $inputType = 'text'; // all others
-                                                                 }
-                                                                 if ($inputType === 'date') {
-                                                                        $timestamp = strtotime($cell);
-                                                                        $inputValue = ($timestamp && trim($cell) !== '') ? date('Y-m-d', $timestamp) : '';
-                                                                    } else {
-                                                                        $inputValue = $cell;
-                                                                }
-                                                                @endphp
-                                                                <input type="{{ $inputType }}" value="{{ $inputValue }}" class="edit-info w-full border-0 rounded-sm z-50" {{ $disabled }} data-index="{{ $index }}" data-raw="{{ $cell }}">
-                                                            </td>
-                                                        @endforeach
-                                                            <td class="mailbox py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-white sm:pl-0 flex space-x-2">
-                                                                <a href="#" class="edit-{{ $row[0] }}">
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 hover:text-blue-500 cursor-pointer">
-                                                                        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                                                    </svg>
-                                                                </a>
-                                                                <a href="#" class="save-edit" hidden>
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 hover:text-blue-500 cursor-pointer text-green-500">
-                                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                                                    </svg>
-                                                                </a>
-                                                                <a href="#" class="cancel-edit" hidden>
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 hover:text-blue-500 cursor-pointer text-red-500" >
-                                                                        <path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                                                      </svg>
-                                                                </a>
-                                                            </td>
-                                                        </tr>
-                                                    @endforeach
-                                            <!-- More people... -->
-                                                </tbody>
-                                            </table>
-                                        @endif
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                    </div>
-                </form>
-                </div>
-            </div>
-            {{-- @include('sms.inbox') --}}
-            @include('sms.inbox', ['receivedMessages' => $receivedMessages, 'sentMessages' => $sentMessages])
-        </main>
-    @endsection

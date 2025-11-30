@@ -54,6 +54,8 @@ Route::post('/updatePackageStatus', [PackageController::class, 'updateStatus'])-
 // Storage label printing routes
 Route::get('/labels', [LabelController::class, 'index'])->middleware(['auth'])->name('labels.index');
 Route::get('/labels/single/{id}', [LabelController::class, 'generateSingle'])->middleware(['auth'])->name('labels.single');
+Route::post('/labels/preview', [LabelController::class, 'generatePreview'])->middleware(['auth'])->name('labels.preview');
+Route::post('/labels/preview-multiple', [LabelController::class, 'generatePreviewMultiple'])->middleware(['auth'])->name('labels.preview-multiple');
 
 // Company management routes (requires authentication)
 Route::middleware(['auth'])->group(function () {
