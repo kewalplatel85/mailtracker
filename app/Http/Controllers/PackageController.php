@@ -115,7 +115,7 @@ class PackageController extends BaseController
 
             return response()->json($result);
         } catch (\Exception $e) {
-            \Log::error('Error fetching packages by mailbox: ' . $e->getMessage());
+            Log::error('Error fetching packages by mailbox: ' . $e->getMessage());
             return response()->json([
                 'error' => true,
                 'message' => 'Failed to fetch packages: ' . $e->getMessage()

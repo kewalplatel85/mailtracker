@@ -63,6 +63,17 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
         Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
         Route::get('/health-check', [AdminController::class, 'healthCheck'])->name('health-check');
+        Route::get('/users', [AdminController::class, 'users'])->name('users');
+        Route::get('/companies', [AdminController::class, 'companies'])->name('companies');
+        Route::get('/package-analytics', [AdminController::class, 'packageAnalytics'])->name('package-analytics');
+        Route::get('/system-alerts', [AdminController::class, 'getSystemAlerts'])->name('system-alerts');
+        Route::post('/maintenance', [AdminController::class, 'maintenance'])->name('maintenance');
+        Route::post('/create-user', [AdminController::class, 'createUser'])->name('create-user');
+        Route::put('/users/{user}/role', [AdminController::class, 'updateUserRole'])->name('update-user-role');
+        Route::delete('/users/{user}', [AdminController::class, 'deleteUser'])->name('delete-user');
+        Route::post('/create-company', [AdminController::class, 'createCompany'])->name('create-company');
+        Route::put('/companies/{company}/status', [AdminController::class, 'updateCompanyStatus'])->name('update-company-status');
+        Route::post('/bulk-package-operation', [AdminController::class, 'bulkPackageOperation'])->name('bulk-package-operation');
     });
 
     // Company routes
