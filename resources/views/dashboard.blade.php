@@ -471,6 +471,7 @@
                     <select id="messageTemplate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                         <option value="">Select a template...</option>
                         <option value="package_ready">📦 Package Ready for Pickup</option>
+                        <option value="mail_notification">📬 Mail Notification</option>
                         <option value="payment_reminder">💰 Payment Reminder</option>
                         <option value="account_update">📋 Account Update Required</option>
                         <option value="office_hours">🕒 Office Hours Notice</option>
@@ -2261,6 +2262,9 @@ function updateMessageTemplate() {
     switch(template) {
         case 'package_ready':
             message = `Hi ${customerName}, you have a package ready for pickup at Mail All Center. Please bring your ID. Thank you!`;
+            break;
+        case 'mail_notification':
+            message = `Hi ${customerName}, you got a mail in your mailbox.`;
             break;
         case 'payment_reminder':
             message = `Hi ${customerName}, this is a reminder about your outstanding balance. Please visit us to update your account. Thank you.`;
