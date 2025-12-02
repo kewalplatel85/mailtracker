@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Twilio\Rest\Client;
+use Twilio\Exceptions\TwilioException;
 use App\Models\Package;
 use Illuminate\Routing\Controller as BaseController;
 
@@ -56,7 +57,7 @@ class PackageController extends BaseController
             $currentCompanyId = session('current_company_id') ?? (Auth::check() ? Auth::user()->company_id : null);
 
             $packagesQuery = Package::where('mailbox_number', $mailboxNumber)
-                ->whereIn('status', ['Incoming', 'Ready for Pickup', 'Picked Up'])
+                ->where('status', 'Ready for Pickup')
                 ->orderBy('created_at', 'desc');
 
             // Filter by company if we have a company context
@@ -289,6 +290,9 @@ class PackageController extends BaseController
                 'picked_up_at' => now(),
             ]);
 
+            // Send SMS notification if phone number is available
+            $this->sendBulkPickupSMS(collect([$package]));
+
             return response()->json([
                 'success' => true,
                 'message' => 'Package marked as picked up successfully',
@@ -335,6 +339,16 @@ class PackageController extends BaseController
                     'picked_up_at' => now(),
                 ]);
 
+            // Group packages by customer for SMS notifications
+            $customerGroups = $packages->groupBy(function ($package) {
+                return $package->customer_name . '|' . $package->phone_number;
+            });
+
+            // Send grouped SMS notifications
+            foreach ($customerGroups as $groupKey => $customerPackages) {
+                $this->sendBulkPickupSMS($customerPackages);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => "{$updatedCount} packages marked as picked up successfully",
@@ -345,6 +359,53 @@ class PackageController extends BaseController
         } catch (\Exception $e) {
             Log::error('Error bulk marking packages as picked up: ' . $e->getMessage());
             return response()->json(['error' => true, 'message' => 'Failed to update package statuses'], 500);
+        }
+    }
+
+    /**
+     * Send SMS notification when packages are picked up (supports single or multiple packages for same customer)
+     */
+    private function sendBulkPickupSMS($packages)
+    {
+        $firstPackage = $packages->first();
+
+        if (!$firstPackage->phone_number || !$firstPackage->customer_name) {
+            return;
+        }
+
+        try {
+            // Clean phone number format
+            $cleanPhone = preg_replace('/\D/', '', $firstPackage->phone_number);
+            if (strlen($cleanPhone) < 10) {
+                return; // Invalid phone number
+            }
+
+            if (strlen($cleanPhone) == 10) {
+                $cleanPhone = "+1{$cleanPhone}";
+            } elseif (!str_starts_with($cleanPhone, '+')) {
+                $cleanPhone = "+{$cleanPhone}";
+            }
+
+            // Create pickup message with all tracking numbers
+            $trackingNumbers = $packages->pluck('tracking_number')->filter()->toArray();
+            $message = "Hi {$firstPackage->customer_name}, thanks for picking up your package";
+
+            if (count($trackingNumbers) > 1) {
+                $message .= "s, " . implode(', ', $trackingNumbers);
+            } elseif (count($trackingNumbers) == 1) {
+                $message .= ", " . $trackingNumbers[0];
+            }
+            $message .= ".";
+
+            // Send SMS using Twilio
+            $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
+            $twilio->messages->create($cleanPhone, [
+                'from' => env('TWILIO_PHONE_NUMBER'),
+                'body' => $message
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send pickup SMS: ' . $e->getMessage());
         }
     }
 

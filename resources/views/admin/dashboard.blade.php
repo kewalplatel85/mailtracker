@@ -1744,5 +1744,15 @@ function createToastContainer() {
     document.body.appendChild(container);
     return container;
 }
+
+// Initialize empty customer data for SMS autocomplete on admin pages
+window.customersData = [];
+
+// Initialize SMS autocomplete when page loads
+$(document).ready(function() {
+    if (typeof initializeSMSAutocomplete === 'function') {
+        initializeSMSAutocomplete();
+    }
+});
 </script>
 @endsection

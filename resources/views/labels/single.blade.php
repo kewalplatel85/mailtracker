@@ -169,4 +169,16 @@
     </div>
 </main>
 
+<script>
+// Initialize empty customer data for SMS autocomplete on label pages
+window.customersData = [];
+
+// Initialize SMS autocomplete when page loads
+$(document).ready(function() {
+    if (typeof initializeSMSAutocomplete === 'function') {
+        initializeSMSAutocomplete();
+    }
+});
+</script>
+
 @endsection
