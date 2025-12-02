@@ -291,7 +291,7 @@ class PackageController extends BaseController
             ]);
 
             // Send SMS notification if phone number is available
-            $this->sendPickupSMS($package);
+            $this->sendBulkPickupSMS(collect([$package]));
 
             return response()->json([
                 'success' => true,
@@ -339,9 +339,14 @@ class PackageController extends BaseController
                     'picked_up_at' => now(),
                 ]);
 
-            // Send SMS notifications for all picked up packages
-            foreach ($packages as $package) {
-                $this->sendPickupSMS($package);
+            // Group packages by customer for SMS notifications
+            $customerGroups = $packages->groupBy(function ($package) {
+                return $package->customer_name . '|' . $package->phone_number;
+            });
+
+            // Send grouped SMS notifications
+            foreach ($customerGroups as $groupKey => $customerPackages) {
+                $this->sendBulkPickupSMS($customerPackages);
             }
 
             return response()->json([
@@ -358,17 +363,19 @@ class PackageController extends BaseController
     }
 
     /**
-     * Send SMS notification when package is picked up
+     * Send SMS notification when packages are picked up (supports single or multiple packages for same customer)
      */
-    private function sendPickupSMS($package)
+    private function sendBulkPickupSMS($packages)
     {
-        if (!$package->phone_number || !$package->customer_name) {
+        $firstPackage = $packages->first();
+
+        if (!$firstPackage->phone_number || !$firstPackage->customer_name) {
             return;
         }
 
         try {
             // Clean phone number format
-            $cleanPhone = preg_replace('/\D/', '', $package->phone_number);
+            $cleanPhone = preg_replace('/\D/', '', $firstPackage->phone_number);
             if (strlen($cleanPhone) < 10) {
                 return; // Invalid phone number
             }
@@ -379,10 +386,14 @@ class PackageController extends BaseController
                 $cleanPhone = "+{$cleanPhone}";
             }
 
-            // Create pickup message
-            $message = "Hi {$package->customer_name}, thanks for picking up your package";
-            if ($package->tracking_number) {
-                $message .= ", {$package->tracking_number}";
+            // Create pickup message with all tracking numbers
+            $trackingNumbers = $packages->pluck('tracking_number')->filter()->toArray();
+            $message = "Hi {$firstPackage->customer_name}, thanks for picking up your package";
+
+            if (count($trackingNumbers) > 1) {
+                $message .= "s, " . implode(', ', $trackingNumbers);
+            } elseif (count($trackingNumbers) == 1) {
+                $message .= ", " . $trackingNumbers[0];
             }
             $message .= ".";
 
