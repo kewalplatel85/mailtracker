@@ -72,6 +72,18 @@ class MessageController extends Controller
         }
     }
 
+    // Public method to get received messages for the component
+    public function getReceivedMessages()
+    {
+        return $this->fetchMessagesFromTwilio('inbound');
+    }
+
+    // Public method to get sent messages for the component
+    public function getSentMessages()
+    {
+        return $this->fetchMessagesFromTwilio('outbound-api');
+    }
+
     // Fetch messages from Twilio (inbound or outbound)
     private function fetchMessagesFromTwilio($direction)
     {

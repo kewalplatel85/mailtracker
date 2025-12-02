@@ -2283,6 +2283,22 @@ function updateMessageTemplate() {
     $('#messageContent').val(message);
     updateCharacterCount();
 }
+
+// Initialize customer data for SMS autocomplete
+window.customersData = @json($data ?? []).map(function(row) {
+    return {
+        mailbox: row[0] || '',
+        customer: row[1] || '',
+        phone: row[2] || ''
+    };
+});
+
+// Initialize SMS autocomplete when page loads
+$(document).ready(function() {
+    if (typeof initializeSMSAutocomplete === 'function') {
+        initializeSMSAutocomplete();
+    }
+});
 </script>
 
 @endsection
