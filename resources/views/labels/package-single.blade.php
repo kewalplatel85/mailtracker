@@ -5,7 +5,7 @@
 <style>
     @page {
         size: 4in 6in;
-        margin: 0.1in;
+        margin: 0;
         -webkit-print-color-adjust: exact;
         color-adjust: exact;
         print-color-adjust: exact;
@@ -14,7 +14,7 @@
     @media print {
         @page {
             size: 4in 6in !important;
-            margin: 0.1in !important;
+            margin: 0 !important;
         }
         * {
             -webkit-print-color-adjust: exact !important;
@@ -60,13 +60,13 @@
 
         .label-item {
             margin: 0;
-            width: 3.8in;
-            height: 5.8in;
+            width: 4in;
+            height: 6in;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             align-items: center;
-            border: 2px solid #000;
+            border: 1px solid #000;
             padding: 0.15in;
             text-align: center;
             background: white;
@@ -132,7 +132,8 @@
         }
 
         .mailbox-info {
-            font-size: 16pt;
+            font-size: 36pt;
+            font-weight: bold;
             color: #000;
             margin-bottom: 4pt;
         }
@@ -164,7 +165,7 @@
         }
 
         .barcode-section {
-            margin: 5pt 0 15pt 0;
+            margin: 2pt 0 8pt 0;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -173,23 +174,23 @@
         }
 
         .barcode-section svg {
-            width: 2.8in !important;
-            height: 0.8in !important;
-            max-width: 100% !important;
+            width: 1.8in !important;
+            height: 0.4in !important;
+            max-width: 75% !important;
             print-color-adjust: exact !important;
         }
     }
 
     /* Screen styles */
     .label-item {
-        width: 4in;
-        height: 6in;
+        width: 400px;
+        height: 600px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         align-items: center;
-        border: 2px solid #000;
-        padding: 0.2in;
+        border: 1px solid #000;
+        padding: 15px;
         text-align: center;
         background: white;
         box-sizing: border-box;
@@ -255,7 +256,8 @@
     }
 
     .mailbox-info {
-        font-size: 20px;
+        font-size: 48px;
+        font-weight: bold;
         color: #000;
         margin-bottom: 6px;
     }
@@ -295,9 +297,9 @@
     }
 
     .barcode-section svg {
-        width: 280px;
-        height: 60px;
-        max-width: 100%;
+        width: 180px;
+        height: 40px;
+        max-width: 75%;
     }
 </style>
 
@@ -357,9 +359,9 @@
                 <!-- Barcode Section -->
                 <div class="barcode-section">
                     @if(class_exists('Milon\Barcode\Facades\DNS1DFacade'))
-                        {!! \Milon\Barcode\Facades\DNS1DFacade::getBarcodeHTML($package->tracking_number, 'C128', 2.5, 80) !!}
+                        {!! \Milon\Barcode\Facades\DNS1DFacade::getBarcodeHTML($package->tracking_number, 'C128', 1.5, 60) !!}
                     @else
-                        <div style="height: 80px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-family: monospace; font-size: 24px; background: #fff; color: #000;">
+                        <div style="height: 60px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-family: monospace; font-size: 20px; background: #fff; color: #000;">
                             *{{ $package->tracking_number }}*
                         </div>
                     @endif
