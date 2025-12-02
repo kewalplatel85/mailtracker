@@ -219,17 +219,26 @@ class DashboardController extends Controller
             }
         }
 
-        // Send SMS if customer phone is provided and SMS message is set
-        $smsResult = ['sent' => false, 'message' => 'No SMS message provided'];
+        // Send SMS if customer phone is provided
+        $smsResult = ['sent' => false, 'message' => 'No phone number found'];
 
-        if ($customerPhone && $request->sms_message) {
+        // Debug logging to understand why SMS is not sending
+        Log::info("SMS Debug - customerPhone: " . ($customerPhone ?? 'null'));
+        Log::info("SMS Debug - sms_message: " . ($request->sms_message ?? 'null'));
+        Log::info("SMS Debug - mailbox: " . ($mailbox ?? 'null'));
+
+        if ($customerPhone) {
+            // Use default message if SMS message is empty or null
+            $defaultMessage = "HI {$request->customer_name}, this Mail All center, You have a package ready for pick up. thanks.!";
+            $smsMessage = !empty($request->sms_message) ? $request->sms_message : $defaultMessage;
+
+            Log::info("SMS Debug - Using message: " . $smsMessage);
             // Validate phone number length
             if (strlen($customerPhone) < 10) {
                 $smsResult = ['sent' => false, 'message' => 'Invalid phone number format (too short)'];
-                Log::warning("Invalid phone number for mailbox {$mailbox}: {$customerPhone}");
             } else {
                 $trackingList = implode(", ", array_filter($trackingNumbers));
-                $smsBody = $request->sms_message;
+                $smsBody = $smsMessage;
 
                 // Add tracking numbers to SMS if available
                 if (!empty($trackingList)) {
@@ -253,7 +262,6 @@ class DashboardController extends Controller
                     ]);
 
                     $smsResult = ['sent' => true, 'message' => "SMS sent to {$cleanPhone} (found in {$phoneSource})"];
-                    Log::info("SMS sent successfully to {$cleanPhone}: {$smsBody}");
 
                 } catch (TwilioException $e) {
                     $smsResult = ['sent' => false, 'message' => 'Twilio error: ' . $e->getMessage()];
