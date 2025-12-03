@@ -1613,9 +1613,16 @@ function updateTrackingPreviewWithValidation(validTrackings, invalidTrackings) {
         updateTrackingPreview(validTrackings);
         $('#trackingPreview').removeClass('hidden');
 
-        // ALWAYS update textarea to only contain valid tracking numbers
-        // This removes only invalid trackings while keeping valid ones
-        $('textarea[name="tracking_number"]').val(validTrackings.join('\n'));
+        // Only update textarea content if there are invalid trackings to remove
+        // This prevents cursor position reset when user is typing valid trackings
+        if (invalidTrackings.length > 0) {
+            const textarea = $('textarea[name="tracking_number"]')[0];
+            const cursorPosition = textarea.selectionStart;
+            textarea.value = validTrackings.join('\n');
+            // Restore cursor position or put it at the end
+            const newPosition = Math.min(cursorPosition, textarea.value.length);
+            textarea.setSelectionRange(newPosition, newPosition);
+        }
 
         // Hide errors if we have valid trackings and no invalid ones
         if (invalidTrackings.length === 0) {
