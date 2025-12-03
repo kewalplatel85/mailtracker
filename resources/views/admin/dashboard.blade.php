@@ -1,6 +1,10 @@
 @extends('layouts.app')
 @section('title', 'Admin Dashboard')
 
+@section('head')
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+@endsection
+
 @section('content')
 <div class="min-h-screen bg-gray-50 py-6">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -712,7 +716,7 @@ async function loadUserManagement() {
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
                                 <input type="password" name="password_confirmation" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
                             </div>
-                            ${{{ Auth::user()->is_super_admin ? 'true' : 'false' }} ? `
+                            @if(Auth::user()->is_super_admin)
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
                                 <select name="company_id" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
@@ -730,7 +734,7 @@ async function loadUserManagement() {
                                     <option value="user">User</option>
                                 </select>
                             </div>
-                            ` : `
+                            @else
                             <input type="hidden" name="company_id" value="{{ Auth::user()->company_id }}">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
@@ -742,9 +746,9 @@ async function loadUserManagement() {
                             <div class="text-sm text-gray-600 pt-2">
                                 <strong>Company:</strong> {{ Auth::user()->company->name ?? 'No Company' }}
                             </div>
-                            `}
+                            @endif
                         </div>
-                        ${{{ Auth::user()->is_super_admin ? 'true' : 'false' }} ? `
+                        @if(Auth::user()->is_super_admin)
                         <div class="mt-4">
                             <div class="flex items-center">
                                 <input type="checkbox" name="is_super_admin" id="is_super_admin" class="mr-2">
@@ -752,7 +756,7 @@ async function loadUserManagement() {
                                 <span class="ml-2 text-xs text-gray-500">(Overrides role selection)</span>
                             </div>
                         </div>
-                        ` : ''}
+                        @endif
                         <div class="mt-4 flex gap-2">
                             <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Create User</button>
                             <button type="button" onclick="hideCreateUserForm()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Cancel</button>
@@ -911,13 +915,13 @@ async function loadUserManagement() {
                                             <td class="py-2 font-medium">${user.name}</td>
                                             <td class="py-2">${user.email}</td>
                                             <td class="py-2">
-                                                ${user.is_super_admin ?
-                                                    '<span class="text-sm text-gray-600">No Company</span>' :
+                                                ${user.company ? 
                                                     `<select onchange="updateUserCompany(${user.id}, this.value)" class="text-xs border rounded px-1 py-1 bg-gray-50">
                                                         ${companiesData.companies.filter(c => c.status === 'active').map(company => `
                                                             <option value="${company.id}" ${user.company === company.name ? 'selected' : ''}>${company.name}</option>
                                                         `).join('')}
-                                                    </select>`
+                                                    </select>` :
+                                                    '<span class="text-sm text-gray-600">No Company</span>'
                                                 }
                                             </td>
                                             <td class="py-2">

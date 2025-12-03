@@ -438,7 +438,8 @@ class AdminController extends BaseController
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'company' => $user->company->name ?? 'No Company',
+                    'company' => $user->company ? $user->company->name : 'No Company',
+                    'company_id' => $user->company_id,
                     'is_super_admin' => $user->is_super_admin,
                     'role' => $roleName,
                     'last_login' => $user->last_login_at ? Carbon::parse($user->last_login_at)->diffForHumans() : 'Never',
@@ -611,10 +612,28 @@ class AdminController extends BaseController
         ]);
 
         try {
-            // Only update super admin status, preserve company assignment
-            $user->update([
-                'is_super_admin' => $request->boolean('is_super_admin')
-            ]);
+            $isSuperAdmin = $request->boolean('is_super_admin');
+            $user->is_super_admin = $isSuperAdmin;
+            $user->save();
+            
+            // If unchecking super admin and user has a company but no role, assign admin role
+            if (!$isSuperAdmin && $user->company_id) {
+                $hasRole = $user->userRoles()
+                    ->where('company_id', $user->company_id)
+                    ->where('is_active', true)
+                    ->exists();
+                    
+                if (!$hasRole) {
+                    // Find admin role for this company
+                    $adminRole = \App\Models\Role::where('slug', 'admin')
+                        ->where('company_id', $user->company_id)
+                        ->first();
+                        
+                    if ($adminRole) {
+                        $user->assignRole($adminRole, $user->company_id);
+                    }
+                }
+            }
 
             return response()->json([
                 'success' => true,
@@ -623,7 +642,7 @@ class AdminController extends BaseController
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update user role: ' . $e->getMessage()
+                'message' => 'Failed to update user status: ' . $e->getMessage()
             ], 500);
         }
     }

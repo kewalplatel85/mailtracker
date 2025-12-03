@@ -47,8 +47,11 @@
                         @if(Auth::user()->isSuperAdmin())
                         <div class="flex items-center space-x-2 mr-4">
                             <select id="companySwitcher" class="px-2 py-1 text-xs border border-gray-600 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">{{ Auth::user()->company ? Auth::user()->company->name : 'Select Company' }}</option>
-                                @foreach(\App\Models\Company::where('status', 'active')->get() as $company)
+                                <option value="">Select Company</option>
+                                @php
+                                    $companies = \App\Models\Company::where('status', 'active')->distinct()->orderBy('name')->get();
+                                @endphp
+                                @foreach($companies as $company)
                                     <option value="{{ $company->id }}"
                                             {{ session('current_company_id') == $company->id ? 'selected' : '' }}>
                                         {{ $company->name }}
