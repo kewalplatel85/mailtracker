@@ -29,16 +29,40 @@
                             <div class="text-right">
                                 <div class="text-sm font-medium text-white">{{ Auth::user()->name ?? 'User' }}</div>
                                 <div class="text-xs text-gray-300">
-                                    @if(Auth::user()->company)
-                                        {{ Auth::user()->company->name }}
-                                    @endif
-                                    @if(Auth::user()->isCompanyAdmin())
-                                        <span class="ml-1 text-blue-300">• Admin</span>
-                                    @elseif(Auth::user()->isSuperAdmin())
-                                        <span class="ml-1 text-purple-300">• Super Admin</span>
-                                    @else
-                                        <span class="ml-1 text-green-300">• User</span>
-                                    @endif
+                                    @php
+                                        $user = Auth::user();
+                                        $currentCompanyId = session('current_company_id') ?? $user->company_id;
+                                        $companyName = 'No Company';
+
+                                        if ($user->is_super_admin) {
+                                            if ($currentCompanyId) {
+                                                $currentCompany = \App\Models\Company::find($currentCompanyId);
+                                                $companyName = $currentCompany ? $currentCompany->name : 'Unknown Company';
+                                            } else {
+                                                $companyName = 'Select Company';
+                                            }
+                                        } elseif ($user->company) {
+                                            $companyName = $user->company->name;
+                                        }
+
+                                        // Determine role display with better logic
+                                        $roleDisplay = 'User';
+                                        $roleColor = 'text-green-300';
+
+                                        if ($user->is_super_admin) {
+                                            $roleDisplay = 'Super Admin';
+                                            $roleColor = 'text-purple-300';
+                                        } else {
+                                            // Check if user has admin role in their company or current company context
+                                            $checkCompanyId = $currentCompanyId ?: $user->company_id;
+                                            if ($checkCompanyId && $user->isCompanyAdmin($checkCompanyId)) {
+                                                $roleDisplay = 'Admin';
+                                                $roleColor = 'text-blue-300';
+                                            }
+                                        }
+                                    @endphp
+                                    {{ $companyName }}
+                                    <span class="ml-1 {{ $roleColor }}">• {{ $roleDisplay }}</span>
                                 </div>
                             </div>
                         </div>

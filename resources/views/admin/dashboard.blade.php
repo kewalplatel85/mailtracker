@@ -194,6 +194,7 @@ async function loadDashboardStats() {
         const data = await response.json();
 
         const statsHtml = `
+            ${ {{ Auth::user()->is_super_admin ? 'true' : 'false' }} ? `
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
@@ -204,7 +205,7 @@ async function loadDashboardStats() {
                         <p class="text-2xl font-semibold text-gray-900">${data.stats.company_stats?.total_companies || 0}</p>
                     </div>
                 </div>
-            </div>
+            </div>` : ''}
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
@@ -383,12 +384,12 @@ async function loadReports() {
                 <div>
                     <h4 class="font-medium text-gray-900 mb-3">Package Status Distribution</h4>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        ${Object.entries(data.statusDistribution).map(([status, count]) => `
+                        ${data.statusDistribution && Object.entries(data.statusDistribution).map(([status, count]) => `
                             <div class="bg-white border rounded-lg p-4">
                                 <h5 class="text-sm font-medium text-gray-600">${status}</h5>
                                 <p class="text-2xl font-bold text-gray-900">${count}</p>
                             </div>
-                        `).join('')}
+                        `).join('') || '<div class="text-gray-500">No status data available</div>'}
                     </div>
                 </div>
             </div>
@@ -555,12 +556,12 @@ async function loadPackageAnalytics() {
                 <div class="mb-6">
                     <h4 class="font-medium text-gray-900 mb-3">Package Status Distribution</h4>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        ${Object.entries(data.statusDistribution).map(([status, count]) => `
+                        ${data.statusDistribution && Object.entries(data.statusDistribution).map(([status, count]) => `
                             <div class="bg-white border rounded-lg p-4">
                                 <h5 class="text-sm font-medium text-gray-600">${status}</h5>
                                 <p class="text-2xl font-bold text-blue-600">${count}</p>
                             </div>
-                        `).join('')}
+                        `).join('') || '<div class="text-gray-500">No status data available</div>'}
                     </div>
                 </div>
 
@@ -751,8 +752,8 @@ async function loadUserManagement() {
                         @if(Auth::user()->is_super_admin)
                         <div class="mt-4">
                             <div class="flex items-center">
-                                <input type="checkbox" name="is_super_admin" id="is_super_admin" class="mr-2">
-                                <label for="is_super_admin" class="text-sm font-medium text-gray-700">Super Admin</label>
+                                <input type="checkbox" name="is_super_admin" id="create_is_super_admin" class="mr-2">
+                                <label for="create_is_super_admin" class="text-sm font-medium text-gray-700">Super Admin</label>
                                 <span class="ml-2 text-xs text-gray-500">(Overrides role selection)</span>
                             </div>
                         </div>
@@ -805,13 +806,15 @@ async function loadUserManagement() {
                                 </select>
                             </div>
                         </div>
+                        @if(Auth::user()->is_super_admin)
                         <div class="mt-4">
                             <div class="flex items-center">
-                                <input type="checkbox" name="is_super_admin" id="is_super_admin" class="mr-2">
-                                <label for="is_super_admin" class="text-sm font-medium text-gray-700">Super Admin</label>
+                                <input type="checkbox" name="is_super_admin" id="edit_is_super_admin" class="mr-2">
+                                <label for="edit_is_super_admin" class="text-sm font-medium text-gray-700">Super Admin</label>
                                 <span class="ml-2 text-xs text-gray-500">(Overrides role selection)</span>
                             </div>
                         </div>
+                        @endif
                         <div class="mt-4 flex gap-2">
                             <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Create User</button>
                             <button type="button" onclick="hideCreateUserForm()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Cancel</button>
@@ -903,7 +906,9 @@ async function loadUserManagement() {
                                         <th class="text-left py-2">Email</th>
                                         <th class="text-left py-2">Company</th>
                                         <th class="text-left py-2">Role</th>
+                                        @if(Auth::user()->is_super_admin)
                                         <th class="text-center py-2">Super Admin</th>
+                                        @endif
                                         <th class="text-right py-2">Last Login</th>
                                         <th class="text-right py-2">Created</th>
                                         <th class="text-center py-2">Actions</th>
@@ -915,7 +920,7 @@ async function loadUserManagement() {
                                             <td class="py-2 font-medium">${user.name}</td>
                                             <td class="py-2">${user.email}</td>
                                             <td class="py-2">
-                                                ${user.company ? 
+                                                ${user.company ?
                                                     `<select onchange="updateUserCompany(${user.id}, this.value)" class="text-xs border rounded px-1 py-1 bg-gray-50">
                                                         ${companiesData.companies.filter(c => c.status === 'active').map(company => `
                                                             <option value="${company.id}" ${user.company === company.name ? 'selected' : ''}>${company.name}</option>
@@ -938,9 +943,11 @@ async function loadUserManagement() {
                                                     </select>`
                                                 }
                                             </td>
+                                            @if(Auth::user()->is_super_admin)
                                             <td class="text-center py-2">
                                                 <input type="checkbox" ${user.is_super_admin ? 'checked' : ''} onchange="updateUserRole(${user.id}, this.checked)" class="rounded">
                                             </td>
+                                            @endif
                                             <td class="text-right py-2 text-xs text-gray-500">${user.last_login}</td>
                                             <td class="text-right py-2 text-xs text-gray-500">${user.created_at}</td>
                                             <td class="text-center py-2">
@@ -1208,7 +1215,7 @@ async function deleteUser(userId) {
 // Function to update regular user roles (not super admin)
 async function updateUserRegularRole(userId, role) {
     try {
-        const response = await fetch(`{{ url('admin/users') }}/${userId}/assign-role`, {
+        const response = await fetch(`{{ url('/admin/users') }}/${userId}/assign-role`, {
             method: 'PUT',
             headers: {
                 'Accept': 'application/json',
@@ -1223,6 +1230,8 @@ async function updateUserRegularRole(userId, role) {
 
         if (data.success) {
             showToast('User role updated successfully!', 'success');
+            // Refresh user list to show updated role
+            loadUserManagement();
         } else {
             showToast('Error: ' + data.message, 'error');
             // Revert dropdown
@@ -1321,7 +1330,9 @@ async function updateUserCompany(userId, companyId) {
         const data = await response.json();
 
         if (data.success) {
-            showToast('User company updated successfully!', 'success');
+            showToast('User company updated successfully! Role reset to User.', 'success');
+            // Refresh user list to show updated role assignments
+            loadUserManagement();
         } else {
             showToast('Error: ' + data.message, 'error');
             loadUserManagement();

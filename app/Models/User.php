@@ -184,11 +184,22 @@ class User extends Authenticatable
      */
     public function isCompanyAdmin(?int $companyId = null): bool
     {
+        // Super admins are always company admins
+        if ($this->is_super_admin) {
+            return true;
+        }
+
         $companyId = $companyId ?? $this->company_id;
+
+        // If no company ID, user cannot be company admin
+        if (!$companyId) {
+            return false;
+        }
+
         $roles = $this->rolesInCompany($companyId)->get();
 
         return $roles->contains(function($role) {
-            return $role->name === 'Company Admin' || $role->hasPermission('company.manage');
+            return $role->name === 'Company Admin' || $role->name === 'Admin' || $role->hasPermission('company.manage');
         });
     }
 

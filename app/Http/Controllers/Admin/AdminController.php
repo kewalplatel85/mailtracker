@@ -62,11 +62,11 @@ class AdminController extends BaseController
     private function getSystemStats()
     {
         $user = Auth::user();
-        
+
         if ($user->is_super_admin) {
             // Super admin sees global stats
             $companyId = session('current_company_id');
-            
+
             if ($companyId) {
                 // Show selected company's stats
                 $totalUsers = User::where('company_id', $companyId)->count();
@@ -89,7 +89,7 @@ class AdminController extends BaseController
                 $pickedUpPackages = Package::where('status', 'Picked Up')->count();
                 $archivedPackages = Package::where('status', 'Archived')->count();
             }
-            
+
             $totalCompanies = Company::where('status', 'active')->count();
         } else {
             // Company admin sees only their company's stats
@@ -106,7 +106,7 @@ class AdminController extends BaseController
         }
 
         // Workflow statistics
-        $workflowStats = $this->workflowService->getWorkflowStats();
+        $workflowStats = $this->workflowService->getWorkflowStats($companyId);
 
         return [
             'company_stats' => [
@@ -120,7 +120,7 @@ class AdminController extends BaseController
             'archived_packages' => $archivedPackages,
             'recent_packages' => $recentPackages,
             'workflow_stats' => $workflowStats,
-            'aging_packages' => $this->workflowService->getAgingPackages()->count(),
+            'aging_packages' => $this->workflowService->getAgingPackages(7, $companyId)->count(),
         ];
     }
 
@@ -129,56 +129,109 @@ class AdminController extends BaseController
      */
     public function reports()
     {
+        $user = Auth::user();
+        $companyId = $user->is_super_admin ? null : session('company_id');
+
         // Company performance metrics
-        $companyStats = Company::withCount(['users', 'packages'])->get()->map(function($company) {
-            $recentPackages = Package::where('company_id', $company->id)
-                ->where('created_at', '>=', now()->subDays(30))->count();
+        if ($user->is_super_admin) {
+            // Super admin sees all companies
+            $companyStats = Company::withCount(['users', 'packages'])->get()->map(function($company) {
+                $recentPackages = Package::where('company_id', $company->id)
+                    ->where('created_at', '>=', now()->subDays(30))->count();
 
-            $avgProcessingTime = Package::where('company_id', $company->id)
-                ->whereNotNull('picked_up_at')
-                ->whereNotNull('received_at')
-                ->where('picked_up_at', '>=', Carbon::now()->subDays(30))
-                ->selectRaw('AVG(TIMESTAMPDIFF(HOUR, received_at, picked_up_at)) as avg_hours')
-                ->first();
+                $avgProcessingTime = Package::where('company_id', $company->id)
+                    ->whereNotNull('picked_up_at')
+                    ->whereNotNull('received_at')
+                    ->where('picked_up_at', '>=', Carbon::now()->subDays(30))
+                    ->selectRaw('AVG(TIMESTAMPDIFF(HOUR, received_at, picked_up_at)) as avg_hours')
+                    ->first();
 
-            return [
-                'id' => $company->id,
-                'name' => $company->name,
-                'users_count' => $company->users_count,
-                'packages_count' => $company->packages_count,
-                'recent_packages' => $recentPackages,
-                'avg_processing_time' => round($avgProcessingTime->avg_hours ?? 0, 1),
-                'status' => $company->status,
-                'created_at' => $company->created_at->format('Y-m-d')
-            ];
-        });
+                return [
+                    'id' => $company->id,
+                    'name' => $company->name,
+                    'users_count' => $company->users_count,
+                    'packages_count' => $company->packages_count,
+                    'recent_packages' => $recentPackages,
+                    'avg_processing_time' => round($avgProcessingTime->avg_hours ?? 0, 1),
+                    'status' => $company->status,
+                    'created_at' => $company->created_at->format('Y-m-d')
+                ];
+            });
+        } else {
+            // Company admin sees only their company
+            $company = Company::withCount(['users', 'packages'])->find($companyId);
+            if ($company) {
+                $recentPackages = Package::where('company_id', $company->id)
+                    ->where('created_at', '>=', now()->subDays(30))->count();
+
+                $avgProcessingTime = Package::where('company_id', $company->id)
+                    ->whereNotNull('picked_up_at')
+                    ->whereNotNull('received_at')
+                    ->where('picked_up_at', '>=', Carbon::now()->subDays(30))
+                    ->selectRaw('AVG(TIMESTAMPDIFF(HOUR, received_at, picked_up_at)) as avg_hours')
+                    ->first();
+
+                $companyStats = collect([
+                    [
+                        'id' => $company->id,
+                        'name' => $company->name,
+                        'users_count' => $company->users_count,
+                        'packages_count' => $company->packages_count,
+                        'recent_packages' => $recentPackages,
+                        'avg_processing_time' => round($avgProcessingTime->avg_hours ?? 0, 1),
+                        'status' => $company->status,
+                        'created_at' => $company->created_at->format('Y-m-d')
+                    ]
+                ]);
+            } else {
+                $companyStats = collect([]);
+            }
+        }
 
         // Package processing trends (last 30 days)
-        $packageTrends = Package::selectRaw('DATE(created_at) as date, COUNT(*) as count, status')
-            ->where('created_at', '>=', now()->subDays(30))
-            ->groupBy(['date', 'status'])
+        $trendQuery = Package::selectRaw('DATE(created_at) as date, COUNT(*) as count, status')
+            ->where('created_at', '>=', now()->subDays(30));
+        if ($companyId) {
+            $trendQuery->where('company_id', $companyId);
+        }
+        $packageTrends = $trendQuery->groupBy(['date', 'status'])
             ->orderBy('date')
             ->get()
             ->groupBy('date');
 
         // Status distribution
-        $statusDistribution = Package::selectRaw('status, COUNT(*) as count')
-            ->groupBy('status')
-            ->get();
+        $statusQuery = Package::selectRaw('status, COUNT(*) as count');
+        if ($companyId) {
+            $statusQuery->where('company_id', $companyId);
+        }
+        $statusDistribution = $statusQuery->groupBy('status')
+            ->get()
+            ->pluck('count', 'status');
 
         // Performance metrics
+        $todayPackagesQuery = Package::whereDate('created_at', Carbon::today());
+        $pickedUpTodayQuery = Package::where('status', 'Picked Up')
+            ->whereDate('picked_up_at', Carbon::today());
+
+        if ($companyId) {
+            $todayPackagesQuery->where('company_id', $companyId);
+            $pickedUpTodayQuery->where('company_id', $companyId);
+        }
+
         $performanceMetrics = [
-            'total_packages_today' => Package::whereDate('created_at', Carbon::today())->count(),
-            'packages_picked_up_today' => Package::where('status', 'Picked Up')
-                ->whereDate('picked_up_at', Carbon::today())->count(),
-            'aging_packages' => $this->workflowService->getAgingPackages()->count(),
-            'average_processing_time' => $this->workflowService->getWorkflowStats()['average_processing_time'],
+            'total_packages_today' => $todayPackagesQuery->count(),
+            'packages_picked_up_today' => $pickedUpTodayQuery->count(),
+            'aging_packages' => $this->workflowService->getAgingPackages(7, $companyId)->count(),
+            'average_processing_time' => $this->workflowService->getWorkflowStats($companyId)['average_processing_time'],
         ];
 
         // Recent activity (last 24 hours)
-        $recentActivity = Package::with(['company'])
-            ->where('created_at', '>=', now()->subDay())
-            ->orderBy('created_at', 'desc')
+        $recentActivityQuery = Package::with(['company'])
+            ->where('created_at', '>=', now()->subDay());
+        if ($companyId) {
+            $recentActivityQuery->where('company_id', $companyId);
+        }
+        $recentActivity = $recentActivityQuery->orderBy('created_at', 'desc')
             ->take(20)
             ->get()
             ->map(function($package) {
@@ -405,7 +458,7 @@ class AdminController extends BaseController
     {
         $user = Auth::user();
         $query = User::with(['company', 'userRoles.role']);
-        
+
         // Company admins only see users from their company
         if (!$user->is_super_admin) {
             $query->where('company_id', $user->company_id);
@@ -416,7 +469,7 @@ class AdminController extends BaseController
                 $query->where('company_id', $companyId);
             }
         }
-        
+
         $users = $query->orderBy('created_at', 'desc')
             ->get()
             ->map(function($user) {
@@ -482,17 +535,26 @@ class AdminController extends BaseController
      */
     public function packageAnalytics()
     {
+        $user = Auth::user();
+        $companyId = $user->is_super_admin ? null : session('company_id');
+
         // Package status distribution
-        $statusDistribution = Package::selectRaw('status, COUNT(*) as count')
-            ->groupBy('status')
+        $statusQuery = Package::selectRaw('status, COUNT(*) as count');
+        if ($companyId) {
+            $statusQuery->where('company_id', $companyId);
+        }
+        $statusDistribution = $statusQuery->groupBy('status')
             ->get()
             ->pluck('count', 'status');
 
         // Processing time analysis
-        $processingTimes = Package::whereNotNull('picked_up_at')
+        $processingQuery = Package::whereNotNull('picked_up_at')
             ->whereNotNull('received_at')
-            ->where('picked_up_at', '>=', Carbon::now()->subDays(30))
-            ->selectRaw('
+            ->where('picked_up_at', '>=', Carbon::now()->subDays(30));
+        if ($companyId) {
+            $processingQuery->where('company_id', $companyId);
+        }
+        $processingTimes = $processingQuery->selectRaw('
                 tracking_number,
                 company_id,
                 TIMESTAMPDIFF(HOUR, received_at, picked_up_at) as processing_hours
@@ -502,14 +564,17 @@ class AdminController extends BaseController
             ->get();
 
         // Daily package trends (last 30 days)
-        $dailyTrends = Package::selectRaw('DATE(created_at) as date, COUNT(*) as count')
-            ->where('created_at', '>=', now()->subDays(30))
-            ->groupBy('date')
+        $trendsQuery = Package::selectRaw('DATE(created_at) as date, COUNT(*) as count')
+            ->where('created_at', '>=', now()->subDays(30));
+        if ($companyId) {
+            $trendsQuery->where('company_id', $companyId);
+        }
+        $dailyTrends = $trendsQuery->groupBy('date')
             ->orderBy('date')
             ->get();
 
         // Package aging analysis
-        $agingPackages = $this->workflowService->getAgingPackages()
+        $agingPackages = $this->workflowService->getAgingPackages(7, $companyId)
             ->map(function($package) {
                 return [
                     'id' => $package->id,
@@ -534,7 +599,7 @@ class AdminController extends BaseController
     public function createUser(Request $request)
     {
         $currentUser = Auth::user();
-        
+
         // Validation rules depend on user role
         $rules = [
             'name' => 'required|string|max:255',
@@ -542,7 +607,7 @@ class AdminController extends BaseController
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
         ];
-        
+
         if ($currentUser->is_super_admin) {
             $rules['company_id'] = 'required|exists:companies,id';
             $rules['is_super_admin'] = 'boolean';
@@ -551,13 +616,13 @@ class AdminController extends BaseController
             // Company admin can only create users in their company with 'user' role
             $rules['role'] = 'required|in:user';
         }
-        
+
         $request->validate($rules);
 
         try {
             $companyId = $currentUser->is_super_admin ? $request->company_id : $currentUser->company_id;
             $isSuperAdmin = $currentUser->is_super_admin ? $request->boolean('is_super_admin', false) : false;
-            
+
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
@@ -615,20 +680,20 @@ class AdminController extends BaseController
             $isSuperAdmin = $request->boolean('is_super_admin');
             $user->is_super_admin = $isSuperAdmin;
             $user->save();
-            
+
             // If unchecking super admin and user has a company but no role, assign admin role
             if (!$isSuperAdmin && $user->company_id) {
                 $hasRole = $user->userRoles()
                     ->where('company_id', $user->company_id)
                     ->where('is_active', true)
                     ->exists();
-                    
+
                 if (!$hasRole) {
                     // Find admin role for this company
                     $adminRole = \App\Models\Role::where('slug', 'admin')
                         ->where('company_id', $user->company_id)
                         ->first();
-                        
+
                     if ($adminRole) {
                         $user->assignRole($adminRole, $user->company_id);
                     }
@@ -685,29 +750,48 @@ class AdminController extends BaseController
         ]);
 
         try {
+            // Ensure user has a company
+            if (!$user->company_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User must be assigned to a company first'
+                ], 400);
+            }
+
             // Remove existing roles for this user in their company
             \App\Models\UserRole::where('user_id', $user->id)
                 ->where('company_id', $user->company_id)
                 ->delete();
 
-            // Assign new role if provided
+            $roleName = 'No Role';
+
+            // Assign new role if provided (use global roles table)
             if ($request->role) {
-                $role = \App\Models\Role::where('slug', $request->role)
-                    ->where(function($query) use ($user) {
-                        $query->where('company_id', $user->company_id)
-                              ->orWhere('is_system_role', true);
-                    })
-                    ->first();
+                $role = \App\Models\Role::where('slug', $request->role)->first();
 
                 if ($role) {
-                    $user->assignRole($role, $user->company_id);
+                    // Create user_role record directly
+                    \App\Models\UserRole::create([
+                        'user_id' => $user->id,
+                        'role_id' => $role->id,
+                        'company_id' => $user->company_id,
+                        'is_active' => true,
+                        'assigned_at' => now()
+                    ]);
+                    $roleName = $role->name;
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Role '{$request->role}' not found in system."
+                    ], 404);
                 }
             }
 
             return response()->json([
                 'success' => true,
                 'message' => 'User role updated successfully',
-                'role' => $request->role ? ucfirst($request->role) : 'No Role'
+                'role' => $roleName,
+                'user_id' => $user->id
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -731,6 +815,7 @@ class AdminController extends BaseController
 
         try {
             $updateData = [];
+            $oldCompanyId = $user->company_id;
 
             if ($request->has('name')) {
                 $updateData['name'] = $request->name;
@@ -749,6 +834,33 @@ class AdminController extends BaseController
             }
 
             $user->update($updateData);
+
+            // Handle role assignments when company changes
+            if ($request->has('company_id') && $oldCompanyId != $request->company_id && !$user->is_super_admin) {
+                $newCompanyId = $request->company_id;
+
+                // Remove old company roles (if any)
+                if ($oldCompanyId) {
+                    \App\Models\UserRole::where('user_id', $user->id)
+                        ->where('company_id', $oldCompanyId)
+                        ->delete();
+                }
+
+                // Assign default "User" role in new company (use global roles table)
+                if ($newCompanyId) {
+                    $userRole = \App\Models\Role::where('slug', 'user')->first();
+
+                    if ($userRole) {
+                        \App\Models\UserRole::create([
+                            'user_id' => $user->id,
+                            'role_id' => $userRole->id,
+                            'company_id' => $newCompanyId,
+                            'is_active' => true,
+                            'assigned_at' => now()
+                        ]);
+                    }
+                }
+            }
 
             return response()->json([
                 'success' => true,
@@ -865,11 +977,13 @@ class AdminController extends BaseController
      */
     public function getSystemAlerts()
     {
+        $user = Auth::user();
+        $companyId = $user->is_super_admin ? null : session('company_id');
         $alerts = [];
 
         try {
             // Check aging packages
-            $agingCount = $this->workflowService->getAgingPackages()->count();
+            $agingCount = $this->workflowService->getAgingPackages(7, $companyId)->count();
             if ($agingCount > 0) {
                 $alerts[] = [
                     'type' => 'warning',
@@ -922,7 +1036,7 @@ class AdminController extends BaseController
             }
 
             // Check for unprocessed workflow transitions
-            $workflowStats = $this->workflowService->getWorkflowStats();
+            $workflowStats = $this->workflowService->getWorkflowStats($companyId);
             if (isset($workflowStats['pending_auto_transitions']) && $workflowStats['pending_auto_transitions'] > 10) {
                 $alerts[] = [
                     'type' => 'warning',
