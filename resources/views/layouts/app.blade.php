@@ -83,9 +83,16 @@
 
         @media (max-width: 640px) {
             #inbox-panel {
-                width: 350px;
-                min-h-[600px];
-                max-h-[600px];
+                width: 95vw !important;
+                max-width: 95vw !important;
+                min-height: 60vh !important;
+                max-height: 70vh !important;
+                right: 2.5vw !important;
+                left: 2.5vw !important;
+            }
+
+            #sms-inbox button#toggle-inbox {
+                padding: 1rem;
             }
         }
     </style>
