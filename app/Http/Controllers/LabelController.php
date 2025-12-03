@@ -38,6 +38,7 @@ class LabelController extends Controller
                     $mailboxNumber = trim($row[0]);
                     $customerName = isset($row[3]) ? trim($row[3]) : '';
                     $phoneNumber = isset($row[4]) ? trim($row[4]) : '';
+                    $dueDate = isset($row[7]) ? trim($row[7]) : '';
 
                     // Apply filters if provided
                     $include = true;
@@ -60,7 +61,8 @@ class LabelController extends Controller
                             'mailbox_number' => $mailboxNumber,
                             'customer_name' => $customerName,
                             'phone_number' => $phoneNumber,
-                            'created_at' => now(), // Use current date for expiry calculation
+                            'due_date' => $dueDate, // Use actual due date from CSV
+                            'created_at' => now(), // Keep for compatibility but use due_date for expiry
                         ]);
                     }
                 }
