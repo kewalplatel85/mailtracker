@@ -33,11 +33,24 @@ $(document).ready(function () {
             type: 'POST',
             data: form.serialize(),
             success: function (response) {
-                alert(response.success || 'Reply sent successfully!');
+                if (typeof window.showToast === 'function') {
+                    window.showToast(response.success || 'Reply sent successfully!', 'success');
+                } else if (typeof showToast === 'function') {
+                    showToast(response.success || 'Reply sent successfully!', 'success');
+                } else {
+                    alert(response.success || 'Reply sent successfully!');
+                }
                 form.trigger('reset'); // Clear the form on success
             },
             error: function (xhr) {
-                alert(xhr.responseJSON?.error || 'Failed to send reply.');
+                const errorMsg = xhr.responseJSON?.error || 'Failed to send reply.';
+                if (typeof window.showToast === 'function') {
+                    window.showToast(errorMsg, 'error');
+                } else if (typeof showToast === 'function') {
+                    showToast(errorMsg, 'error');
+                } else {
+                    alert(errorMsg);
+                }
             }
         });
     });
@@ -54,12 +67,24 @@ $(document).ready(function () {
             type: 'POST',
             data: formData,
             success: function (response) {
-                alert(response.success || 'Message sent successfully!');
+                if (typeof window.showToast === 'function') {
+                    window.showToast(response.success || 'Message sent successfully!', 'success');
+                } else if (typeof showToast === 'function') {
+                    showToast(response.success || 'Message sent successfully!', 'success');
+                } else {
+                    alert(response.success || 'Message sent successfully!');
+                }
                 form.trigger('reset'); // Clear the form on success
             },
             error: function (xhr) {
                 const errorMsg = xhr.responseJSON?.error || 'Failed to send message.';
-                alert(errorMsg);
+                if (typeof window.showToast === 'function') {
+                    window.showToast(errorMsg, 'error');
+                } else if (typeof showToast === 'function') {
+                    showToast(errorMsg, 'error');
+                } else {
+                    alert(errorMsg);
+                }
             }
         });
     });
@@ -76,12 +101,25 @@ $(document).ready(function () {
             type: 'POST',
             data: formData,
             success: function (response) {
-                alert('Text blast sent successfully!');
+                // Try to use the dashboard's toast function first
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Text blast sent successfully!', 'success');
+                } else if (typeof showToast === 'function') {
+                    showToast('Text blast sent successfully!', 'success');
+                } else {
+                    alert('Text blast sent successfully!');
+                }
                 form.trigger('reset'); // Clear the form on success
             },
             error: function (xhr) {
                 const errorMsg = xhr.responseJSON?.error || 'Failed to send text blast.';
-                alert(errorMsg);
+                if (typeof window.showToast === 'function') {
+                    window.showToast(errorMsg, 'error');
+                } else if (typeof showToast === 'function') {
+                    showToast(errorMsg, 'error');
+                } else {
+                    alert(errorMsg);
+                }
             }
         });
     });
@@ -93,7 +131,7 @@ $(document).ready(function () {
 
     // Close on outside click
     $(document).on('click', function(e) {
-        if (!$(e.target).closest('#sms-inbox').length) {
+        if (!$(e.target).closest('#sms-inbox, .autocomplete-suggestions').length) {
             if (!$('#inbox-panel').hasClass('hidden')) {
                 $('#inbox-panel').addClass('hidden opacity-0 translate-y-4');
             }
@@ -111,12 +149,17 @@ function initializeSMSAutocomplete() {
 
     // Setup autocomplete for SMS forms
     function setupAutocomplete(input, key, phoneInput) {
-        $(input).on('input', function () {
+        $(input).on('input', function (e) {
+            e.stopPropagation();
             const query = $(this).val().toLowerCase();
             const suggestions = customersData.filter(item =>
                 item[key] && item[key].toLowerCase().includes(query)
             );
             showSuggestions($(this), suggestions, key, phoneInput);
+        });
+
+        $(input).on('click', function (e) {
+            e.stopPropagation();
         });
     }
 
@@ -139,14 +182,28 @@ function initializeSMSAutocomplete() {
         suggestions.slice(0, 5).forEach(item => {
             const suggestionItem = $(`
                 <div class="suggestion-item">
-                    <strong>${item[key]}</strong> - ${item.customer || 'N/A'} - ${item.phone || 'No phone'}
+                    ${item.mailbox || 'N/A'} - ${item.customer || 'N/A'} - ${item.phone || 'No phone'}
                 </div>
             `);
 
-            suggestionItem.on('click', function () {
+            suggestionItem.on('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
                 input.val(item[key]);
-                if (phoneInput && item.phone) {
-                    phoneInput.val(item.phone);
+                if (phoneInput && item.phone && item.phone !== 'No phone') {
+                    // Special handling for text blast phone numbers (append instead of replace)
+                    if (phoneInput.attr('id') === 'phone_numbers') {
+                        const currentPhones = phoneInput.val().trim();
+                        if (currentPhones) {
+                            // Add comma and phone if there are existing numbers
+                            phoneInput.val(currentPhones + ',' + item.phone);
+                        } else {
+                            phoneInput.val(item.phone);
+                        }
+                    } else {
+                        // Regular single phone number input
+                        phoneInput.val(item.phone);
+                    }
                 }
                 suggestionBox.empty().hide();
             });
@@ -161,13 +218,13 @@ function initializeSMSAutocomplete() {
     setupAutocomplete('#search-mailbox', 'mailbox', $('#phone'));
     setupAutocomplete('#search-customer', 'customer', $('#phone'));
 
-    // Setup autocomplete for text blast form
+    // Setup autocomplete for text blast form with special handling for multiple phone numbers
     setupAutocomplete('#search-mailbox-blast', 'mailbox', $('#phone_numbers'));
     setupAutocomplete('#search-customer-blast', 'customer', $('#phone_numbers'));
 
     // Hide suggestions on outside click
     $(document).on('click', function (e) {
-        if (!$(e.target).closest('.autocomplete-suggestions, #search-mailbox, #search-customer, #search-mailbox-blast, #search-customer-blast').length) {
+        if (!$(e.target).closest('.autocomplete-suggestions, #search-mailbox, #search-customer, #search-mailbox-blast, #search-customer-blast, #sms-inbox').length) {
             $('.autocomplete-suggestions').empty().hide();
         }
     });

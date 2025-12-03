@@ -2727,12 +2727,18 @@ function updateMessageTemplate() {
 }
 
 // Initialize customer data for SMS autocomplete
-window.customersData = @json($data ?? []).map(function(row) {
-    return {
-        mailbox: row[0] || '',
-        customer: row[1] || '',
-        phone: row[2] || ''
-    };
+window.customersData = @json($data ?? []).slice(7).map(function(row) {
+    // Skip header rows and only include valid mailbox entries
+    if (row[0] && row[0].toString().trim() && !isNaN(row[0])) {
+        return {
+            mailbox: row[0] || '',
+            customer: row[3] || '', // Customer name is in column 3 (index 3)
+            phone: row[4] || '' // Phone number is in column 4 (index 4)
+        };
+    }
+    return null;
+}).filter(function(item) {
+    return item !== null; // Remove null entries
 });
 
 // Initialize SMS autocomplete when page loads
