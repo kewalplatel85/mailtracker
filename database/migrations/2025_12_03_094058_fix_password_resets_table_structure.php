@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Drop the existing password_resets table with incorrect structure
+        Schema::dropIfExists('password_resets');
+
+        // Recreate password_resets table with correct Laravel structure
         Schema::create('password_resets', function (Blueprint $table) {
             $table->string('email')->index();
             $table->string('token');
@@ -23,6 +27,13 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Drop the corrected table
         Schema::dropIfExists('password_resets');
+
+        // Recreate the old incorrect structure (for rollback purposes)
+        Schema::create('password_resets', function (Blueprint $table) {
+            $table->id();
+            $table->timestamps();
+        });
     }
 };
