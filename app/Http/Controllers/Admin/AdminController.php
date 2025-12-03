@@ -31,8 +31,10 @@ class AdminController extends BaseController
 
         $this->middleware('auth');
         $this->middleware(function ($request, $next) {
-            if (!Auth::user()->is_super_admin) {
-                abort(403, 'Access denied. Super admin privileges required.');
+            $user = Auth::user();
+            // Allow super admins and company admins
+            if (!$user->is_super_admin && !$user->isCompanyAdmin()) {
+                abort(403, 'Access denied. Admin privileges required.');
             }
             return $next($request);
         });
@@ -59,19 +61,49 @@ class AdminController extends BaseController
      */
     private function getSystemStats()
     {
-        // Global system statistics
-        $totalCompanies = Company::where('status', 'active')->count();
-        $totalUsers = User::whereHas('company', function($q) {
-            $q->where('status', 'active');
-        })->count();
-        $totalPackages = Package::count();
-        $recentPackages = Package::where('created_at', '>=', now()->subDays(7))->count();
-
-        // Package status breakdown
-        $pendingPackages = Package::where('status', 'Incoming')->count();
-        $readyPackages = Package::where('status', 'Ready for Pickup')->count();
-        $pickedUpPackages = Package::where('status', 'Picked Up')->count();
-        $archivedPackages = Package::where('status', 'Archived')->count();
+        $user = Auth::user();
+        
+        if ($user->is_super_admin) {
+            // Super admin sees global stats
+            $companyId = session('current_company_id');
+            
+            if ($companyId) {
+                // Show selected company's stats
+                $totalUsers = User::where('company_id', $companyId)->count();
+                $totalPackages = Package::where('company_id', $companyId)->count();
+                $recentPackages = Package::where('company_id', $companyId)
+                    ->where('created_at', '>=', now()->subDays(7))->count();
+                $pendingPackages = Package::where('company_id', $companyId)->where('status', 'Incoming')->count();
+                $readyPackages = Package::where('company_id', $companyId)->where('status', 'Ready for Pickup')->count();
+                $pickedUpPackages = Package::where('company_id', $companyId)->where('status', 'Picked Up')->count();
+                $archivedPackages = Package::where('company_id', $companyId)->where('status', 'Archived')->count();
+            } else {
+                // Global system statistics
+                $totalUsers = User::whereHas('company', function($q) {
+                    $q->where('status', 'active');
+                })->count();
+                $totalPackages = Package::count();
+                $recentPackages = Package::where('created_at', '>=', now()->subDays(7))->count();
+                $pendingPackages = Package::where('status', 'Incoming')->count();
+                $readyPackages = Package::where('status', 'Ready for Pickup')->count();
+                $pickedUpPackages = Package::where('status', 'Picked Up')->count();
+                $archivedPackages = Package::where('status', 'Archived')->count();
+            }
+            
+            $totalCompanies = Company::where('status', 'active')->count();
+        } else {
+            // Company admin sees only their company's stats
+            $companyId = $user->company_id;
+            $totalCompanies = 1; // Only their company
+            $totalUsers = User::where('company_id', $companyId)->count();
+            $totalPackages = Package::where('company_id', $companyId)->count();
+            $recentPackages = Package::where('company_id', $companyId)
+                ->where('created_at', '>=', now()->subDays(7))->count();
+            $pendingPackages = Package::where('company_id', $companyId)->where('status', 'Incoming')->count();
+            $readyPackages = Package::where('company_id', $companyId)->where('status', 'Ready for Pickup')->count();
+            $pickedUpPackages = Package::where('company_id', $companyId)->where('status', 'Picked Up')->count();
+            $archivedPackages = Package::where('company_id', $companyId)->where('status', 'Archived')->count();
+        }
 
         // Workflow statistics
         $workflowStats = $this->workflowService->getWorkflowStats();
@@ -371,8 +403,21 @@ class AdminController extends BaseController
      */
     public function users()
     {
-        $users = User::with(['company', 'userRoles.role'])
-            ->orderBy('created_at', 'desc')
+        $user = Auth::user();
+        $query = User::with(['company', 'userRoles.role']);
+        
+        // Company admins only see users from their company
+        if (!$user->is_super_admin) {
+            $query->where('company_id', $user->company_id);
+        } else {
+            // Super admin can see users from selected company or all users
+            $companyId = session('current_company_id');
+            if ($companyId) {
+                $query->where('company_id', $companyId);
+            }
+        }
+        
+        $users = $query->orderBy('created_at', 'desc')
             ->get()
             ->map(function($user) {
                 // Get user's role in their company
@@ -487,37 +532,51 @@ class AdminController extends BaseController
      */
     public function createUser(Request $request)
     {
-        $request->validate([
+        $currentUser = Auth::user();
+        
+        // Validation rules depend on user role
+        $rules = [
             'name' => 'required|string|max:255',
             'username' => 'required|string|max:255|unique:users',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
-            'company_id' => 'required|exists:companies,id',
-            'is_super_admin' => 'boolean',
-            'role' => 'required_unless:is_super_admin,1|in:admin,user'
-        ]);
+        ];
+        
+        if ($currentUser->is_super_admin) {
+            $rules['company_id'] = 'required|exists:companies,id';
+            $rules['is_super_admin'] = 'boolean';
+            $rules['role'] = 'required_unless:is_super_admin,1|in:admin,user';
+        } else {
+            // Company admin can only create users in their company with 'user' role
+            $rules['role'] = 'required|in:user';
+        }
+        
+        $request->validate($rules);
 
         try {
+            $companyId = $currentUser->is_super_admin ? $request->company_id : $currentUser->company_id;
+            $isSuperAdmin = $currentUser->is_super_admin ? $request->boolean('is_super_admin', false) : false;
+            
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
                 'username' => $request->username,
                 'password' => bcrypt($request->password),
-                'company_id' => $request->company_id,
-                'is_super_admin' => $request->boolean('is_super_admin', false)
+                'company_id' => $companyId,
+                'is_super_admin' => $isSuperAdmin
             ]);
 
             // Assign role if not super admin
             if (!$user->is_super_admin && $request->role) {
                 $role = \App\Models\Role::where('slug', $request->role)
-                    ->where(function($query) use ($request) {
-                        $query->where('company_id', $request->company_id)
+                    ->where(function($query) use ($companyId) {
+                        $query->where('company_id', $companyId)
                               ->orWhere('is_system_role', true);
                     })
                     ->first();
 
                 if ($role) {
-                    $user->assignRole($role, $request->company_id);
+                    $user->assignRole($role, $companyId);
                 }
             }
 
@@ -548,14 +607,13 @@ class AdminController extends BaseController
     public function updateUserRole(Request $request, User $user)
     {
         $request->validate([
-            'is_super_admin' => 'required|boolean',
-            'company_id' => 'nullable|exists:companies,id'
+            'is_super_admin' => 'required|boolean'
         ]);
 
         try {
+            // Only update super admin status, preserve company assignment
             $user->update([
-                'is_super_admin' => $request->boolean('is_super_admin'),
-                'company_id' => $request->company_id
+                'is_super_admin' => $request->boolean('is_super_admin')
             ]);
 
             return response()->json([

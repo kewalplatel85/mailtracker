@@ -89,6 +89,7 @@
                     </div>
                 </button>
 
+                @if(Auth::user()->is_super_admin)
                 <button onclick="loadSettings()" class="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow text-left">
                     <div class="flex items-center">
                         <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center mb-3">
@@ -100,6 +101,7 @@
                         </div>
                     </div>
                 </button>
+                @endif
 
                 <button onclick="runHealthCheck()" class="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow text-left">
                     <div class="flex items-center">
@@ -113,6 +115,7 @@
                     </div>
                 </button>
 
+                @if(Auth::user()->is_super_admin)
                 <button onclick="loadMaintenance()" class="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow text-left">
                     <div class="flex items-center">
                         <div class="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center mb-3">
@@ -148,6 +151,7 @@
                         </div>
                     </div>
                 </button>
+                @endif
             </div>
         </div>
 
@@ -673,15 +677,88 @@ async function loadUserManagement() {
                     <button onclick="showCreateUserForm()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors">
                         + Create User
                     </button>
+                    @if(Auth::user()->is_super_admin)
                     <button onclick="showCreateCompanyForm()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors">
                         + Create Company
                     </button>
+                    @endif
                     <button onclick="loadUserManagement()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors">
                         🔄 Refresh
                     </button>
                 </div>
 
                 <!-- Create User Form (Hidden by default) -->
+                <div id="create-user-form" class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4" style="display: none;">
+                    <h4 class="font-medium text-blue-900 mb-3">Create New User</h4>
+                    <form onsubmit="createUser(event)">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                                <input type="text" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                                <input type="text" name="username" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <input type="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                                <input type="password" name="password" required minlength="8" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                                <input type="password" name="password_confirmation" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            ${{{ Auth::user()->is_super_admin ? 'true' : 'false' }} ? `
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                                <select name="company_id" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select Company</option>
+                                    ${companiesData.companies.filter(c => c.status === 'active').map(company => `
+                                        <option value="${company.id}">${company.name}</option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                <select name="role" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select Role</option>
+                                    <option value="admin">Admin</option>
+                                    <option value="user">User</option>
+                                </select>
+                            </div>
+                            ` : `
+                            <input type="hidden" name="company_id" value="{{ Auth::user()->company_id }}">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                <select name="role" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select Role</option>
+                                    <option value="user">User</option>
+                                </select>
+                            </div>
+                            <div class="text-sm text-gray-600 pt-2">
+                                <strong>Company:</strong> {{ Auth::user()->company->name ?? 'No Company' }}
+                            </div>
+                            `}
+                        </div>
+                        ${{{ Auth::user()->is_super_admin ? 'true' : 'false' }} ? `
+                        <div class="mt-4">
+                            <div class="flex items-center">
+                                <input type="checkbox" name="is_super_admin" id="is_super_admin" class="mr-2">
+                                <label for="is_super_admin" class="text-sm font-medium text-gray-700">Super Admin</label>
+                                <span class="ml-2 text-xs text-gray-500">(Overrides role selection)</span>
+                            </div>
+                        </div>
+                        ` : ''}
+                        <div class="mt-4 flex gap-2">
+                            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Create User</button>
+                            <button type="button" onclick="hideCreateUserForm()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Cancel</button>
+                        </div>
+                    </form>
+                </div>
                 <div id="create-user-form" class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4" style="display: none;">
                     <h4 class="font-medium text-blue-900 mb-3">Create New User</h4>
                     <form onsubmit="createUser(event)">
@@ -766,6 +843,7 @@ async function loadUserManagement() {
                     </form>
                 </div>
 
+                @if(Auth::user()->is_super_admin)
                 <!-- Companies -->
                 <div class="mb-8">
                     <h4 class="font-medium text-gray-900 mb-3">Companies Overview</h4>
@@ -807,6 +885,7 @@ async function loadUserManagement() {
                         </div>
                     </div>
                 </div>
+                @endif
 
                 <!-- Users -->
                 <div>
@@ -820,7 +899,7 @@ async function loadUserManagement() {
                                         <th class="text-left py-2">Email</th>
                                         <th class="text-left py-2">Company</th>
                                         <th class="text-left py-2">Role</th>
-                                        <th class="text-center py-2">Admin</th>
+                                        <th class="text-center py-2">Super Admin</th>
                                         <th class="text-right py-2">Last Login</th>
                                         <th class="text-right py-2">Created</th>
                                         <th class="text-center py-2">Actions</th>

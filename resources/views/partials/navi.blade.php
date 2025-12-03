@@ -47,7 +47,7 @@
                         @if(Auth::user()->isSuperAdmin())
                         <div class="flex items-center space-x-2 mr-4">
                             <select id="companySwitcher" class="px-2 py-1 text-xs border border-gray-600 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">Select Company Context</option>
+                                <option value="">{{ Auth::user()->company ? Auth::user()->company->name : 'Select Company' }}</option>
                                 @foreach(\App\Models\Company::where('status', 'active')->get() as $company)
                                     <option value="{{ $company->id }}"
                                             {{ session('current_company_id') == $company->id ? 'selected' : '' }}>
@@ -86,12 +86,14 @@
 
                             <!-- Dropdown menu -->
                             <div class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 ring-1 shadow-lg ring-black/5 focus:outline-hidden hidden" id="user-menu">
+                                @if(Auth::user()->is_super_admin || Auth::user()->isCompanyAdmin())
                                 <a href="{{ route('admin.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" tabindex="-1" id="user-menu-item-0">
                                     <span class="flex items-center">
                                         <span class="mr-2">⚙️</span>
                                         Admin Dashboard
                                     </span>
                                 </a>
+                                @endif
                                 <div class="border-t border-gray-200"></div>
                                 <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="user-menu-item-2" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Sign out</a>
                                     <form id="logout-form" action="{{route('logout')}}" method="POST" style="display: none">
