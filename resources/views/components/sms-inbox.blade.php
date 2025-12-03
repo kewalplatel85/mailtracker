@@ -3,18 +3,18 @@
         📬
     </button>
 
-    <div id="inbox-panel" class="hidden w-full sm:w-xl bg-white border border-gray-300 rounded-lg shadow-2xl p-4 min-h-[800px] max-h-[700px] overflow-y-auto transition-all duration-500 ease-in-out transform translate-y-4 opacity-0">
+    <div id="inbox-panel" class="hidden w-full sm:w-xl bg-white border border-gray-300 rounded-lg shadow-2xl p-3 sm:p-4 min-h-[600px] sm:min-h-[800px] max-h-[70vh] sm:max-h-[700px] overflow-y-auto transition-all duration-500 ease-in-out transform translate-y-4 opacity-0">
         <div class="flex justify-between items-center mb-2">
             <h2 class="text-lg font-bold">📬 SMS</h2>
             <button id="close-inbox" class="text-gray-500 hover:text-gray-800 transition">✖️</button>
         </div>
 
         <!-- Tab Navigation -->
-        <div class="flex border-b mb-4">
-            <button class="tab-link px-4 py-2 text-sm font-semibold text-gray-600 hover:text-blue-600" data-tab="received">Received</button>
-            <button class="tab-link px-4 py-2 text-sm font-semibold text-gray-600 hover:text-blue-600" data-tab="sent">Sent</button>
-            <button class="tab-link px-4 py-2 text-sm font-semibold text-gray-600 hover:text-blue-600" data-tab="create">Create</button>
-            <button class="tab-link px-4 py-2 text-sm font-semibold text-gray-600 hover:text-blue-600" data-tab="textblast">Text Blast</button>
+        <div class="flex border-b mb-4 overflow-x-auto">
+            <button class="tab-link px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-gray-600 hover:text-blue-600 whitespace-nowrap" data-tab="received">Received</button>
+            <button class="tab-link px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-gray-600 hover:text-blue-600 whitespace-nowrap" data-tab="sent">Sent</button>
+            <button class="tab-link px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-gray-600 hover:text-blue-600 whitespace-nowrap" data-tab="create">Create</button>
+            <button class="tab-link px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-gray-600 hover:text-blue-600 whitespace-nowrap" data-tab="textblast">Text Blast</button>
         </div>
 
         <!-- Received Messages Tab -->
@@ -53,9 +53,9 @@
         <!-- Create Message Tab -->
         <div id="create" class="tab-content hidden">
             <h3 class="text-lg font-bold mb-4">Send Custom Message</h3>
-            <div class="mb-4 flex">
-                <input type="text" id="search-mailbox" placeholder="Search by Mailbox #" class="p-2 border rounded-md w-1/2">
-                <input type="text" id="search-customer" placeholder="Search by Customer Name" class="p-2 border rounded-md w-1/2">
+            <div class="mb-4 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                <input type="text" id="search-mailbox" placeholder="Search by Mailbox #" class="p-2 border rounded-md w-full sm:w-1/2 text-sm">
+                <input type="text" id="search-customer" placeholder="Search by Customer Name" class="p-2 border rounded-md w-full sm:w-1/2 text-sm">
             </div>
             <form action="{{ route('messages.send') }}" method="POST" class="bg-white p-6 rounded-lg shadow-md">
                 @csrf
@@ -74,9 +74,9 @@
         <!-- Create textblast Tab -->
         <div id="textblast" class="tab-content hidden">
             <h3 class="text-lg font-bold mb-4">Send Bulk Messages (Text Blast)</h3>
-            <div class="mb-4 flex">
-                <input type="text" id="search-mailbox-blast" placeholder="Search by Mailbox #" class="p-2 border rounded-md w-1/2">
-                <input type="text" id="search-customer-blast" placeholder="Search by Customer Name" class="p-2 border rounded-md w-1/2">
+            <div class="mb-4 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                <input type="text" id="search-mailbox-blast" placeholder="Search by Mailbox #" class="p-2 border rounded-md w-full sm:w-1/2 text-sm">
+                <input type="text" id="search-customer-blast" placeholder="Search by Customer Name" class="p-2 border rounded-md w-full sm:w-1/2 text-sm">
             </div>
             <form action="{{ route('messages.textblast') }}" method="POST" class="bg-white p-6 rounded-lg shadow-md">
                 @csrf

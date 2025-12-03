@@ -180,6 +180,27 @@
                         @if(isset($currentCompany))
                         <div class="text-xs font-medium text-gray-500">{{ $currentCompany->name }}</div>
                         @endif
+                        @php
+                            $user = Auth::user();
+                            $currentCompanyId = session('current_company_id') ?? $user->company_id;
+
+                            // Determine role display
+                            $roleDisplay = 'User';
+                            $roleColor = 'text-green-400';
+
+                            if ($user->is_super_admin) {
+                                $roleDisplay = 'Super Admin';
+                                $roleColor = 'text-purple-400';
+                            } else {
+                                // Check if user has admin role in their company or current company context
+                                $checkCompanyId = $currentCompanyId ?: $user->company_id;
+                                if ($checkCompanyId && $user->isCompanyAdmin($checkCompanyId)) {
+                                    $roleDisplay = 'Admin';
+                                    $roleColor = 'text-blue-400';
+                                }
+                            }
+                        @endphp
+                        <div class="text-xs font-medium {{ $roleColor }}">{{ $roleDisplay }}</div>
                     </div>
                     <button type="button" class="relative ml-auto shrink-0 rounded-full bg-gray-800 p-1 text-gray-400 hover:text-white focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800 focus:outline-hidden">
                         <span class="absolute -inset-1.5"></span>

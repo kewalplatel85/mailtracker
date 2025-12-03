@@ -4,10 +4,10 @@
 @section('content')
 
 @section('content')
-<div class="min-h-screen bg-gray-50 py-4">
-    <div class="max-w-full mx-auto px-6 sm:px-8 lg:px-12">
+<div class="min-h-screen bg-gray-50 py-2 sm:py-4">
+    <div class="max-w-full mx-auto px-3 sm:px-6 md:px-8 lg:px-12">
         <!-- Header Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
@@ -22,7 +22,7 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-lg shadow p-6">
+            <div class="bg-white rounded-lg shadow p-4 sm:p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
                         <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
@@ -36,7 +36,7 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-lg shadow p-6">
+            <div class="bg-white rounded-lg shadow p-4 sm:p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
                         <div class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
@@ -52,25 +52,25 @@
         </div>
 
         <!-- Main Content: 2 Column Layout -->
-        <div class="grid grid-cols-1 lg:grid-cols-7 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-7 gap-3 sm:gap-6">
 
             <!-- Left Column: Package Entry Form -->
             <div class="lg:col-span-2">
                 <div class="bg-white rounded-lg shadow">
                     <!-- Form Header -->
-                    <div class="px-3 py-2 border-b border-gray-200">
-                        <h3 class="text-lg font-medium text-gray-900">📦 Package Entry</h3>
-                        <p class="text-sm text-gray-500">Scan and register new packages</p>
+                    <div class="px-2 sm:px-3 py-2 border-b border-gray-200">
+                        <h3 class="text-base sm:text-lg font-medium text-gray-900">📦 Package Entry</h3>
+                        <p class="text-xs sm:text-sm text-gray-500">Scan and register new packages</p>
                     </div>
 
                     <!-- CSV Upload Section -->
-                    <div class="px-3 py-2 bg-gray-50 border-b border-gray-200">
+                    <div class="px-2 sm:px-3 py-2 bg-gray-50 border-b border-gray-200">
                         <form action="{{ route('upload') }}" method="POST" enctype="multipart/form-data">
                             @csrf
-                            <div class="flex items-center space-x-3">
+                            <div class="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
                                 <input type="file" name="file" accept=".csv,.xlsx" required
-                                       class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 whitespace-nowrap">
+                                       class="block w-full text-xs sm:text-sm text-gray-500 file:mr-2 sm:file:mr-4 file:py-1.5 sm:file:py-2 file:px-3 sm:file:px-4 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                <button type="submit" class="px-3 sm:px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 whitespace-nowrap">
                                     Upload
                                 </button>
                             </div>
@@ -78,23 +78,23 @@
                     </div>
 
                     <!-- Package Entry Form -->
-                    <div class="p-3">
-                        <form id="packageForm" class="space-y-2">
+                    <div class="p-2 sm:p-3">
+                        <form id="packageForm" class="space-y-2 sm:space-y-3">
                             @csrf
                             <!-- Tab Selection -->
-                            <div class="grid grid-cols-2 gap-2">
-                                <button type="button" class="tab-btn active px-3 py-1 text-sm font-medium rounded-md bg-blue-600 text-white">
+                            <div class="grid grid-cols-2 gap-1 sm:gap-2">
+                                <button type="button" class="tab-btn active px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-md bg-blue-600 text-white">
                                     Current Clients
                                 </button>
-                                <button type="button" class="tab-btn px-3 py-1 text-sm font-medium rounded-md bg-gray-200 text-gray-700">
+                                <button type="button" class="tab-btn px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-md bg-gray-200 text-gray-700">
                                     New Clients
                                 </button>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Mailbox #</label>
+                                <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Mailbox #</label>
                                 <input type="text" name="mailbox_number" required
-                                       class="w-full px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                       class="w-full px-2 sm:px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
 
                             <!-- Customer Name -->
@@ -203,17 +203,17 @@
             <div class="lg:col-span-5">
                 <div class="bg-white rounded-lg shadow">
                     <!-- Grid Header -->
-                    <div class="px-3 py-2 border-b border-gray-200 flex items-center justify-between">
+                    <div class="px-2 sm:px-3 py-2 border-b border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0">
                         <div>
-                            <h3 class="text-lg font-medium text-gray-900">📬 Mailbox Grid</h3>
-                            <p class="text-sm text-gray-500">Visual mailbox management</p>
+                            <h3 class="text-base sm:text-lg font-medium text-gray-900">📬 Mailbox Grid</h3>
+                            <p class="text-xs sm:text-sm text-gray-500">Visual mailbox management</p>
                         </div>
-                        <div class="flex items-center space-x-4">
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
                             <!-- Search -->
-                            <div class="relative">
+                            <div class="relative w-full sm:w-auto">
                                 <input type="text" id="searchMailbox" placeholder="Search mailbox..."
-                                       class="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <div class="absolute left-3 top-2.5 text-gray-400">
+                                       class="pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto">
+                                <div class="absolute left-2 sm:left-3 top-2.5 text-gray-400">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                                     </svg>
@@ -221,8 +221,8 @@
                             </div>
 
                             <!-- Expiration Filter -->
-                            <div class="flex items-center space-x-2">
-                                <select id="expirationFilter" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                            <div class="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+                                <select id="expirationFilter" class="px-2 sm:px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm w-full sm:w-auto">
                                     <option value="">All Expirations</option>
                                     <option value="no-due-date">No Due Date</option>
                                     <option value="expired">Expired</option>
@@ -262,15 +262,16 @@
                                         <option value="{{ $currentYear + 1 }}">{{ $currentYear + 1 }}</option>
                                     </optgroup>
                                 </select>
-                                <button id="clearFilters" class="px-3 py-2 bg-gray-500 text-white text-sm rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                                <button id="clearFilters" class="px-2 sm:px-3 py-2 bg-gray-500 text-white text-xs sm:text-sm rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500">
                                     Clear
                                 </button>
-                            </div>                            <!-- View Toggle -->
-                            <div class="flex bg-gray-200 rounded-md">
-                                <button class="view-toggle active px-3 py-2 text-sm font-medium rounded-l-md bg-blue-600 text-white" data-view="grid">
+                            </div>
+                            <!-- View Toggle -->
+                            <div class="flex bg-gray-200 rounded-md w-full sm:w-auto">
+                                <button class="view-toggle active px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-l-md bg-blue-600 text-white flex-1 sm:flex-none" data-view="grid">
                                     Grid
                                 </button>
-                                <button class="view-toggle px-3 py-2 text-sm font-medium rounded-r-md text-gray-700" data-view="table">
+                                <button class="view-toggle px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-r-md text-gray-700 flex-1 sm:flex-none" data-view="table">
                                     Table
                                 </button>
                             </div>
@@ -278,18 +279,18 @@
                     </div>
 
                     <!-- Mailbox Grid Content -->
-                    <div class="p-3">
+                    <div class="p-2 sm:p-3">
                         <!-- Pagination Info -->
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="text-sm text-gray-500">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 space-y-2 sm:space-y-0">
+                            <div class="text-xs sm:text-sm text-gray-500">
                                 Showing <span id="currentStart">1</span>-<span id="currentEnd">40</span> of <span id="totalMailboxes">345</span> mailboxes
                             </div>
-                            <div class="flex items-center space-x-2">
-                                <button id="prevPage" class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50">
-                                    Previous
+                            <div class="flex items-center space-x-1 sm:space-x-2">
+                                <button id="prevPage" class="px-2 sm:px-3 py-1 border border-gray-300 rounded-md text-xs sm:text-sm hover:bg-gray-50 disabled:opacity-50">
+                                    Prev
                                 </button>
-                                <span id="pageInfo" class="text-sm text-gray-600">Page 1 of 9</span>
-                                <button id="nextPage" class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50">
+                                <span id="pageInfo" class="text-xs sm:text-sm text-gray-600">Page 1 of 9</span>
+                                <button id="nextPage" class="px-2 sm:px-3 py-1 border border-gray-300 rounded-md text-xs sm:text-sm hover:bg-gray-50 disabled:opacity-50">
                                     Next
                                 </button>
                             </div>
