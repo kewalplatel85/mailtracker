@@ -82,13 +82,14 @@
                         <form id="packageForm" class="space-y-2 sm:space-y-3">
                             @csrf
                             <!-- Tab Selection -->
-                            <div class="grid grid-cols-2 gap-1 sm:gap-2">
+                            <div class="grid grid-cols-1 gap-1 sm:gap-2">
                                 <button type="button" class="tab-btn active px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-md bg-blue-600 text-white">
                                     Current Clients
                                 </button>
-                                <button type="button" class="tab-btn px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-md bg-gray-200 text-gray-700">
-                                    New Clients
-                                </button>
+                                <!-- New Clients tab temporarily hidden -->
+                                {{-- <button type="button" class="tab-btn px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-md bg-gray-300 text-gray-500 cursor-not-allowed opacity-50" disabled>
+                                    New Clients (Coming Soon)
+                                </button> --}}
                             </div>
 
                             <div>
@@ -1045,8 +1046,13 @@ $(document).ready(function() {
         }
     });
 
-    // Tab switching
+    // Tab switching (disabled for New Clients tab)
     $('.tab-btn').click(function() {
+        // Prevent switching to disabled tab
+        if ($(this).prop('disabled') || $(this).hasClass('cursor-not-allowed')) {
+            return false;
+        }
+
         $('.tab-btn').removeClass('active bg-blue-600 text-white').addClass('bg-gray-200 text-gray-700');
         $(this).addClass('active bg-blue-600 text-white').removeClass('bg-gray-200 text-gray-700');
     });
