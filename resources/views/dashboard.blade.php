@@ -874,13 +874,23 @@ $(document).ready(function() {
             const row = `
                 <tr>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${$item.data('mailbox')}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${$item.data('customer')}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${$item.data('phone')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${$item.data('customer') || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${$item.data('phone') || 'N/A'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         ${$item.data('packages') > 0 ? `<span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">${$item.data('packages')} packages</span>` : '<span class="text-gray-400">No packages</span>'}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button class="text-blue-600 hover:text-blue-900 mailbox-details" data-mailbox="${$item.data('mailbox')}">View</button>
+                        <button class="text-blue-600 hover:text-blue-900 mailbox-details"
+                                data-mailbox="${$item.data('mailbox')}"
+                                data-customer="${$item.data('customer') || ''}"
+                                data-phone="${$item.data('phone') || ''}"
+                                data-size-type="${$item.data('size-type') || ''}"
+                                data-status="${$item.data('status') || ''}"
+                                data-email="${$item.data('email') || ''}"
+                                data-date-close="${$item.data('date-close') || ''}"
+                                data-term="${$item.data('term') || ''}"
+                                data-due-date="${$item.data('due-date') || ''}"
+                                data-packages="${$item.data('packages') || 0}">View</button>
                     </td>
                 </tr>
             `;
@@ -902,7 +912,16 @@ $(document).ready(function() {
         const dueDate = $(this).data('due-date');
         const packages = $(this).data('packages');
 
-        $('#modalTitle').text(`Mailbox ${mailbox} - Client Information`);
+        // Handle undefined/null values with better fallbacks
+        const safeCustomer = customer && customer !== 'undefined' ? customer : 'N/A';
+        const safePhone = phone && phone !== 'undefined' ? phone : 'N/A';
+        const safeEmail = email && email !== 'undefined' ? email : 'N/A';
+        const safeSizeType = sizeType && sizeType !== 'undefined' ? sizeType : 'N/A';
+        const safeStatus = status && status !== 'undefined' ? status : 'N/A';
+        const safeDateClose = dateClose && dateClose !== 'undefined' ? dateClose : 'N/A';
+        const safeTerm = term && term !== 'undefined' ? term : 'N/A';
+        const safeDueDate = dueDate && dueDate !== 'undefined' ? dueDate : 'N/A';
+        const safePackages = packages !== undefined && packages !== null ? packages : 0;        $('#modalTitle').text(`Mailbox ${mailbox} - Client Information`);
         $('#modalContent').html(`
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Basic Information -->
@@ -915,15 +934,15 @@ $(document).ready(function() {
                         </div>
                         <div class="flex justify-between">
                             <span class="text-gray-600 text-sm">Customer Name:</span>
-                            <span class="text-gray-900 font-medium">${customer || 'N/A'}</span>
+                            <span class="text-gray-900 font-medium">${safeCustomer}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-gray-600 text-sm">Phone Number:</span>
-                            <span class="text-gray-900 font-medium">${phone || 'N/A'}</span>
+                            <span class="text-gray-900 font-medium">${safePhone}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-gray-600 text-sm">Email:</span>
-                            <span class="text-gray-900 font-medium">${email || 'N/A'}</span>
+                            <span class="text-gray-900 font-medium">${safeEmail}</span>
                         </div>
                     </div>
                 </div>
@@ -934,23 +953,23 @@ $(document).ready(function() {
                     <div class="space-y-2">
                         <div class="flex justify-between">
                             <span class="text-gray-600 text-sm">Size/Type:</span>
-                            <span class="text-gray-900 font-medium">${sizeType || 'N/A'}</span>
+                            <span class="text-gray-900 font-medium">${safeSizeType}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-gray-600 text-sm">Status:</span>
-                            ${status ? `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">${status}</span>` : '<span class="text-gray-900 font-medium">N/A</span>'}
+                            ${safeStatus !== 'N/A' ? `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">${safeStatus}</span>` : '<span class="text-gray-900 font-medium">N/A</span>'}
                         </div>
                         <div class="flex justify-between">
                             <span class="text-gray-600 text-sm">Term:</span>
-                            <span class="text-gray-900 font-medium">${term || 'N/A'}</span>
+                            <span class="text-gray-900 font-medium">${safeTerm}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-gray-600 text-sm">Due Date:</span>
-                            <span class="text-gray-900 font-medium">${dueDate || 'N/A'}</span>
+                            <span class="text-gray-900 font-medium">${safeDueDate}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-gray-600 text-sm">Date Close:</span>
-                            <span class="text-gray-900 font-medium">${dateClose || 'N/A'}</span>
+                            <span class="text-gray-900 font-medium">${safeDateClose}</span>
                         </div>
                     </div>
                 </div>
@@ -960,12 +979,12 @@ $(document).ready(function() {
             <div class="mt-6 pt-4 border-t border-gray-200">
                 <div class="flex items-center justify-between">
                     <h4 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Package Summary</h4>
-                    ${packages > 0 ?
-                        `<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">${packages} package(s)</span>` :
+                    ${safePackages > 0 ?
+                        `<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">${safePackages} package(s)</span>` :
                         '<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">No packages</span>'
                     }
                 </div>
-                ${packages > 0 ? `
+                ${safePackages > 0 ? `
                 <div class="mt-4">
                     <button id="packageBtn-${mailbox}" onclick="togglePackageDetails('${mailbox}')" class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
                         📦 View Package Details
