@@ -6,6 +6,9 @@
     @page {
         size: 4in 6in;
         margin: 0;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
     }
 
     @media print {
@@ -13,197 +16,104 @@
             size: 4in 6in !important;
             margin: 0 !important;
         }
-        
+        * {
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
         html, body {
             width: 4in !important;
             height: 6in !important;
             margin: 0 !important;
             padding: 0 !important;
+            overflow: hidden;
             background: white !important;
         }
 
+        body * {
+            visibility: hidden;
+        }
+        .print-section, .print-section * {
+            visibility: visible;
+        }
+        .print-section {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 4in;
+            height: 6in;
+            overflow: hidden;
+        }
         .no-print {
             display: none !important;
         }
 
-        .label-container {
+        .label-item + .label-item {
+            page-break-before: always !important;
+        }
+
+        .tracking-section {
+            width: 100%;
+            margin-bottom: 12pt;
+        }
+        .label-item {
+            margin: 0;
             width: 4in;
             height: 6in;
-            padding: 0.2in;
-            border: 1px solid #000;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            align-items: center;
+            border: 1px solid #000;
+            padding: 0.15in;
             text-align: center;
             background: white;
             box-sizing: border-box;
-            page-break-after: always;
+            position: relative;
+        }
+        .barcode-section svg {
+            width: 1.8in !important;
+            height: 0.4in !important;
+            max-width: 75% !important;
+            print-color-adjust: exact !important;
         }
 
-        .label-container:last-child {
-            page-break-after: avoid;
-        }
-
-        .header {
-            border-bottom: 2px solid #000;
-            padding-bottom: 8pt;
-            margin-bottom: 12pt;
-        }
-
-        .company {
-            font-size: 18pt;
-            font-weight: bold;
-            margin-bottom: 4pt;
-        }
-
-        .subtitle {
-            font-size: 14pt;
-            font-weight: 600;
-        }
-
-        .tracking {
-            margin-bottom: 12pt;
-        }
-
-        .tracking-label {
-            font-size: 12pt;
-            font-weight: 600;
-            margin-bottom: 4pt;
-        }
-
-        .tracking-value {
-            font-size: 18pt;
-            font-weight: bold;
-            font-family: monospace;
-            border: 2px solid #000;
-            padding: 6pt;
-            background: #f9f9f9;
-            word-break: break-all;
-        }
-
-        .customer {
+        .customer-section {
+            width: 100%;
             margin-bottom: 12pt;
         }
 
         .customer-name {
             font-size: 24pt;
             font-weight: 600;
-            margin-bottom: 8pt;
+            margin-bottom: 6pt;
+            color: #000;
             line-height: 1.1;
         }
 
-        .mailbox {
-            font-size: 36pt;
-            font-weight: bold;
-            margin-bottom: 6pt;
+        .mailbox-info {
+            font-size: 36pt !important;
+            font-weight: bold !important;
+            color: #000 !important;
+            margin-bottom: 4pt !important;
         }
 
-        .phone {
+        .phone-info {
             font-size: 14pt;
+            color: #000;
             font-family: monospace;
         }
 
-        .barcode {
-            flex-grow: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-top: 8pt;
+        .tracking-number {
+            font-size: 18pt;
+            font-weight: bold;
+            color: #000;
+            font-family: monospace;
+            border: 1px solid #000;
+            padding: 6pt 12pt;
+            background: #f9f9f9;
+            word-break: break-all;
         }
-
-        .barcode svg {
-            width: 1.8in !important;
-            height: 0.5in !important;
-            max-width: 90% !important;
-        }
-    }
-
-    /* Screen styles */
-    .label-container {
-        width: 400px;
-        height: 600px;
-        padding: 20px;
-        margin: 20px auto;
-        border: 2px solid #000;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        text-align: center;
-        background: white;
-        box-sizing: border-box;
-    }
-
-    .header {
-        border-bottom: 2px solid #000;
-        padding-bottom: 12px;
-        margin-bottom: 16px;
-    }
-
-    .company {
-        font-size: 24px;
-        font-weight: bold;
-        margin-bottom: 6px;
-    }
-
-    .subtitle {
-        font-size: 18px;
-        font-weight: 600;
-    }
-
-    .tracking {
-        margin-bottom: 16px;
-    }
-
-    .tracking-label {
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 6px;
-    }
-
-    .tracking-value {
-        font-size: 24px;
-        font-weight: bold;
-        font-family: monospace;
-        border: 2px solid #000;
-        padding: 8px 12px;
-        background: #f9f9f9;
-        word-break: break-all;
-    }
-
-    .customer {
-        margin-bottom: 16px;
-    }
-
-    .customer-name {
-        font-size: 32px;
-        font-weight: 600;
-        margin-bottom: 12px;
-        line-height: 1.1;
-    }
-
-    .mailbox {
-        font-size: 48px;
-        font-weight: bold;
-        margin-bottom: 8px;
-    }
-
-    .phone {
-        font-size: 18px;
-        font-family: monospace;
-    }
-
-    .barcode {
-        flex-grow: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-top: 20px;
-    }
-
-    .barcode svg {
-        width: 180px;
-        height: 50px;
-        max-width: 90%;
     }
 </style>
 
@@ -224,45 +134,53 @@
         </div>
     </div>
 
-    @foreach($packages as $package)
-        <div class="label-container">
-            <div class="header">
-                <div class="company">
-                    @if(isset($package->company) && $package->company)
-                        {{ $package->company }}
-                    @else
-                        Mail All Center
+    <div class="print-section">
+        @foreach($packages as $package)
+            <div class="label-item w-full h-[37.5rem] flex flex-col justify-between items-center border border-black p-4 text-center bg-white mx-auto mb-5">
+                <!-- Header -->
+                <div class="package-header w-full text-center border-b border-black pb-2 mb-3">
+                    <div class="text-2xl font-bold mb-1 text-black">
+                        @if(isset($package->company) && $package->company)
+                            {{ $package->company }}
+                        @else
+                            Mail All Center
+                        @endif
+                    </div>
+                    <div class="text-lg font-semibold text-black">Package Details</div>
+                </div>
+
+                <!-- Tracking Number Section -->
+                <div class="tracking-section">
+                    <div class="text-base font-semibold mb-1 text-black">Tracking Number:</div>
+                    <div class="tracking-number">{{ $package->tracking_number }}</div>
+                </div>
+
+                <!-- Customer Information -->
+                <div class="customer-section">
+                    <div class="customer-name">{{ $package->customer_name }}</div>
+                    @if($package->mailbox_number && $package->mailbox_number !== 'N/A')
+                        <div class="mailbox-info">Mailbox: {{ $package->mailbox_number }}</div>
+                    @endif
+                    @if($package->phone_number)
+                        <div class="phone-info">{{ $package->phone_number }}</div>
                     @endif
                 </div>
-                <div class="subtitle">Package Details</div>
-            </div>
 
-            <div class="tracking">
-                <div class="tracking-label">Tracking Number:</div>
-                <div class="tracking-value">{{ $package->tracking_number }}</div>
+                <!-- Barcode Section -->
+                <div class="barcode-section my-5 flex justify-center items-center w-full">
+                    @if(class_exists('Milon\Barcode\Facades\DNS1DFacade'))
+                        <div class="w-45 h-10 max-w-3/4">
+                            {!! \Milon\Barcode\Facades\DNS1DFacade::getBarcodeHTML($package->tracking_number, 'C128', 1.5, 60) !!}
+                        </div>
+                    @else
+                        <div class="h-15 border-2 border-black flex items-center justify-center font-mono text-xl bg-white text-black">
+                            *{{ $package->tracking_number }}*
+                        </div>
+                    @endif
+                </div>
             </div>
-
-            <div class="customer">
-                <div class="customer-name">{{ $package->customer_name }}</div>
-                @if($package->mailbox_number && $package->mailbox_number !== 'N/A')
-                    <div class="mailbox">Mailbox: {{ $package->mailbox_number }}</div>
-                @endif
-                @if($package->phone_number)
-                    <div class="phone">{{ $package->phone_number }}</div>
-                @endif
-            </div>
-
-            <div class="barcode">
-                @if(class_exists('Milon\Barcode\Facades\DNS1DFacade'))
-                    {!! \Milon\Barcode\Facades\DNS1DFacade::getBarcodeHTML($package->tracking_number, 'C128', 1.5, 60) !!}
-                @else
-                    <div style="height: 60px; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-family: monospace; font-size: 20px; background: #fff; color: #000;">
-                        *{{ $package->tracking_number }}*
-                    </div>
-                @endif
-            </div>
-        </div>
-    @endforeach
+        @endforeach
+    </div>
 </main>
 
 @endsection

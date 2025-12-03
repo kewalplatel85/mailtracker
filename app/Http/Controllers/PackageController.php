@@ -102,6 +102,7 @@ class PackageController extends BaseController
 
         return response()->json([
             'exists' => (bool) $tracking,
+            'id' => optional($tracking)->id,
             'status' => optional($tracking)->status,
             'customer_name' => optional($tracking)->customer_name,
             'mailbox_number' => optional($tracking)->mailbox_number,

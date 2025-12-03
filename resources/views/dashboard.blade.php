@@ -117,7 +117,6 @@
                                 <select name="status" required
                                         class="w-full px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <option value="Incoming">Incoming</option>
-                                    <option value="Ready for Pickup">Ready for Pickup</option>
                                     <option value="Picked Up">Picked Up</option>
                                 </select>
                             </div>
@@ -127,6 +126,7 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Tracking Number</label>
                                 <textarea name="tracking_number" id="trackingInput" rows="2" placeholder="Enter tracking numbers (one per line)"
                                           class="w-full px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                                <div id="trackingErrors" class="hidden mt-1 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600"></div>
                                 <p class="text-xs text-gray-500 mt-1">Enter one tracking number per line</p>
                             </div>
 
@@ -1123,13 +1123,50 @@ $(document).ready(function() {
             return;
         }
 
-        // Add form data
-        formData.append('mailbox_number', mailboxNumber);
-        formData.append('customer_name', customerName);
-        formData.append('package_count', packageCount);
-        formData.append('status', 'Ready for Pickup'); // Always save as Ready for Pickup
-        formData.append('tracking_number', trackingNumber);
-        formData.append('sms_message', smsMessage);
+        // Validate mailbox requirement for all operations
+        if (!mailboxNumber || mailboxNumber.trim() === '') {
+            alert('Mailbox number is required.');
+            return;
+        }
+
+        // Additional validation for Incoming status
+        if (status === 'Incoming') {
+            if (!trackingNumber || trackingNumber.trim() === '') {
+                alert('At least one tracking number is required for incoming packages.');
+                return;
+            }
+
+            // Check for duplicate tracking numbers before saving
+            const trackingNumbers = trackingNumber.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+
+            if (trackingNumbers.length === 0) {
+                alert('At least one valid tracking number is required.');
+                return;
+            }
+
+            // Verify no tracking numbers already exist
+            checkDuplicateTrackings(trackingNumbers, () => {
+                proceedWithIncomingSave(formData, mailboxNumber, customerName, packageCount, trackingNumber, smsMessage);
+            });
+            return;
+        }
+
+        // Handle status logic: Incoming saves as Ready for Pickup, Picked Up processes pickup
+        if (status === 'Incoming') {
+            // Save as Ready for Pickup when Incoming is selected
+            formData.append('mailbox_number', mailboxNumber);
+            formData.append('customer_name', customerName);
+            formData.append('package_count', packageCount);
+            formData.append('status', 'Ready for Pickup');
+            formData.append('tracking_number', trackingNumber);
+            formData.append('sms_message', smsMessage);
+        } else if (status === 'Picked Up') {
+            // Process pickup logic - verify and mark as picked up
+            processPickup(trackingNumber, mailboxNumber);
+            return;
+        }
 
         // Add CSRF token
         formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
@@ -1206,6 +1243,14 @@ $(document).ready(function() {
     // Initialize
     updatePagination();
     setupTrackingPreview();
+
+    // Clear tracking field when status changes
+    $('select[name="status"]').on('change', function() {
+        $('textarea[name="tracking_number"]').val('');
+        $('#trackingPreview').addClass('hidden');
+        $('#previewList').html('');
+        hideInlineError();
+    });
 
     // Add package count manual override capability
     $('input[name="package_count"]').on('input', function() {
@@ -1348,17 +1393,20 @@ function setupTrackingPreview() {
     const trackingPreview = $('#trackingPreview');
     const previewList = $('#previewList');
     const clearPreviewBtn = $('#clearPreview');
+    const trackingErrors = $('#trackingErrors');
+    let validationTimeout;
 
-    // Handle input events with proper scanning support
+    // Handle input events with debouncing to prevent multiple validations
     trackingInput.on('input paste', function(e) {
-        // For paste events, allow time for content to be inserted
-        if (e.type === 'paste') {
-            setTimeout(() => {
-                processTrackingInput();
-            }, 10);
-        } else {
-            processTrackingInput();
+        // Clear any existing timeout
+        if (validationTimeout) {
+            clearTimeout(validationTimeout);
         }
+
+        // Set new timeout for validation
+        validationTimeout = setTimeout(() => {
+            processTrackingInput();
+        }, e.type === 'paste' ? 100 : 500); // Shorter delay for paste, longer for typing
     });
 
     // Handle Enter key for new tracking numbers
@@ -1368,6 +1416,10 @@ function setupTrackingPreview() {
             const currentValue = $(this).val();
             if (currentValue.trim() && !currentValue.endsWith('\n')) {
                 $(this).val(currentValue + '\n');
+                // Clear timeout and process immediately
+                if (validationTimeout) {
+                    clearTimeout(validationTimeout);
+                }
                 processTrackingInput();
             }
         }
@@ -1375,6 +1427,7 @@ function setupTrackingPreview() {
 
     function processTrackingInput() {
         const trackingText = trackingInput.val().trim();
+        const status = $('select[name="status"]').val();
 
         if (trackingText) {
             const trackingNumbers = trackingText.split('\n')
@@ -1382,23 +1435,20 @@ function setupTrackingPreview() {
                 .filter(line => line.length > 0);
 
             if (trackingNumbers.length > 0) {
-                // Auto-update package count based on number of tracking numbers
-                const packageCountInput = $('input[name="package_count"]');
-                const currentCount = parseInt(packageCountInput.val()) || 1;
-                const trackingCount = trackingNumbers.length;
-
-                // Update package count to match tracking numbers (use higher value)
-                const newCount = Math.max(currentCount, trackingCount);
-                packageCountInput.val(newCount);
-
-                updateTrackingPreview(trackingNumbers);
-                trackingPreview.removeClass('hidden');
+                // Validate tracking numbers based on status
+                if (status === 'Incoming') {
+                    validateIncomingTrackings(trackingNumbers);
+                } else if (status === 'Picked Up') {
+                    validatePickupTrackings(trackingNumbers);
+                } else {
+                    // Default behavior for other statuses
+                    updateTrackingPreviewWithValidation(trackingNumbers, []);
+                }
             } else {
                 trackingPreview.addClass('hidden');
             }
         } else {
             trackingPreview.addClass('hidden');
-            // Reset package count to 1 when no tracking numbers
             $('input[name="package_count"]').val(1);
         }
     }
@@ -1407,7 +1457,158 @@ function setupTrackingPreview() {
         trackingInput.val('');
         trackingPreview.addClass('hidden');
         previewList.html('');
+        hideInlineError();
     });
+}
+
+// Show inline error message
+function showInlineError(message) {
+    const trackingErrors = $('#trackingErrors');
+    trackingErrors.html(message).removeClass('hidden');
+}
+
+// Hide inline error message
+function hideInlineError() {
+    const trackingErrors = $('#trackingErrors');
+    trackingErrors.addClass('hidden').html('');
+}
+
+// Validate tracking numbers for Incoming status
+function validateIncomingTrackings(trackingNumbers) {
+    Promise.all(trackingNumbers.map(tracking =>
+        fetch('/check-tracking', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            body: JSON.stringify({ tracking_number: tracking })
+        }).then(response => response.json())
+    )).then(responses => {
+        const validTrackings = [];
+        const invalidTrackings = [];
+
+        responses.forEach((response, index) => {
+            const tracking = trackingNumbers[index];
+            if (response.exists) {
+                invalidTrackings.push(tracking);
+            } else {
+                validTrackings.push(tracking);
+            }
+        });
+
+        // Show consolidated error message
+        if (invalidTrackings.length > 0) {
+            showInlineError(`Tracking number(s) already exist: ${invalidTrackings.join(', ')}`);
+        } else {
+            hideInlineError();
+        }
+
+        updateTrackingPreviewWithValidation(validTrackings, invalidTrackings);
+    }).catch(error => {
+        console.error('Validation error:', error);
+        showInlineError('Error validating tracking numbers');
+    });
+}
+
+// Validate tracking numbers for Picked Up status
+function validatePickupTrackings(trackingNumbers) {
+    const currentMailbox = $('input[name="mailbox_number"]').val().trim();
+
+    Promise.all(trackingNumbers.map(tracking =>
+        fetch('/check-tracking', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            body: JSON.stringify({ tracking_number: tracking })
+        }).then(response => response.json())
+    )).then(responses => {
+        const validTrackings = [];
+        const invalidTrackings = [];
+        const errorMessages = [];
+        let firstValidResponse = null;
+
+        responses.forEach((response, index) => {
+            const tracking = trackingNumbers[index];
+
+            if (!response.exists) {
+                invalidTrackings.push(tracking);
+                errorMessages.push(`${tracking}: not found`);
+            } else if (response.status !== 'Ready for Pickup') {
+                invalidTrackings.push(tracking);
+                errorMessages.push(`${tracking}: status is ${response.status}`);
+            } else {
+                // Check mailbox matching logic
+                if (!currentMailbox) {
+                    // No mailbox set, auto-fill from first valid tracking
+                    if (!firstValidResponse) {
+                        firstValidResponse = response;
+                        $('input[name="mailbox_number"]').val(response.mailbox_number);
+                        $('input[name="customer_name"]').val(response.customer_name);
+                        validTrackings.push(tracking);
+                    } else if (String(response.mailbox_number).trim() === String(firstValidResponse.mailbox_number).trim()) {
+                        validTrackings.push(tracking);
+                    } else {
+                        invalidTrackings.push(tracking);
+                        errorMessages.push(`${tracking}: different mailbox (${response.mailbox_number})`);
+                    }
+                } else if (String(response.mailbox_number).trim() === String(currentMailbox).trim()) {
+                    validTrackings.push(tracking);
+                } else {
+                    invalidTrackings.push(tracking);
+                    errorMessages.push(`${tracking}: belongs to mailbox ${response.mailbox_number}`);
+                }
+            }
+        });
+
+        // Show consolidated error message
+        if (errorMessages.length > 0) {
+            showInlineError(errorMessages.join('; '));
+            if (firstValidResponse && errorMessages.some(msg => msg.includes('different mailbox'))) {
+                showToast(`Complete pickup for mailbox ${firstValidResponse.mailbox_number} first`, 'warning');
+            }
+        } else {
+            hideInlineError();
+        }
+
+        updateTrackingPreviewWithValidation(validTrackings, invalidTrackings);
+    }).catch(error => {
+        console.error('Validation error:', error);
+        showInlineError('Error validating tracking numbers');
+    });
+}
+
+// Update preview with validation results
+function updateTrackingPreviewWithValidation(validTrackings, invalidTrackings) {
+    const packageCountInput = $('input[name="package_count"]');
+    const currentCount = parseInt(packageCountInput.val()) || 1;
+    const validCount = validTrackings.length;
+
+    if (validCount > 0) {
+        // Update package count to match valid tracking numbers
+        const newCount = Math.max(currentCount, validCount);
+        packageCountInput.val(newCount);
+
+        updateTrackingPreview(validTrackings);
+        $('#trackingPreview').removeClass('hidden');
+
+        // ALWAYS update textarea to only contain valid tracking numbers
+        // This removes only invalid trackings while keeping valid ones
+        $('textarea[name="tracking_number"]').val(validTrackings.join('\n'));
+
+        // Hide errors if we have valid trackings and no invalid ones
+        if (invalidTrackings.length === 0) {
+            hideInlineError();
+        }
+    } else {
+        $('#trackingPreview').addClass('hidden');
+        $('input[name="package_count"]').val(1);
+
+        // Only clear textarea if ALL trackings were invalid
+        $('textarea[name="tracking_number"]').val('');
+    }
 }
 
 // Update tracking preview display
@@ -1415,6 +1616,14 @@ function updateTrackingPreview(trackingNumbers) {
     const previewList = $('#previewList');
     const mailboxNumber = $('input[name="mailbox_number"]').val().trim();
     const customerName = $('input[name="customer_name"]').val().trim();
+    const status = $('select[name="status"]').val();
+
+    // Determine status display and color
+    let statusDisplay = status || 'Incoming';
+    let statusColor = 'orange';
+    if (status === 'Picked Up') {
+        statusColor = 'green';
+    }
 
     let previewHtml = '';
     trackingNumbers.forEach((tracking, index) => {
@@ -1429,7 +1638,7 @@ function updateTrackingPreview(trackingNumbers) {
                         ${customerName ? customerName : 'Customer'} ${mailboxNumber ? `(${mailboxNumber})` : ''}
                     </div>
                     <div class="flex items-center space-x-2">
-                        <span class="text-xs text-orange-600 font-medium">Incoming</span>
+                        <span class="text-xs text-${statusColor}-600 font-medium">${statusDisplay}</span>
                         <button type="button" onclick="event.preventDefault(); event.stopPropagation(); printTrackingLabel('${tracking}'); return false;" class="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 flex items-center space-x-1">
                             <span>🏷️</span>
                             <span>Print Label</span>
@@ -2044,6 +2253,213 @@ function bulkMarkAsPickedUp(packageIds, trackingNumbers, mailboxNumber) {
             const error = xhr.responseJSON;
             showToast(error?.message || 'Error marking packages as picked up', 'error');
         }
+    });
+}
+
+// Check for duplicate tracking numbers
+function checkDuplicateTrackings(trackingNumbers, callback) {
+    Promise.all(trackingNumbers.map(tracking =>
+        fetch('/check-tracking', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            body: JSON.stringify({ tracking_number: tracking })
+        }).then(response => response.json())
+    )).then(responses => {
+        const duplicates = [];
+
+        responses.forEach((response, index) => {
+            if (response.exists) {
+                duplicates.push(trackingNumbers[index]);
+            }
+        });
+
+        if (duplicates.length > 0) {
+            showToast(`Tracking number(s) already exist: ${duplicates.join(', ')}`, 'error');
+            return;
+        }
+
+        // No duplicates, proceed with save
+        callback();
+    }).catch(error => {
+        showToast('Error checking tracking numbers', 'error');
+        console.error('Duplicate check error:', error);
+    });
+}
+
+// Proceed with incoming package save after validation
+function proceedWithIncomingSave(formData, mailboxNumber, customerName, packageCount, trackingNumber, smsMessage) {
+    const formData2 = new FormData();
+    formData2.append('mailbox_number', mailboxNumber);
+    formData2.append('customer_name', customerName);
+    formData2.append('package_count', packageCount);
+    formData2.append('status', 'Ready for Pickup');
+    formData2.append('tracking_number', trackingNumber);
+    formData2.append('sms_message', smsMessage);
+    formData2.append('_token', $('meta[name="csrf-token"]').attr('content'));
+
+    // Add images if any
+    const fileInput = $('input[name="package_images[]"]')[0];
+    if (fileInput && fileInput.files) {
+        for (let i = 0; i < fileInput.files.length; i++) {
+            formData2.append('package_images[]', fileInput.files[i]);
+        }
+    }
+
+    // Submit form
+    $.ajax({
+        url: '/saveAndNotify',
+        type: 'POST',
+        data: formData2,
+        contentType: false,
+        processData: false,
+        success: function(response) {
+            showToast(response.message || 'Package saved successfully!', 'success');
+
+            // Show SMS sending result only
+            if (response.sms_sent) {
+                showToast('📱 SMS notification sent successfully!', 'success');
+            } else if (response.sms_message && response.sms_message !== 'No SMS message provided') {
+                showToast(`📱 SMS not sent: ${response.sms_message}`, 'warning');
+            }
+
+            // Reset form and prepare for next entry
+            $('#packageForm')[0].reset();
+            $('input[name="package_count"]').val(1);
+            $('#trackingPreview').addClass('hidden');
+            $('#previewList').html('');
+            $('.mailbox-item').removeClass('mailbox-highlighted border-green-500 bg-green-50 ring-2 ring-green-200');
+
+            if ($('#searchMailbox').length) {
+                $('#searchMailbox').val('');
+            }
+
+            // Update mailbox badge
+            if (response.mailbox_number) {
+                updateMailboxBadge(response.mailbox_number);
+            }
+
+            // Show success packages
+            if (response.packages && response.packages.length > 0) {
+                displaySuccessPackages(response.packages);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error saving package:', error);
+            const response = xhr.responseJSON;
+            showToast(response?.message || 'Error saving package. Please try again.', 'error');
+        }
+    });
+}
+
+// Process pickup when Picked Up status is selected
+function processPickup(trackingNumber, mailboxNumber) {
+    if (!trackingNumber || trackingNumber.trim() === '') {
+        showToast('Tracking number is required for pickup', 'error');
+        return;
+    }
+
+    // Split tracking numbers if multiple
+    const trackingNumbers = trackingNumber.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
+    if (trackingNumbers.length === 0) {
+        showToast('No valid tracking numbers found', 'error');
+        return;
+    }
+
+    // Verify each tracking number exists and is ready for pickup
+    Promise.all(trackingNumbers.map(tracking =>
+        fetch('/check-tracking', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            body: JSON.stringify({ tracking_number: tracking })
+        }).then(response => response.json())
+    )).then(responses => {
+        const validPackages = [];
+        const invalidTrackings = [];
+
+        responses.forEach((response, index) => {
+            const tracking = trackingNumbers[index];
+            if (response.exists && response.status === 'Ready for Pickup') {
+                // Verify mailbox if provided
+                if (!mailboxNumber || response.mailbox_number == mailboxNumber) {
+                    validPackages.push({
+                        id: response.id,
+                        tracking_number: tracking,
+                        customer_name: response.customer_name,
+                        mailbox_number: response.mailbox_number
+                    });
+                } else {
+                    invalidTrackings.push(`${tracking} (wrong mailbox)`);
+                }
+            } else if (response.exists && response.status !== 'Ready for Pickup') {
+                invalidTrackings.push(`${tracking} (status: ${response.status})`);
+            } else {
+                invalidTrackings.push(`${tracking} (not found)`);
+            }
+        });
+
+        if (invalidTrackings.length > 0) {
+            showToast(`Invalid tracking numbers: ${invalidTrackings.join(', ')}`, 'error');
+            return;
+        }
+
+        if (validPackages.length === 0) {
+            showToast('No valid packages found for pickup', 'error');
+            return;
+        }
+
+        // Mark packages as picked up
+        const packageIds = validPackages.map(pkg => pkg.id);
+
+        $.ajax({
+            url: '/packages/bulk-mark-picked-up',
+            method: 'POST',
+            data: {
+                package_ids: packageIds,
+                _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                showToast(`${validPackages.length} package${validPackages.length > 1 ? 's' : ''} marked as picked up!`, 'success');
+
+                // Show SMS confirmation - the backend handles SMS automatically
+                showToast('📱 SMS notification sent to customer', 'success');
+
+                // Clear and reset entire form
+                $('#packageForm')[0].reset();
+                $('textarea[name="tracking_number"]').val('');
+                $('input[name="mailbox_number"]').val('');
+                $('input[name="customer_name"]').val('');
+                $('input[name="package_count"]').val(1);
+
+                // Clear preview and errors
+                $('#trackingPreview').addClass('hidden');
+                $('#previewList').html('');
+                hideInlineError();
+
+                // Reset focus to tracking input for next entry
+                $('textarea[name="tracking_number"]').focus();
+
+                // Update mailbox count if applicable
+                if (mailboxNumber) {
+                    updateMailboxPackageCount(mailboxNumber);
+                }
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON;
+                showToast(error?.message || 'Error marking packages as picked up', 'error');
+            }
+        });
+    }).catch(error => {
+        showToast('Error verifying tracking numbers', 'error');
+        console.error('Verification error:', error);
     });
 }
 
