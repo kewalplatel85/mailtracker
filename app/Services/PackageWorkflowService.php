@@ -117,11 +117,16 @@ class PackageWorkflowService
     /**
      * Get packages that need attention (aging packages)
      */
-    public function getAgingPackages(int $daysOld = 7): \Illuminate\Database\Eloquent\Collection
+    public function getAgingPackages(int $daysOld = 7, ?int $companyId = null): \Illuminate\Database\Eloquent\Collection
     {
-        return Package::where('status', self::STATUS_READY_FOR_PICKUP)
-            ->where('ready_at', '<=', Carbon::now()->subDays($daysOld))
-            ->get();
+        $query = Package::where('status', self::STATUS_READY_FOR_PICKUP)
+            ->where('ready_at', '<=', Carbon::now()->subDays($daysOld));
+
+        if ($companyId !== null) {
+            $query->where('company_id', $companyId);
+        }
+
+        return $query->get();
     }
 
     /**
@@ -151,27 +156,45 @@ class PackageWorkflowService
     /**
      * Get workflow statistics
      */
-    public function getWorkflowStats(): array
+    public function getWorkflowStats(?int $companyId = null): array
     {
+        $baseQuery = function($status) use ($companyId) {
+            $query = Package::where('status', $status);
+            if ($companyId !== null) {
+                $query->where('company_id', $companyId);
+            }
+            return $query;
+        };
+
+        $pickedUpQuery = Package::where('status', self::STATUS_PICKED_UP)
+            ->whereDate('picked_up_at', Carbon::today());
+        if ($companyId !== null) {
+            $pickedUpQuery->where('company_id', $companyId);
+        }
+
         return [
-            'incoming' => Package::where('status', self::STATUS_INCOMING)->count(),
-            'ready_for_pickup' => Package::where('status', self::STATUS_READY_FOR_PICKUP)->count(),
-            'picked_up_today' => Package::where('status', self::STATUS_PICKED_UP)
-                ->whereDate('picked_up_at', Carbon::today())->count(),
-            'aging_packages' => $this->getAgingPackages()->count(),
-            'average_processing_time' => $this->getAverageProcessingTime(),
+            'incoming' => $baseQuery(self::STATUS_INCOMING)->count(),
+            'ready_for_pickup' => $baseQuery(self::STATUS_READY_FOR_PICKUP)->count(),
+            'picked_up_today' => $pickedUpQuery->count(),
+            'aging_packages' => $this->getAgingPackages(7, $companyId)->count(),
+            'average_processing_time' => $this->getAverageProcessingTime($companyId),
         ];
     }
 
     /**
      * Get average processing time (incoming -> picked up)
      */
-    private function getAverageProcessingTime(): float
+    private function getAverageProcessingTime(?int $companyId = null): float
     {
-        $packages = Package::whereNotNull('picked_up_at')
+        $query = Package::whereNotNull('picked_up_at')
             ->whereNotNull('received_at')
-            ->where('picked_up_at', '>=', Carbon::now()->subDays(30))
-            ->select(DB::raw('AVG(TIMESTAMPDIFF(HOUR, received_at, picked_up_at)) as avg_hours'))
+            ->where('picked_up_at', '>=', Carbon::now()->subDays(30));
+
+        if ($companyId !== null) {
+            $query->where('company_id', $companyId);
+        }
+
+        $packages = $query->select(DB::raw('AVG(TIMESTAMPDIFF(HOUR, received_at, picked_up_at)) as avg_hours'))
             ->first();
 
         return $packages->avg_hours ?? 0;

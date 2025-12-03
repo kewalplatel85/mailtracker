@@ -160,6 +160,8 @@
                 <div class="label-expiry">
                     @if(isset($package->is_preview) && $package->is_preview)
                         Preview Label - {{ now()->format('n/j/Y') }}
+                    @elseif(isset($package->due_date) && $package->due_date && $package->due_date !== 'N/A')
+                        Expires: {{ \Carbon\Carbon::parse($package->due_date)->format('n/j/Y') }}
                     @else
                         Expires: {{ is_string($package->created_at) ? \Carbon\Carbon::parse($package->created_at)->addDays(30)->format('n/j/Y') : $package->created_at->addDays(30)->format('n/j/Y') }}
                     @endif

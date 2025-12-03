@@ -29,16 +29,40 @@
                             <div class="text-right">
                                 <div class="text-sm font-medium text-white">{{ Auth::user()->name ?? 'User' }}</div>
                                 <div class="text-xs text-gray-300">
-                                    @if(Auth::user()->company)
-                                        {{ Auth::user()->company->name }}
-                                    @endif
-                                    @if(Auth::user()->isCompanyAdmin())
-                                        <span class="ml-1 text-blue-300">• Admin</span>
-                                    @elseif(Auth::user()->isSuperAdmin())
-                                        <span class="ml-1 text-purple-300">• Super Admin</span>
-                                    @else
-                                        <span class="ml-1 text-green-300">• User</span>
-                                    @endif
+                                    @php
+                                        $user = Auth::user();
+                                        $currentCompanyId = session('current_company_id') ?? $user->company_id;
+                                        $companyName = 'No Company';
+
+                                        if ($user->is_super_admin) {
+                                            if ($currentCompanyId) {
+                                                $currentCompany = \App\Models\Company::find($currentCompanyId);
+                                                $companyName = $currentCompany ? $currentCompany->name : 'Unknown Company';
+                                            } else {
+                                                $companyName = 'Select Company';
+                                            }
+                                        } elseif ($user->company) {
+                                            $companyName = $user->company->name;
+                                        }
+
+                                        // Determine role display with better logic
+                                        $roleDisplay = 'User';
+                                        $roleColor = 'text-green-300';
+
+                                        if ($user->is_super_admin) {
+                                            $roleDisplay = 'Super Admin';
+                                            $roleColor = 'text-purple-300';
+                                        } else {
+                                            // Check if user has admin role in their company or current company context
+                                            $checkCompanyId = $currentCompanyId ?: $user->company_id;
+                                            if ($checkCompanyId && $user->isCompanyAdmin($checkCompanyId)) {
+                                                $roleDisplay = 'Admin';
+                                                $roleColor = 'text-blue-300';
+                                            }
+                                        }
+                                    @endphp
+                                    {{ $companyName }}
+                                    <span class="ml-1 {{ $roleColor }}">• {{ $roleDisplay }}</span>
                                 </div>
                             </div>
                         </div>
@@ -47,8 +71,11 @@
                         @if(Auth::user()->isSuperAdmin())
                         <div class="flex items-center space-x-2 mr-4">
                             <select id="companySwitcher" class="px-2 py-1 text-xs border border-gray-600 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">Select Company Context</option>
-                                @foreach(\App\Models\Company::where('status', 'active')->get() as $company)
+                                <option value="">Select Company</option>
+                                @php
+                                    $companies = \App\Models\Company::where('status', 'active')->distinct()->orderBy('name')->get();
+                                @endphp
+                                @foreach($companies as $company)
                                     <option value="{{ $company->id }}"
                                             {{ session('current_company_id') == $company->id ? 'selected' : '' }}>
                                         {{ $company->name }}
@@ -86,12 +113,14 @@
 
                             <!-- Dropdown menu -->
                             <div class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 ring-1 shadow-lg ring-black/5 focus:outline-hidden hidden" id="user-menu">
+                                @if(Auth::user()->is_super_admin || Auth::user()->isCompanyAdmin())
                                 <a href="{{ route('admin.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" tabindex="-1" id="user-menu-item-0">
                                     <span class="flex items-center">
                                         <span class="mr-2">⚙️</span>
                                         Admin Dashboard
                                     </span>
                                 </a>
+                                @endif
                                 <div class="border-t border-gray-200"></div>
                                 <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="user-menu-item-2" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Sign out</a>
                                     <form id="logout-form" action="{{route('logout')}}" method="POST" style="display: none">

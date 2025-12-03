@@ -18,7 +18,6 @@ class Role extends Model
         'description',
         'permissions',
         'is_system_role',
-        'company_id',
     ];
 
     protected $casts = [
@@ -80,14 +79,6 @@ class Role extends Model
                 $role->slug = Str::slug($role->name);
             }
         });
-    }
-
-    /**
-     * Get the company this role belongs to
-     */
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Company::class);
     }
 
     /**

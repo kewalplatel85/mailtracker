@@ -19,8 +19,14 @@ class DashboardController extends Controller
 {
     //
     public function index(){
+        // CRITICAL: Ensure user is authenticated
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        $user = Auth::user();
         // CRITICAL: Get current company context
-        $currentCompanyId = session('current_company_id') ?? Auth::user()->company_id;
+        $currentCompanyId = session('current_company_id') ?? ($user ? $user->company_id : null);
 
         $data = [];
 
@@ -66,7 +72,7 @@ class DashboardController extends Controller
             // Get total packages for this company
             $stats['total_packages'] = \App\Models\Package::where('company_id', $currentCompanyId)->count();
 
-        } else if (Auth::user()->is_super_admin) {
+        } else if ($user && $user->is_super_admin) {
             // Super admin sees a message to select company context
             $data = [['Super Admin: Please select a company context to view mailbox data']];
             // Stats remain at 0 for super admin without company context
@@ -77,11 +83,18 @@ class DashboardController extends Controller
         $receivedMessages = $inboxData['receivedMessages'];
         $sentMessages = $inboxData['sentMessages'];
 
+        // Get current company for view
+        $currentCompany = null;
+        if ($currentCompanyId) {
+            $currentCompany = \App\Models\Company::find($currentCompanyId);
+        }
+
         return view('dashboard', [
             'data' => $data,
             'stats' => $stats,
             'receivedMessages' => $receivedMessages,
-            'sentMessages' => $sentMessages
+            'sentMessages' => $sentMessages,
+            'currentCompany' => $currentCompany
         ]);
     }
 
@@ -112,15 +125,23 @@ class DashboardController extends Controller
         }
 
         // CRITICAL: Ensure proper company assignment
-        $currentCompanyId = session('current_company_id') ?? Auth::user()->company_id;
+        // CRITICAL: Ensure user is authenticated
+        if (!Auth::check()) {
+            return response()->json([
+                'message' => 'Unauthorized access'
+            ], 401);
+        }
 
-        if (!$currentCompanyId && !Auth::user()->is_super_admin) {
+        $user = Auth::user();
+        $currentCompanyId = session('current_company_id') ?? ($user ? $user->company_id : null);
+
+        if (!$currentCompanyId && !($user && $user->is_super_admin)) {
             return response()->json([
                 'message' => 'Error: No company associated with this user. Contact administrator.'
             ], 403);
         }
 
-        if (Auth::user()->is_super_admin && !$currentCompanyId) {
+        if ($user && $user->is_super_admin && !$currentCompanyId) {
             return response()->json([
                 'success' => false,
                 'message' => 'Please select a company from the navigation dropdown before adding packages.'

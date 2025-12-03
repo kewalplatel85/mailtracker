@@ -126,42 +126,76 @@ class MessageController extends Controller
         $message = $request->blast_message;
 
         if (empty($phoneNumbers)) {
-            return redirect()->back()->withErrors(['phone_numbers' => 'Please provide valid phone numbers.']);
+            return response()->json(['error' => 'Please provide valid phone numbers.'], 422);
         }
 
-        // Twilio credentials
-        $twilioSid = config('services.twilio.sid');
-        $twilioToken = config('services.twilio.token');
-        $twilioFrom = config('services.twilio.from');
+        // Use environment variables for Twilio credentials
+        $twilioSid = env('TWILIO_SID');
+        $twilioToken = env('TWILIO_AUTH_TOKEN');
+        $twilioFrom = env('TWILIO_PHONE_NUMBER');
 
         // Ensure Twilio credentials are available
         if (!$twilioSid || !$twilioToken || !$twilioFrom) {
-            return redirect()->back()->withErrors(['error' => 'Twilio configuration is missing.']);
+            return response()->json(['error' => 'Twilio configuration is missing.'], 500);
         }
 
         $twilio = new Client($twilioSid, $twilioToken);
 
+        $successCount = 0;
         $failedNumbers = [];
 
         foreach ($phoneNumbers as $number) {
             try {
-                // Send SMS via Twilio
-                $twilio->messages->create($number, [
-                    'from' => $twilioFrom,
-                    'body' => $message,
-                ]);
+                // Clean and format phone number
+                $cleanPhone = preg_replace('/\D/', '', $number);
+
+                // Format phone number for Twilio
+                if (strlen($cleanPhone) == 10) {
+                    $cleanPhone = "+1{$cleanPhone}";
+                } elseif (!str_starts_with($cleanPhone, '+')) {
+                    $cleanPhone = "+{$cleanPhone}";
+                }
+
+                // Validate phone number length
+                if (strlen($cleanPhone) >= 12) { // +1 + 10 digits minimum
+                    // Send SMS via Twilio
+                    $twilio->messages->create($cleanPhone, [
+                        'from' => $twilioFrom,
+                        'body' => $message,
+                    ]);
+                    $successCount++;
+                    Log::info("Text blast sent to {$cleanPhone}");
+                } else {
+                    $failedNumbers[] = $number . ' (invalid format)';
+                }
             } catch (TwilioException $e) {
-                $failedNumbers[] = $number;
+                $failedNumbers[] = $number . ' (send failed)';
+                Log::error("Text blast failed for {$number}: " . $e->getMessage());
+            } catch (\Exception $e) {
+                $failedNumbers[] = $number . ' (error)';
+                Log::error("Text blast error for {$number}: " . $e->getMessage());
             }
         }
 
-        // Prepare feedback message
-        if (count($failedNumbers) > 0) {
-            $failedList = implode(', ', $failedNumbers);
-            return redirect()->back()->with('warning', "Text blast sent, but failed for: $failedList");
+        // Prepare response message
+        $responseMessage = "Text blast completed! Sent to {$successCount} number(s)";
+        if (!empty($failedNumbers)) {
+            $responseMessage .= ". Failed: " . implode(', ', $failedNumbers);
         }
 
-        return redirect()->back()->with('success', 'Text blast sent successfully!');
+        // Return JSON response for AJAX
+        if ($successCount > 0) {
+            return response()->json([
+                'success' => $responseMessage,
+                'sent_count' => $successCount,
+                'failed_count' => count($failedNumbers),
+                'failed_numbers' => $failedNumbers
+            ]);
+        } else {
+            return response()->json([
+                'error' => 'Text blast failed for all numbers: ' . implode(', ', $failedNumbers)
+            ], 500);
+        }
     }
 
     /**

@@ -1,6 +1,10 @@
 @extends('layouts.app')
 @section('title', 'Admin Dashboard')
 
+@section('head')
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+@endsection
+
 @section('content')
 <div class="min-h-screen bg-gray-50 py-6">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -89,6 +93,7 @@
                     </div>
                 </button>
 
+                @if(Auth::user()->is_super_admin)
                 <button onclick="loadSettings()" class="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow text-left">
                     <div class="flex items-center">
                         <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center mb-3">
@@ -100,6 +105,7 @@
                         </div>
                     </div>
                 </button>
+                @endif
 
                 <button onclick="runHealthCheck()" class="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow text-left">
                     <div class="flex items-center">
@@ -113,6 +119,7 @@
                     </div>
                 </button>
 
+                @if(Auth::user()->is_super_admin)
                 <button onclick="loadMaintenance()" class="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow text-left">
                     <div class="flex items-center">
                         <div class="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center mb-3">
@@ -148,6 +155,7 @@
                         </div>
                     </div>
                 </button>
+                @endif
             </div>
         </div>
 
@@ -186,6 +194,7 @@ async function loadDashboardStats() {
         const data = await response.json();
 
         const statsHtml = `
+            ${ {{ Auth::user()->is_super_admin ? 'true' : 'false' }} ? `
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
@@ -196,7 +205,7 @@ async function loadDashboardStats() {
                         <p class="text-2xl font-semibold text-gray-900">${data.stats.company_stats?.total_companies || 0}</p>
                     </div>
                 </div>
-            </div>
+            </div>` : ''}
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
@@ -375,12 +384,12 @@ async function loadReports() {
                 <div>
                     <h4 class="font-medium text-gray-900 mb-3">Package Status Distribution</h4>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        ${Object.entries(data.statusDistribution).map(([status, count]) => `
+                        ${data.statusDistribution && Object.entries(data.statusDistribution).map(([status, count]) => `
                             <div class="bg-white border rounded-lg p-4">
                                 <h5 class="text-sm font-medium text-gray-600">${status}</h5>
                                 <p class="text-2xl font-bold text-gray-900">${count}</p>
                             </div>
-                        `).join('')}
+                        `).join('') || '<div class="text-gray-500">No status data available</div>'}
                     </div>
                 </div>
             </div>
@@ -547,12 +556,12 @@ async function loadPackageAnalytics() {
                 <div class="mb-6">
                     <h4 class="font-medium text-gray-900 mb-3">Package Status Distribution</h4>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        ${Object.entries(data.statusDistribution).map(([status, count]) => `
+                        ${data.statusDistribution && Object.entries(data.statusDistribution).map(([status, count]) => `
                             <div class="bg-white border rounded-lg p-4">
                                 <h5 class="text-sm font-medium text-gray-600">${status}</h5>
                                 <p class="text-2xl font-bold text-blue-600">${count}</p>
                             </div>
-                        `).join('')}
+                        `).join('') || '<div class="text-gray-500">No status data available</div>'}
                     </div>
                 </div>
 
@@ -673,15 +682,88 @@ async function loadUserManagement() {
                     <button onclick="showCreateUserForm()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors">
                         + Create User
                     </button>
+                    @if(Auth::user()->is_super_admin)
                     <button onclick="showCreateCompanyForm()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors">
                         + Create Company
                     </button>
+                    @endif
                     <button onclick="loadUserManagement()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors">
                         🔄 Refresh
                     </button>
                 </div>
 
                 <!-- Create User Form (Hidden by default) -->
+                <div id="create-user-form" class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4" style="display: none;">
+                    <h4 class="font-medium text-blue-900 mb-3">Create New User</h4>
+                    <form onsubmit="createUser(event)">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                                <input type="text" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                                <input type="text" name="username" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <input type="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                                <input type="password" name="password" required minlength="8" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                                <input type="password" name="password_confirmation" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            @if(Auth::user()->is_super_admin)
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                                <select name="company_id" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select Company</option>
+                                    ${companiesData.companies.filter(c => c.status === 'active').map(company => `
+                                        <option value="${company.id}">${company.name}</option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                <select name="role" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select Role</option>
+                                    <option value="admin">Admin</option>
+                                    <option value="user">User</option>
+                                </select>
+                            </div>
+                            @else
+                            <input type="hidden" name="company_id" value="{{ Auth::user()->company_id }}">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                <select name="role" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select Role</option>
+                                    <option value="user">User</option>
+                                </select>
+                            </div>
+                            <div class="text-sm text-gray-600 pt-2">
+                                <strong>Company:</strong> {{ Auth::user()->company->name ?? 'No Company' }}
+                            </div>
+                            @endif
+                        </div>
+                        @if(Auth::user()->is_super_admin)
+                        <div class="mt-4">
+                            <div class="flex items-center">
+                                <input type="checkbox" name="is_super_admin" id="create_is_super_admin" class="mr-2">
+                                <label for="create_is_super_admin" class="text-sm font-medium text-gray-700">Super Admin</label>
+                                <span class="ml-2 text-xs text-gray-500">(Overrides role selection)</span>
+                            </div>
+                        </div>
+                        @endif
+                        <div class="mt-4 flex gap-2">
+                            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Create User</button>
+                            <button type="button" onclick="hideCreateUserForm()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Cancel</button>
+                        </div>
+                    </form>
+                </div>
                 <div id="create-user-form" class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4" style="display: none;">
                     <h4 class="font-medium text-blue-900 mb-3">Create New User</h4>
                     <form onsubmit="createUser(event)">
@@ -724,13 +806,15 @@ async function loadUserManagement() {
                                 </select>
                             </div>
                         </div>
+                        @if(Auth::user()->is_super_admin)
                         <div class="mt-4">
                             <div class="flex items-center">
-                                <input type="checkbox" name="is_super_admin" id="is_super_admin" class="mr-2">
-                                <label for="is_super_admin" class="text-sm font-medium text-gray-700">Super Admin</label>
+                                <input type="checkbox" name="is_super_admin" id="edit_is_super_admin" class="mr-2">
+                                <label for="edit_is_super_admin" class="text-sm font-medium text-gray-700">Super Admin</label>
                                 <span class="ml-2 text-xs text-gray-500">(Overrides role selection)</span>
                             </div>
                         </div>
+                        @endif
                         <div class="mt-4 flex gap-2">
                             <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Create User</button>
                             <button type="button" onclick="hideCreateUserForm()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Cancel</button>
@@ -766,6 +850,7 @@ async function loadUserManagement() {
                     </form>
                 </div>
 
+                @if(Auth::user()->is_super_admin)
                 <!-- Companies -->
                 <div class="mb-8">
                     <h4 class="font-medium text-gray-900 mb-3">Companies Overview</h4>
@@ -807,6 +892,7 @@ async function loadUserManagement() {
                         </div>
                     </div>
                 </div>
+                @endif
 
                 <!-- Users -->
                 <div>
@@ -820,7 +906,9 @@ async function loadUserManagement() {
                                         <th class="text-left py-2">Email</th>
                                         <th class="text-left py-2">Company</th>
                                         <th class="text-left py-2">Role</th>
-                                        <th class="text-center py-2">Admin</th>
+                                        @if(Auth::user()->is_super_admin)
+                                        <th class="text-center py-2">Super Admin</th>
+                                        @endif
                                         <th class="text-right py-2">Last Login</th>
                                         <th class="text-right py-2">Created</th>
                                         <th class="text-center py-2">Actions</th>
@@ -832,13 +920,13 @@ async function loadUserManagement() {
                                             <td class="py-2 font-medium">${user.name}</td>
                                             <td class="py-2">${user.email}</td>
                                             <td class="py-2">
-                                                ${user.is_super_admin ?
-                                                    '<span class="text-sm text-gray-600">No Company</span>' :
+                                                ${user.company ?
                                                     `<select onchange="updateUserCompany(${user.id}, this.value)" class="text-xs border rounded px-1 py-1 bg-gray-50">
                                                         ${companiesData.companies.filter(c => c.status === 'active').map(company => `
                                                             <option value="${company.id}" ${user.company === company.name ? 'selected' : ''}>${company.name}</option>
                                                         `).join('')}
-                                                    </select>`
+                                                    </select>` :
+                                                    '<span class="text-sm text-gray-600">No Company</span>'
                                                 }
                                             </td>
                                             <td class="py-2">
@@ -855,9 +943,11 @@ async function loadUserManagement() {
                                                     </select>`
                                                 }
                                             </td>
+                                            @if(Auth::user()->is_super_admin)
                                             <td class="text-center py-2">
                                                 <input type="checkbox" ${user.is_super_admin ? 'checked' : ''} onchange="updateUserRole(${user.id}, this.checked)" class="rounded">
                                             </td>
+                                            @endif
                                             <td class="text-right py-2 text-xs text-gray-500">${user.last_login}</td>
                                             <td class="text-right py-2 text-xs text-gray-500">${user.created_at}</td>
                                             <td class="text-center py-2">
@@ -1125,7 +1215,7 @@ async function deleteUser(userId) {
 // Function to update regular user roles (not super admin)
 async function updateUserRegularRole(userId, role) {
     try {
-        const response = await fetch(`{{ url('admin/users') }}/${userId}/assign-role`, {
+        const response = await fetch(`{{ url('/admin/users') }}/${userId}/assign-role`, {
             method: 'PUT',
             headers: {
                 'Accept': 'application/json',
@@ -1140,6 +1230,8 @@ async function updateUserRegularRole(userId, role) {
 
         if (data.success) {
             showToast('User role updated successfully!', 'success');
+            // Refresh user list to show updated role
+            loadUserManagement();
         } else {
             showToast('Error: ' + data.message, 'error');
             // Revert dropdown
@@ -1238,7 +1330,9 @@ async function updateUserCompany(userId, companyId) {
         const data = await response.json();
 
         if (data.success) {
-            showToast('User company updated successfully!', 'success');
+            showToast('User company updated successfully! Role reset to User.', 'success');
+            // Refresh user list to show updated role assignments
+            loadUserManagement();
         } else {
             showToast('Error: ' + data.message, 'error');
             loadUserManagement();

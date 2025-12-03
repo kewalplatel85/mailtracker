@@ -75,23 +75,6 @@
             </form>
           </div>
 
-          <div class="mt-10">
-            <div class="relative">
-              <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                <div class="w-full border-t border-gray-200"></div>
-              </div>
-              <div class="relative flex justify-center text-sm/6 font-medium">
-                <span class="bg-white px-6 text-gray-900">Or continue with</span>
-              </div>
-            </div>
-
-            <div>
-                <a href="{{ route('register') }}">
-                <button class="flex w-full justify-center rounded-md bg-green-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Register User</button>
-                </a>
-            </div>
-
-          </div>
         </div>
       </div>
     </div>

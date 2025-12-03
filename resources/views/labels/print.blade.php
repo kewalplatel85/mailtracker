@@ -335,7 +335,13 @@
                             @endif
                         </div>
                         <div class="label-expiry">
-                            Expires: {{ $package->created_at->addDays(30)->format('n/j/Y') }}
+                            Expires: {{
+                                (isset($package->due_date) && $package->due_date && $package->due_date !== 'N/A')
+                                    ? \Carbon\Carbon::parse($package->due_date)->format('n/j/Y')
+                                    : (is_string($package->created_at)
+                                        ? \Carbon\Carbon::parse($package->created_at)->addDays(30)->format('n/j/Y')
+                                        : $package->created_at->addDays(30)->format('n/j/Y'))
+                            }}
                         </div>
                     </div>
                 @endforeach

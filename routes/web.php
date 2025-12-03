@@ -29,34 +29,36 @@ Route::post('/register', [RegisterController::class, 'register']);
 Route::post('password/email', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
 Route::post('password/reset', [ResetPasswordController::class, 'reset'])->name('password.update');
 
-// dashboard
-Route::get('/dashboard',[DashboardController::class,'index'])->name('dashboard');
-Route::get('/get-last-package-id', [PackageController::class, 'getLastPackageID']);
-Route::get('/get-packages-by-mailbox/{mailbox}',[PackageController::class, 'getPackagesByMailbox'])->name('packages.by.mailbox');
-Route::get('/upload', function() { return redirect()->route('dashboard'); }); // Redirect GET requests to dashboard
-Route::post('/upload', [FileUploadController::class, 'upload'])->name('upload');
-Route::post('/saveAndNotify',[DashboardController::class,'savePackage'])->name('saveAndNotify');
-Route::post('/update-csv', [FileUploadController::class, 'updateCsv'])->name('update.csv');
-Route::post('/check-tracking',[PackageController::class, 'checkTrackingNumberExist'])->name('check.tracking.number');
-Route::post('/outgoing-packge',[PackageController::class,'outgoingPackage'])->middleware(['auth'])->name('outgoing.package');
-Route::post('/delete-package', [PackageController::class, 'deletePackage'])->name('delete.package');
-Route::post('/updatePackageStatus', [PackageController::class, 'updateStatus'])->name('package.updateStatus');
-Route::post('/packages/mark-picked-up', [PackageController::class, 'markAsPickedUp'])->middleware(['auth'])->name('packages.mark-picked-up');
-Route::post('/packages/bulk-mark-picked-up', [PackageController::class, 'bulkMarkAsPickedUp'])->middleware(['auth'])->name('packages.bulk-mark-picked-up');
+// dashboard - requires authentication
+Route::middleware(['auth'])->group(function () {
+    Route::get('/dashboard',[DashboardController::class,'index'])->name('dashboard');
+    Route::get('/get-last-package-id', [PackageController::class, 'getLastPackageID']);
+    Route::get('/get-packages-by-mailbox/{mailbox}',[PackageController::class, 'getPackagesByMailbox'])->name('packages.by.mailbox');
+    Route::get('/upload', function() { return redirect()->route('dashboard'); }); // Redirect GET requests to dashboard
+    Route::post('/upload', [FileUploadController::class, 'upload'])->name('upload');
+    Route::post('/saveAndNotify',[DashboardController::class,'savePackage'])->name('saveAndNotify');
+    Route::post('/update-csv', [FileUploadController::class, 'updateCsv'])->name('update.csv');
+    Route::post('/check-tracking',[PackageController::class, 'checkTrackingNumberExist'])->name('check.tracking.number');
+    Route::post('/outgoing-packge',[PackageController::class,'outgoingPackage'])->name('outgoing.package');
+    Route::post('/delete-package', [PackageController::class, 'deletePackage'])->name('delete.package');
+    Route::post('/updatePackageStatus', [PackageController::class, 'updateStatus'])->name('package.updateStatus');
+    Route::post('/packages/mark-picked-up', [PackageController::class, 'markAsPickedUp'])->name('packages.mark-picked-up');
+    Route::post('/packages/bulk-mark-picked-up', [PackageController::class, 'bulkMarkAsPickedUp'])->name('packages.bulk-mark-picked-up');
 
-// messages
-Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
-Route::post('/send-message', [MessageController::class, 'sendMessage'])->name('messages.send');
-Route::post('/send-reply', [MessageController::class, 'sendReply'])->name('send.reply');
-Route::post('/textblast', [MessageController::class, 'sendTextBlast'])->name('messages.textblast');
-Route::post('/send-quick-message', [MessageController::class, 'sendQuickMessage'])->middleware(['auth'])->name('messages.quick');
-Route::post('/send-renewal-reminder', [MessageController::class, 'sendRenewalReminder'])->middleware(['auth'])->name('messages.renewal');
+    // messages
+    Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
+    Route::post('/send-message', [MessageController::class, 'sendMessage'])->name('messages.send');
+    Route::post('/send-reply', [MessageController::class, 'sendReply'])->name('send.reply');
+    Route::post('/textblast', [MessageController::class, 'sendTextBlast'])->name('messages.textblast');
+    Route::post('/send-quick-message', [MessageController::class, 'sendQuickMessage'])->name('messages.quick');
+    Route::post('/send-renewal-reminder', [MessageController::class, 'sendRenewalReminder'])->name('messages.renewal');
 
-// Storage label printing routes
-Route::get('/labels', [LabelController::class, 'index'])->middleware(['auth'])->name('labels.index');
-Route::get('/labels/single/{id}', [LabelController::class, 'generateSingle'])->middleware(['auth'])->name('labels.single');
-Route::post('/labels/preview', [LabelController::class, 'generatePreview'])->middleware(['auth'])->name('labels.preview');
-Route::post('/labels/preview-multiple', [LabelController::class, 'generatePreviewMultiple'])->middleware(['auth'])->name('labels.preview-multiple');
+    // Storage label printing routes
+    Route::get('/labels', [LabelController::class, 'index'])->name('labels.index');
+    Route::get('/labels/single/{id}', [LabelController::class, 'generateSingle'])->name('labels.single');
+    Route::post('/labels/preview', [LabelController::class, 'generatePreview'])->name('labels.preview');
+    Route::post('/labels/preview-multiple', [LabelController::class, 'generatePreviewMultiple'])->name('labels.preview-multiple');
+});
 
 // Company management routes (requires authentication)
 Route::middleware(['auth'])->group(function () {

@@ -7,6 +7,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'My App')</title>
 
+    @yield('head')
+
     <!-- Toast Animation Styles -->
     <style>
         @keyframes fadeInDown {
