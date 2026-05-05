@@ -46,12 +46,14 @@ class BookingController extends Controller
         $validated['queue_number'] = Booking::generateQueueNumber(now()->toDateString());
         $validated['status'] = 'pending';
 
-        Booking::create($validated);
-         // Send SMS notification
+        $booking = Booking::create($validated);
+
+        // Send SMS with queue number
         $smsSent = $this->smsService->sendQueueNotification($booking);
 
+        // Pass the model directly (not toArray()) so the view can handle both
         return view('booking.confirmation', [
-            'booking' => $validated,
+            'booking' => $booking,  // Pass the model object
             'service_name' => Booking::getServices()[$validated['service']],
             'sms_sent' => $smsSent,
         ]);
