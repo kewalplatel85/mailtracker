@@ -36,7 +36,7 @@ class BookingEventController extends Controller
         $event = BookingEvent::create($validated);
         $event->generateQrCode();
 
-        return redirect()->route('booking-events.show', $event)
+        return redirect()->route('admin.booking-events.show', $event)
             ->with('success', 'Booking event created successfully.');
     }
 
