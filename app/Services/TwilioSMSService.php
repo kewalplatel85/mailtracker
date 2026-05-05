@@ -15,9 +15,9 @@ class TwilioSMSService
     {
         $this->client = new Client(
             config('services.twilio.sid'),
-            config('services.twilio.auth_token')
+            config('services.twilio.token')
         );
-        $this->fromNumber = config('services.twilio.phone_number');
+        $this->fromNumber = config('services.twilio.from');
     }
 
     /**
