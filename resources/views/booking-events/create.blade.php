@@ -42,6 +42,7 @@
         <div>
             <label class="block font-medium">Interval Per Person (minutes)</label>
             <select name="interval_minutes" class="w-full border rounded px-3 py-2">
+                <option value="3">3 minutes (20 per hour)</option>
                 <option value="5">5 minutes (12 per hour)</option>
                 <option value="10" selected>10 minutes (6 per hour)</option>
                 <option value="15">15 minutes (4 per hour)</option>
