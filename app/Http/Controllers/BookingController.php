@@ -7,9 +7,18 @@ use App\Models\Booking;
 use App\Models\BookingEvent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
+use Twilio\Rest\Client;
+use Illuminate\Support\Facades\Log;
+use App\Services\TwilioSMSService;
 class BookingController extends Controller
 {
+    protected $smsService;
+
+    public function __construct(TwilioSMSService $smsService)
+    {
+        $this->smsService = $smsService;
+    }
+
     /**
      * Show walk-in registration form
      */
@@ -38,13 +47,58 @@ class BookingController extends Controller
         $validated['status'] = 'pending';
 
         Booking::create($validated);
+         // Send SMS notification
+        $smsSent = $this->smsService->sendQueueNotification($booking);
 
         return view('booking.confirmation', [
             'booking' => $validated,
             'service_name' => Booking::getServices()[$validated['service']],
+            'sms_sent' => $smsSent,
         ]);
     }
 
+      /**
+        * Send SMS notification to walk-in client
+     */
+    private function sendWalkInSMS($booking)
+    {
+        try {
+            // Format phone number (remove any non-numeric characters)
+            $phoneNumber = preg_replace('/[^0-9]/', '', $booking->contact_number);
+
+            // Add country code if not present (assuming US +1)
+            if (strlen($phoneNumber) == 10) {
+                $phoneNumber = '+1' . $phoneNumber;
+            } elseif (strlen($phoneNumber) > 10 && substr($phoneNumber, 0, 1) != '+') {
+                $phoneNumber = '+' . $phoneNumber;
+            }
+
+            $twilio = new Client(
+                env('TWILIO_SID'),
+                env('TWILIO_AUTH_TOKEN')
+            );
+
+            $message = "Hi {$booking->name}, your walk-in queue number is #{$booking->queue_number}. ";
+            $message .= "Service: " . Booking::getServices()[$booking->service] . ". ";
+            $message .= "Date: " . now()->format('M d, Y') . ". ";
+            $message .= "Please wait for your number to be called. Thank you!";
+
+            $twilio->messages->create(
+                $phoneNumber,
+                [
+                    'from' => env('TWILIO_PHONE_NUMBER'),
+                    'body' => $message
+                ]
+            );
+
+            Log::info("SMS sent to {$booking->name} for queue #{$booking->queue_number}");
+            return true;
+
+        } catch (\Exception $e) {
+            Log::error("Failed to send SMS to {$booking->name}: " . $e->getMessage());
+            return false;
+        }
+    }
     /**
      * Show appointment booking form
      */
@@ -130,11 +184,15 @@ class BookingController extends Controller
                 ]);
             }, 3);
 
+            // Success - Send SMS confirmation for appointment
+            $smsSent = $this->smsService->sendAppointmentConfirmation($booking);
+
             // Success - show confirmation
             return view('booking.confirmation', [
                 'booking' => $booking->toArray(),
                 'service_name' => Booking::getServices()[$validated['service']],
                 'event' => $event,
+                'sms_sent' => $smsSent,
             ]);
 
         } catch (\Illuminate\Database\QueryException $e) {
