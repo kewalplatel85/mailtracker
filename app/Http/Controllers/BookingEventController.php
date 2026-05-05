@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 use App\Models\BookingEvent;
 use Illuminate\Http\Request;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Illuminate\Support\Facades\DB;
 
 class BookingEventController extends Controller
 {
@@ -53,8 +54,18 @@ class BookingEventController extends Controller
 
     public function destroy(BookingEvent $bookingEvent)
     {
-        $bookingEvent->update(['status' => 'cancelled']);
-        return back()->with('success', 'Event cancelled.');
+        // Cancel the entire event - cancel all bookings too
+        DB::transaction(function () use ($bookingEvent) {
+            // Cancel all appointments in this event
+            $bookingEvent->bookings()
+                ->where('status', '!=', 'cancelled')
+                ->update(['status' => 'cancelled']);
+
+            // Cancel the event itself
+            $bookingEvent->update(['status' => 'cancelled']);
+        });
+
+        return back()->with('success', 'Event cancelled and all time slots freed.');
     }
 
     /**

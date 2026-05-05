@@ -38,8 +38,29 @@ class AdminBookingController extends Controller
             'status' => 'required|in:pending,checked_in,completed,no_show,cancelled'
         ]);
 
-        $booking->update(['status' => $request->status]);
+        $oldStatus = $booking->status;
+        $newStatus = $request->status;
 
-        return back()->with('success', 'Booking status updated successfully.');
+        $booking->update(['status' => $newStatus]);
+
+        // Clear the event's slot cache when cancelling
+        if ($newStatus === 'cancelled' && $booking->bookingEvent) {
+            $booking->bookingEvent->clearSlotCache();
+        }
+
+        // Send SMS if checking in
+        if ($newStatus === 'checked_in') {
+            // Optional: Send "you're checked in" SMS
+        }
+
+        $message = match($newStatus) {
+            'cancelled' => 'Booking cancelled. Time slot is now available for others.',
+            'checked_in' => 'Client checked in successfully.',
+            'completed' => 'Booking marked as completed.',
+            'no_show' => 'Client marked as no-show.',
+            default => 'Booking status updated.'
+        };
+
+        return back()->with('success', $message);
     }
 }

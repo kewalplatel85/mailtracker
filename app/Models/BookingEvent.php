@@ -48,7 +48,6 @@ class BookingEvent extends Model
      */
     public function generateTimeSlots(): array
     {
-        // Return cached slots if available (per request cache)
         if ($this->cachedSlots !== null) {
             return $this->cachedSlots;
         }
@@ -57,18 +56,17 @@ class BookingEvent extends Model
         $startTime = $this->start_time;
         $endTime = $this->end_time;
 
-        // Convert to timestamps
         $start = strtotime($startTime);
         $end = strtotime($endTime);
         $interval = $this->interval_minutes * 60;
 
-        // Get all booked slots in ONE query
+        // Get all booked slots - EXCLUDING cancelled bookings
         $bookedSlots = $this->bookings()
             ->where('booking_date', $this->event_date)
-            ->where('status', '!=', 'cancelled')
+            ->where('status', '!=', 'cancelled')  // ✅ This must be here
             ->pluck('time_slot')
             ->map(function ($time) {
-                return substr($time, 0, 5); // Normalize to HH:MM
+                return substr($time, 0, 5);
             })
             ->toArray();
 
@@ -81,7 +79,6 @@ class BookingEvent extends Model
             ];
         }
 
-        // Cache in memory for this request
         $this->cachedSlots = $slots;
 
         return $slots;
