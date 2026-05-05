@@ -13,7 +13,14 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\LabelController;
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\BookingEventController;
+use App\Http\Controllers\BookingController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Http\Request;
+
+
 
 Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
 
@@ -101,3 +108,61 @@ Route::get('/test-email', function () {
     });
     return 'Email sent!';
 });
+
+// ============================================
+// BOOKING SYSTEM ADMIN ROUTES
+// ============================================
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+
+    // Booking Events Management
+    Route::get('/booking-events', [BookingEventController::class, 'index'])
+        ->name('booking-events.index');
+
+    Route::get('/booking-events/create', [BookingEventController::class, 'create'])
+        ->name('booking-events.create');
+
+    Route::post('/booking-events', [BookingEventController::class, 'store'])
+        ->name('booking-events.store');
+
+    Route::get('/booking-events/{bookingEvent}', [BookingEventController::class, 'show'])
+        ->name('booking-events.show');
+
+    Route::delete('/booking-events/{bookingEvent}', [BookingEventController::class, 'destroy'])
+        ->name('booking-events.destroy');
+
+    // Walk-in QR Code
+    Route::get('/walk-in-qr', [BookingEventController::class, 'walkInQr'])
+        ->name('walk-in.qr');
+
+    // Manual Booking Management
+    Route::get('/bookings', [App\Http\Controllers\AdminBookingController::class, 'index'])
+        ->name('bookings.index');
+
+    Route::patch('/bookings/{booking}/status', [App\Http\Controllers\AdminBookingController::class, 'updateStatus'])
+        ->name('bookings.update-status');
+
+    // Reports
+    Route::get('/reports', [ReportController::class, 'index'])
+        ->name('reports.index');
+
+    Route::post('/reports/generate', [ReportController::class, 'generate'])
+        ->name('reports.generate');
+
+    Route::get('/reports/export', [ReportController::class, 'exportCsv'])
+        ->name('reports.export');
+});
+
+// ============================================
+// PUBLIC BOOKING ROUTES (NO AUTH REQUIRED)
+// ============================================
+Route::get('/walk-in', [BookingController::class, 'walkInForm'])
+    ->name('booking.walk-in');
+
+Route::post('/walk-in', [BookingController::class, 'storeWalkIn'])
+    ->name('booking.walk-in.store');
+
+Route::get('/book/{link}', [BookingController::class, 'appointmentForm'])
+    ->name('booking.appointment');
+
+Route::post('/book/{link}', [BookingController::class, 'storeAppointment'])
+    ->name('booking.appointment.store');

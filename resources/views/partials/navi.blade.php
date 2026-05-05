@@ -15,10 +15,63 @@
                         <div class="ml-10 flex items-baseline space-x-4">
                             <a href="{{route('dashboard')}}" data-route="{{url(route('dashboard'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-white" aria-current="page">Dashboard</a>
                             <a href="{{route('labels.index')}}" data-route="{{url(route('labels.index'))}}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Storage Labels</a>
+
+                            {{-- Booking System Admin Links --}}
+                            <div class="relative group">
+                                <button class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white inline-flex items-center">
+                                    Booking System
+                                    <svg class="ml-1 size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                    </svg>
+                                </button>
+                                <div class="absolute left-0 z-10 mt-0 w-56 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 hidden group-hover:block">
+                                    <div class="py-1">
+                                        <a href="{{ route('admin.booking-events.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Manage Events</a>
+                                        <a href="{{ route('admin.booking-events.create') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Create New Event</a>
+                                        <a href="{{ route('admin.bookings.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">All Bookings</a>
+                                        <a href="{{ route('admin.reports.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Reports</a>
+                                        <div class="border-t border-gray-100"></div>
+                                        <a href="{{ route('booking.walk-in') }}" class="block px-4 py-2 text-sm text-blue-600 hover:bg-blue-50" target="_blank">Walk-in Form ↗</a>
+                                        <a href="{{ route('admin.walk-in.qr') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" target="_blank">Walk-in QR Code ↗</a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Client-Facing Links (Visible to everyone) --}}
+                            <div class="relative group">
+                                <button class="nav-link rounded-md px-3 py-2 text-sm font-medium text-green-300 hover:bg-gray-700 hover:text-white inline-flex items-center">
+                                    Client Access
+                                    <svg class="ml-1 size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                    </svg>
+                                </button>
+                                <div class="absolute left-0 z-10 mt-0 w-56 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 hidden group-hover:block">
+                                    <div class="py-1">
+                                        <a href="{{ route('booking.walk-in') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" target="_blank">Walk-in Registration</a>
+                                        <a href="{{ route('admin.walk-in.qr') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" target="_blank">Download Walk-in QR</a>
+                                        <div class="border-t border-gray-100"></div>
+                                        <span class="block px-4 py-2 text-xs text-gray-400">Active Events:</span>
+                                        @php
+                                            $activeEvents = \App\Models\BookingEvent::where('status', 'active')
+                                                ->where('event_date', '>=', now()->toDateString())
+                                                ->orderBy('event_date')
+                                                ->take(5)
+                                                ->get();
+                                        @endphp
+                                        @forelse($activeEvents as $event)
+                                            <a href="{{ $event->getBookingLink() }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" target="_blank">
+                                                {{ $event->title }} ({{ $event->event_date->format('M d') }})
+                                            </a>
+                                        @empty
+                                            <span class="block px-4 py-2 text-sm text-gray-400">No active events</span>
+                                        @endforelse
+                                    </div>
+                                </div>
+                            </div>
+
                             @can('users.view')
                             <a href="{{ route('admin.users.index') }}" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Users</a>
                             @endcan
-                            {{-- <a href="#" class="nav-link rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Custom SMS</a> --}}
                         </div>
                     </div>
                 </div>
@@ -156,10 +209,38 @@
                 @endif
                 <a href="{{route('dashboard')}}" data-route="{{url(route('dashboard'))}}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-white" aria-current="page">Dashboard</a>
                 <a href="{{route('labels.index')}}" data-route="{{url(route('labels.index'))}}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Storage Labels</a>
+
+                {{-- Mobile Booking System Links --}}
+                <div class="border-t border-gray-700 pt-2 mt-2">
+                    <span class="block px-3 py-1 text-xs font-medium text-gray-400 uppercase">Booking System</span>
+                    <a href="{{ route('admin.booking-events.index') }}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Manage Events</a>
+                    <a href="{{ route('admin.booking-events.create') }}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Create New Event</a>
+                    <a href="{{ route('admin.bookings.index') }}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">All Bookings</a>
+                    <a href="{{ route('admin.reports.index') }}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Reports</a>
+                </div>
+
+                {{-- Mobile Client Access Links --}}
+                <div class="border-t border-gray-700 pt-2 mt-2">
+                    <span class="block px-3 py-1 text-xs font-medium text-green-400 uppercase">Client Access</span>
+                    <a href="{{ route('booking.walk-in') }}" class="block rounded-md px-3 py-2 text-base font-medium text-green-300 hover:bg-gray-700 hover:text-white" target="_blank">Walk-in Registration ↗</a>
+                    <a href="{{ route('admin.walk-in.qr') }}" class="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white" target="_blank">Download Walk-in QR ↗</a>
+                    @php
+                        $activeEvents = \App\Models\BookingEvent::where('status', 'active')
+                            ->where('event_date', '>=', now()->toDateString())
+                            ->orderBy('event_date')
+                            ->take(3)
+                            ->get();
+                    @endphp
+                    @foreach($activeEvents as $event)
+                        <a href="{{ $event->getBookingLink() }}" class="block rounded-md px-3 py-2 text-sm font-medium text-gray-400 hover:bg-gray-700 hover:text-white" target="_blank">
+                            📅 {{ $event->title }} ({{ $event->event_date->format('M d') }})
+                        </a>
+                    @endforeach
+                </div>
+
                 @can('users.view')
                 <a href="{{ route('admin.users.index') }}" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Users</a>
                 @endcan
-                {{-- <a href="#" class="nav-link block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Custom SMS</a> --}}
             </div>
             <div class="border-t border-gray-700 pt-4 pb-3">
                 <div class="flex items-center px-5">
@@ -211,8 +292,6 @@
                     </button>
                 </div>
                 <div class="mt-3 space-y-1 px-2">
-                    {{-- <a href="#" class="block rounded-md px-3 py-2 text-base font-medium text-gray-400 hover:bg-gray-700 hover:text-white">Your Profile</a>
-                    <a href="#" class="block rounded-md px-3 py-2 text-base font-medium text-gray-400 hover:bg-gray-700 hover:text-white">Settings</a> --}}
                     <a href="#" class="block rounded-md px-3 py-2 text-base font-medium text-gray-400 hover:bg-gray-700 hover:text-white" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Sign out</a>
                         <form id="logout-form" action="{{route('logout')}}" method="POST" style="display: none">
                             @csrf
@@ -255,4 +334,26 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 @endif
+
+// Mobile menu toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const mobileMenuButton = document.querySelector('[aria-controls="mobile-menu"]');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    if (mobileMenuButton && mobileMenu) {
+        mobileMenuButton.addEventListener('click', function() {
+            const expanded = this.getAttribute('aria-expanded') === 'true';
+            this.setAttribute('aria-expanded', !expanded);
+            mobileMenu.classList.toggle('hidden');
+
+            // Toggle menu icons
+            const menuOpen = this.querySelector('.block');
+            const menuClose = this.querySelector('.hidden');
+            if (menuOpen && menuClose) {
+                menuOpen.classList.toggle('hidden');
+                menuClose.classList.toggle('hidden');
+            }
+        });
+    }
+});
 </script>
