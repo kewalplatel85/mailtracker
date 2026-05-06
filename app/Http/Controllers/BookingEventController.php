@@ -75,10 +75,14 @@ class BookingEventController extends Controller
     {
         $qrPath = 'qr-codes/walk-in-static.svg';
 
-        if (!file_exists(storage_path('app/public/' . $qrPath))) {
-            QrCode::size(300)
-                ->generate(route('booking.walk-in'), storage_path('app/public/' . $qrPath));
+        $url = config('app.url') . '/walk-in';
+
+        // Delete old file
+        if (file_exists(storage_path('app/public/' . $qrPath))) {
+            unlink(storage_path('app/public/' . $qrPath));
         }
+
+        QrCode::size(300)->generate($url, storage_path('app/public/' . $qrPath));
 
         return response()->file(storage_path('app/public/' . $qrPath));
     }
